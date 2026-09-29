@@ -1,0 +1,9 @@
+# space.yaml - Configuración para Hugging Face Spaces
+sdk: docker
+app_port: 7860
+title: BuildSmart Holdings
+emoji: 🏗️
+colorFrom: blue
+colorTo: indigo
+sdk_version: 3.11
+python_version: 3.11

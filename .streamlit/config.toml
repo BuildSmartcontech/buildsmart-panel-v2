@@ -1,0 +1,16 @@
+# .streamlit/config.toml - Configuración para la nube
+
+[theme]
+primaryColor = "#0f3460"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"
+
+[server]
+maxUploadSize = 10
+enableXsrfProtection = true
+enableCORS = false
+
+[browser]
+gatherUsageStats = false

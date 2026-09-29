@@ -1,0 +1,75 @@
+# .gitignore - Archivos que no se suben a GitHub
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.log
+
+# Entorno y secrets
+.env
+.env*
+.streamlit/secrets.toml
+
+# Proyecto
+websites/
+*.db
+*.sqlite3
+assets/
+data/
+_backups/
+*.backup
+
+# IDE
+.vscode/
+.idea/
+
+# Sistema
+Thumbs.db
+.DS_Store
+
+# Tests y archivos de diagnóstico
+test_hf.py
+test_hf_fixed.py
+test_hf_proxy.py
+test_pvideo.py
+test_replicate_kling.py
+test_replicate_svd.py
+test_video_models.py
+test_video_models_fixed.py
+
+# Archivos de backup específicos
+*_backup_*.py
+*_corrupto_*.py
+*.bak
+*.bak2
+*.bak3
+*.py.bak
+*.py.bak2
+*.py.bak3
+
+# Backups de app
+app_backup.py
+app_backup_*.py
+config_app_v3_backup_*.py
+
+# Archivos de respaldo
+NOTAS_PROYECTO_backup_*.md
+RESPALDO_WEBS_*
+pdfs/
+
+# Scripts de subida (no necesarios en repo)
+subir_todo.py
+subir_vision.py
+
+# HTMLs de test
+test_bloque3.html
+test_web_generada.html
+
+# IMPORTANT: NO ignorar requirements.txt
+.git-old/
+*.txt
+.agents/
+.claude/
+!requirements.txt

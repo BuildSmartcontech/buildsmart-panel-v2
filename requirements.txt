@@ -1,0 +1,10 @@
+fastapi==0.115.11
+uvicorn==0.34.0
+streamlit==1.41.1
+langgraph==0.2.74
+litellm>=1.0.0
+requests==2.32.3
+python-dotenv==1.0.1
+httpx==0.27.2
+fpdf==1.7.2
+supabase==2.7.0
