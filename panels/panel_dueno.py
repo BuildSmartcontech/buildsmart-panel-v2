@@ -55,8 +55,11 @@ def renderizar():
     #     st.divider()
 
     # Contenido base (igual que un usuario normal)
-    panel_base.renderizar_seleccion_negocio()
-    panel_base.renderizar_dashboard_negocio()
-    panel_base.renderizar_chat(BACKEND_ACTIVO)
+    # TEMPORALMENTE DESACTIVADO PARA AISLAR LOOP
+    # panel_base.renderizar_seleccion_negocio()
+    # panel_base.renderizar_dashboard_negocio()
+    # panel_base.renderizar_chat(BACKEND_ACTIVO)
 
+    st.write("✅ Si ves esto, el loop se detuvo")
+    
     header_footer.renderizar_footer(BACKEND_ACTIVO, modulos)
