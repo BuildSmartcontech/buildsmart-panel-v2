@@ -36,29 +36,28 @@ def renderizar():
         "research": panel_base.RESEARCH_DISPONIBLE,
     }
 
-    # TODO DESACTIVADO PARA AISLAR LOOP
-    # header_footer.renderizar_header(BACKEND_ACTIVO, modulos)
+    header_footer.renderizar_header(BACKEND_ACTIVO, modulos)
 
-    # accion = sidebar.renderizar_sidebar(BACKEND_ACTIVO, modulos, st.session_state.negocios)
+    accion = sidebar.renderizar_sidebar(BACKEND_ACTIVO, modulos, st.session_state.negocios)
 
-    # if accion:
-    #     if accion.get("accion") == "crear_negocio":
-    #         panel_base.crear_negocio(accion["nombre"], accion["icono"], accion["descripcion"])
-    #         st.rerun()
-    #     elif accion.get("accion") == "seleccionar_negocio":
-    #         st.session_state.negocio_seleccionado = accion["negocio_id"]
-    #         st.rerun()
+    if accion:
+        if accion.get("accion") == "crear_negocio":
+            panel_base.crear_negocio(accion["nombre"], accion["icono"], accion["descripcion"])
+            st.rerun()
+        elif accion.get("accion") == "seleccionar_negocio":
+            st.session_state.negocio_seleccionado = accion["negocio_id"]
+            st.rerun()
 
     # Bloque CONTROL TOTAL (solo si es dueno)
-    # if ES_DUENO:
-    #     renderizar_control_total()
-    #     st.divider()
+    if ES_DUENO:
+        renderizar_control_total()
+        st.divider()
 
     # Contenido base (igual que un usuario normal)
-    # panel_base.renderizar_seleccion_negocio()
-    # panel_base.renderizar_dashboard_negocio()
+    panel_base.renderizar_seleccion_negocio()
+    panel_base.renderizar_dashboard_negocio()
+    
+    # CHAT DESACTIVADO TEMPORALMENTE PARA EVITAR LOOP INFINITO
     # panel_base.renderizar_chat(BACKEND_ACTIVO)
 
-    # header_footer.renderizar_footer(BACKEND_ACTIVO, modulos)
-
-    st.write("✅ LOOP DETENIDO - El bug está en sidebar o header_footer")
+    header_footer.renderizar_footer(BACKEND_ACTIVO, modulos)
