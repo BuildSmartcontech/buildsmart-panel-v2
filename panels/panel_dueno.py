@@ -49,9 +49,10 @@ def renderizar():
             st.rerun()
 
     # Bloque CONTROL TOTAL (solo si es dueno)
-    if ES_DUENO:
-        renderizar_control_total()
-        st.divider()
+    # TEMPORALMENTE DESACTIVADO PARA DIAGNOSTICAR LOOP INFINITO
+    # if ES_DUENO:
+    #     renderizar_control_total()
+    #     st.divider()
 
     # Contenido base (igual que un usuario normal)
     panel_base.renderizar_seleccion_negocio()
