@@ -73,3 +73,12 @@ test_web_generada.html
 .agents/
 .claude/
 !requirements.txt
+
+# Archivos gigantes y entornos virtuales
+TODO_EL_PROYECTO.txt
+.venv/
+venv/
+__pycache__/
+*.zip
+*.mp3
+.env
