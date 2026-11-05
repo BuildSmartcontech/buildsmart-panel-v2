@@ -2,17 +2,6 @@
 # ============================================
 # PANEL DUENO V4.0 - ROUTER PRINCIPAL
 # ============================================
-# V4.0: Modularizado en panels/dueno/ (7 tabs)
-# V3.1: Tab Salud del sistema
-# V3.0: Republicar web forzado
-# V2.9: Suspender/reactivar cuentas
-# V2.8: Helper _plano()
-# V2.7: Detalle cliente
-# V2.6: Filtros de fecha globales
-# ============================================
-# Este archivo ahora es solo un router liviano.
-# Toda la logica vive en panels/dueno/.
-# ============================================
 
 import streamlit as st
 from config_app import ES_DUENO
@@ -48,16 +37,16 @@ def renderizar():
             st.session_state.negocio_seleccionado = accion["negocio_id"]
             st.rerun()
 
-    # Bloque CONTROL TOTAL (solo si es dueno)
+    # Bloque CONTROL TOTAL
     if ES_DUENO:
         renderizar_control_total()
         st.divider()
 
-    # Contenido base (igual que un usuario normal)
+    # Contenido base
     panel_base.renderizar_seleccion_negocio()
     panel_base.renderizar_dashboard_negocio()
     
-    # CHAT DESACTIVADO TEMPORALMENTE PARA EVITAR LOOP INFINITO
-    # panel_base.renderizar_chat(BACKEND_ACTIVO)
+    # CHAT ACTIVO (Restaurado y optimizado)
+    panel_base.renderizar_chat(BACKEND_ACTIVO)
 
     header_footer.renderizar_footer(BACKEND_ACTIVO, modulos)

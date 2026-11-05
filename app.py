@@ -9,6 +9,17 @@
 # ============================================
 
 import streamlit as st
+import traceback
+
+# 1. Inicialización temprana de session_state para evitar loops
+if "_session_initialized" not in st.session_state:
+    st.session_state._session_initialized = True
+    st.session_state._rerun_count = 0
+    st.session_state._rol_actual = None
+
+st.session_state._rerun_count += 1
+print(f"[RERUN {st.session_state._rerun_count}] Iniciando app...")
+
 from config_app import ES_DUENO, MODO, NOMBRE_APP, VERSION, obtener_usuario_actual
 
 # Configuracion de la pagina
@@ -19,21 +30,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-
 # ==========================================
 # DETECTAR RUTA WEB GANCHO (?web=...)
 # ==========================================
 def detectar_subruta_web():
-    """
-    Detecta si el usuario esta navegando al modulo Web Gancho.
-    Retorna la subruta o None si no aplica.
-    Ejemplo: ?web=landing -> "landing"
-    """
+    """Detecta si el usuario esta navegando al modulo Web Gancho."""
     try:
         params = st.query_params
         if "web" in params:
             valor = params.get("web", "")
-            # Normalizar a string (a veces viene como lista)
             if isinstance(valor, list):
                 valor = valor[0] if valor else ""
             return str(valor).strip() or "landing"
@@ -41,17 +46,11 @@ def detectar_subruta_web():
         pass
     return None
 
-
 # ==========================================
 # DETECTAR ROL DEL USUARIO (ERP)
 # ==========================================
 def detectar_rol():
-    """
-    Retorna el rol del usuario actual o None si es usuario normal.
-    - "dueno" si ES_DUENO es True
-    - "admin"/"soporte"/"marketing" si esta en tabla staff
-    - None si es usuario normal
-    """
+    """Retorna el rol del usuario actual o None si es usuario normal."""
     if ES_DUENO:
         return "dueno"
 
@@ -82,7 +81,6 @@ def detectar_rol():
         print(f"[app] Error detectando staff: {e}")
         return None
 
-
 # ==========================================
 # ROUTING
 # ==========================================
@@ -92,23 +90,26 @@ if subruta_web is not None:
     # ==== WEB GANCHO (modulo separado) ====
     print(f"[app] Modulo WEB GANCHO - subruta: {subruta_web}")
     st.session_state["_web_subruta"] = subruta_web
-
-    from panels import web
-    web.renderizar()
+    try:
+        from panels import web
+        web.renderizar()
+    except Exception as e:
+        st.error(f"Error cargando Web Gancho: {e}")
+        print(traceback.format_exc())
 
 else:
     # ==== ERP PRINCIPAL ====
-    from panels import panel_usuario, panel_dueno
+    try:
+        from panels import panel_usuario, panel_dueno
+        rol_actual = detectar_rol()
+        st.session_state._rol_actual = rol_actual
 
-    rol_actual = detectar_rol()
-    st.session_state._rol_actual = rol_actual
-
-    if rol_actual:
-        print(f"[app] Usuario con rol: {rol_actual}")
-    else:
-        print("[app] Usuario normal")
-
-    if rol_actual:
-        panel_dueno.renderizar()
-    else:
-        panel_usuario.renderizar()
+        if rol_actual:
+            print(f"[app] Usuario con rol: {rol_actual}")
+            panel_dueno.renderizar()
+        else:
+            print("[app] Usuario normal")
+            panel_usuario.renderizar()
+    except Exception as e:
+        st.error(f"Error crítico cargando el panel: {e}")
+        print(traceback.format_exc())

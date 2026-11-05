@@ -18,13 +18,15 @@ def renderizar(sb, inicio, fin):
     suscripciones = [s for s in suscripciones_todas if C._dentro_de_rango(s, "created_at", inicio, fin)]
 
     if not suscripciones:
-        st.info(f"{C.E_RAYO} No hay cobros en el rango seleccionado. Cuando integres Stripe, apareceran aqui.")
+        st.info(f"{C.E_RAYO} No hay cobros en el rango seleccionado. Cuando integres Stripe, aparecerán aquí.")
         st.markdown("""
         **Planes configurados (provisionales):**
-        - WEB Gancho: **$199 pago unico** (+ $10/mes con CRM)
+        - Web Gancho Esencial: **$149 pago único**
+        - Web Gancho + CRM: **$299 pago único**
+        - Web Gancho Plus: **$499 setup + $150/mes**
         - PIME: **$99/mes**
         - DESDE CERO: **$99/mes**
-        - ENTERPRISE: **$299/mes** (proximamente)
+        - ENTERPRISE: **$299/mes** (próximamente)
         - Sucursal: **50% del plan**
         """)
         return

@@ -13,7 +13,7 @@ def renderizar_sidebar(BACKEND_ACTIVO, modulos, negocios):
         if ES_DUENO:
             st.markdown("### 👑 SAMU IA - DUEÑO")
         else:
-            st.markdown("###  SAMU IA")
+            st.markdown("### 🤖 SAMU IA")
 
         st.divider()
 
@@ -24,13 +24,14 @@ def renderizar_sidebar(BACKEND_ACTIVO, modulos, negocios):
         else:
             st.success(f"✅ MODO PRODUCCION")
 
-        st.caption(f"🔄 {datetime.datetime.now().strftime('%H:%M:%S')}")
+        # Quitamos los segundos para evitar re-renders innecesarios en la nube
+        st.caption(f"🔄 {datetime.datetime.now().strftime('%H:%M')}")
 
         # Backend
         if BACKEND_ACTIVO:
             st.info("🧠 Backend: Activo")
         else:
-            st.warning(" Backend: Inactivo")
+            st.warning("⚠️ Backend: Inactivo")
 
         st.divider()
 
@@ -50,7 +51,7 @@ def renderizar_sidebar(BACKEND_ACTIVO, modulos, negocios):
 
         # Modos (solo para dueno)
         if ES_DUENO:
-            st.markdown("** Modos (Dueno)**")
+            st.markdown("**🎛️ Modos (Dueno)**")
             col1, col2 = st.columns(2)
             with col1:
                 st.toggle("🤖 Auto", value=True, key="modo_auto")
@@ -86,7 +87,7 @@ def renderizar_sidebar(BACKEND_ACTIVO, modulos, negocios):
                             "descripcion": nueva_descripcion
                         }
                     else:
-                        st.warning(" Completa todos los campos.")
+                        st.warning("⚠️ Completa todos los campos.")
 
         st.divider()
 

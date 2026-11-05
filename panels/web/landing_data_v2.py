@@ -1,8 +1,9 @@
-﻿# panels/web/landing_data_v2.py
+# panels/web/landing_data_v2.py
 # ============================================
 # DATOS Y CSS - LANDING V2.1 (DARK PREMIUM)
 # ============================================
 
+# DEFINICIÓN DE EMOJIS (Asegurando que E_CEREBRO esté aquí)
 E_RAYO      = "\u26A1"
 E_OK        = "\u2705"
 E_X         = "\u274C"
@@ -16,12 +17,10 @@ E_CEREBRO   = "\U0001F9E0"
 E_PIN       = "\U0001F4CC"
 E_FUEGO     = "\U0001F525"
 E_CHAT      = "\U0001F4AC"
+E_LIBRO     = "\U0001F4D8"
+E_ROBOT     = "\U0001F916"
 
 from panels.web.logo_data import LOGO_HTML
-
-from panels.web.logo_data import LOGO_HTML
-
-
 
 TIERS = [
     {
@@ -36,7 +35,7 @@ TIERS = [
             {"texto": "Dise\u00f1o moderno y responsive", "pendiente": False},
             {"texto": "SEO b\u00e1sico incluido", "pendiente": False},
         ],
-        "no_incluye": ["CRM de leads", "Dominio propio"],
+        "no_incluye": ["CRM de leads", "ARM Automático (IA + WhatsApp)", "Dominio propio"],
         "cta": "Elegir Esencial", "destacado": False,
     },
     {
@@ -51,20 +50,21 @@ TIERS = [
             {"texto": "Mini-panel para ver leads", "pendiente": False},
             {"texto": "Login por magic link", "pendiente": False},
         ],
-        "no_incluye": ["Dominio propio"],
+        "no_incluye": ["ARM Automático (IA + WhatsApp)", "Dominio propio"],
         "cta": "Elegir + CRM (Popular)", "destacado": True,
     },
     {
         "id": "tier3", "nombre": "Web Premium Plus", "icono": E_TROFEO,
-        "precio": 499, "precio_label": "USD 499", "pago_label": "pago \u00fanico",
-        "subtitulo": "Web + CRM + Dominio propio",
+        "precio": 499, "precio_label": "USD 499 + $150/mes", "pago_label": "Setup + Suscripci\u00f3n (mes 2 en adelante)",
+        "subtitulo": "Web + CRM + ARM Autom\u00e1tico",
         "hosting_badge": "HOSTING + DOMINIO GRATIS",
         "features": [
             {"texto": "Todo lo de Premium + CRM", "pendiente": False},
+            {"texto": "🤖 ARM: Vendedor autom\u00e1tico con IA", "pendiente": False},
+            {"texto": "Integraci\u00f3n con WhatsApp Meta API", "pendiente": False},
+            {"texto": "Sincronizaci\u00f3n autom\u00e1tica con Odoo", "pendiente": False},
+            {"texto": "L\u00edmite: 1,500 conversaciones/mes", "pendiente": False},
             {"texto": "Dominio propio (.com) 1 a\u00f1o", "pendiente": False},
-            {"texto": "CRM completo con historial", "pendiente": False},
-            {"texto": "Logo custom subido por vos", "pendiente": False},
-            {"texto": "Soporte prioritario (< 4h)", "pendiente": False},
         ],
         "no_incluye": [],
         "cta": "Elegir Premium Plus", "destacado": False,
@@ -72,30 +72,10 @@ TIERS = [
 ]
 
 SECTORES_PRO = [
-    {
-        "titulo": "Consultorios Odontol\u00f3gicos",
-        "desc": "Agenda de citas, ficha de pacientes, galer\u00eda de antes/despu\u00e9s y recordatorios autom\u00e1ticos.",
-        "imagen": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80",
-        "color": "#00D4FF",
-    },
-    {
-        "titulo": "Estudios de Arquitectura",
-        "desc": "Portafolio de proyectos, renders 3D, ficha t\u00e9cnica de obras y formulario de cotizaci\u00f3n.",
-        "imagen": "https://images.unsplash.com/photo-1487958449943-2429e8be8625?auto=format&fit=crop&w=800&q=80",
-        "color": "#0077FF",
-    },
-    {
-        "titulo": "Firmas de Ingenier\u00eda",
-        "desc": "Presentaci\u00f3n de servicios t\u00e9cnicos, casos de \u00e9xito, certificaciones y contacto directo con ingenieros.",
-        "imagen": "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80",
-        "color": "#00D4FF",
-    },
-    {
-        "titulo": "Empresas Corporativas",
-        "desc": "Sitio institucional, secci\u00f3n de inversionistas, blog corporativo y portal de proveedores.",
-        "imagen": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
-        "color": "#0077FF",
-    },
+    {"titulo": "Consultorios Odontol\u00f3gicos", "desc": "Agenda de citas, ficha de pacientes, galer\u00eda de antes/despu\u00e9s y recordatorios autom\u00e1ticos.", "imagen": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80", "color": "#00D4FF"},
+    {"titulo": "Estudios de Arquitectura", "desc": "Portafolio de proyectos, renders 3D, ficha t\u00e9cnica de obras y formulario de cotizaci\u00f3n.", "imagen": "https://images.unsplash.com/photo-1487958449943-2429e8be8625?auto=format&fit=crop&w=800&q=80", "color": "#0077FF"},
+    {"titulo": "Firmas de Ingenier\u00eda", "desc": "Presentaci\u00f3n de servicios t\u00e9cnicos, casos de \u00e9xito, certificaciones y contacto directo con ingenieros.", "imagen": "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80", "color": "#00D4FF"},
+    {"titulo": "Empresas Corporativas", "desc": "Sitio institucional, secci\u00f3n de inversionistas, blog corporativo y portal de proveedores.", "imagen": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80", "color": "#0077FF"},
 ]
 
 COMPARACION = [
@@ -104,13 +84,29 @@ COMPARACION = [
     {"aspecto": "Tiempo de entrega", "samu": "24-48 horas", "wix": "3-5 d\u00edas", "squarespace": "3-5 d\u00edas", "polsia": "1-2 semanas"},
     {"aspecto": "Tecnolog\u00eda IA", "samu": "Groq + Gemini", "wix": "B\u00e1sica", "squarespace": "Nula", "polsia": "B\u00e1sica"},
     {"aspecto": "CRM incluido", "samu": "S\u00ed (Tier 2+)", "wix": "Pago extra", "squarespace": "Pago extra", "polsia": "No"},
+    {"aspecto": "ARM (Ventas Autom\u00e1ticas)", "samu": "S\u00ed (Tier 3)", "wix": "No", "squarespace": "No", "polsia": "No"},
     {"aspecto": "Soporte en espa\u00f1ol", "samu": "Humano real", "wix": "Bots/Foros", "squarespace": "Bots/Foros", "polsia": "S\u00ed"},
 ]
 
 BONUS_ITEMS = [
-    {"icono": E_CEREBRO, "titulo": "An\u00e1lisis Profundo con IA", "valor": "USD 99", "desc": "Reporte personalizado de tu sector, competencia y oportunidades."},
-    {"icono": E_RAYO, "titulo": "3 Modificaciones Gratis", "valor": "USD 15", "desc": "Cambia textos, colores o secciones. La IA lo hace en segundos."},
-    {"icono": E_GLOBO, "titulo": "Hosting Premium 1 A\u00f1o", "valor": "USD 60", "desc": "CDN global, sin l\u00edmites de tr\u00e1fico y sin multas por exceso."},
+    {
+        "icono": E_CEREBRO, 
+        "titulo": "Análisis Profundo con IA", 
+        "valor": "USD 99", 
+        "desc": "Reporte personalizado de tu sector y competencia (NO incluye ARM mensual ni WhatsApp)."
+    },
+    {
+        "icono": E_RAYO, 
+        "titulo": "3 Modificaciones Gratis", 
+        "valor": "USD 15", 
+        "desc": "Cambios de textos o colores en tu página web (adicionales se cotizan aparte)."
+    },
+    {
+        "icono": E_GLOBO, 
+        "titulo": "Hosting Premium 1 Año", 
+        "valor": "USD 60", 
+        "desc": "CDN global para tu sitio web. NO incluye hosting del ARM, Meta ni tokens IA."
+    }
 ]
 
 TESTIMONIOS = [
@@ -127,14 +123,29 @@ DEMO_BAKERY = {
 }
 
 FAQ_ITEMS = [
-    {"pregunta": "\u00bfCu\u00e1l es la diferencia entre los planes?", "respuesta": "La calidad visual es PREMIUM en los 3. La diferencia son las herramientas: el Tier 1 es solo la web. El Tier 2 agrega un CRM para capturar clientes. El Tier 3 incluye dominio propio y soporte VIP."},
-    {"pregunta": "\u00bfEl hosting es realmente gratis?", "respuesta": "S\u00ed, el primer a\u00f1o es 100% GRATIS en todos los planes. Usamos infraestructura de alto rendimiento (Vercel/Cloudflare). Despu\u00e9s del a\u00f1o 1, la renovaci\u00f3n es de solo USD 59/a\u00f1o."},
-    {"pregunta": "\u00bfQu\u00e9 m\u00e9todos de pago aceptan?", "respuesta": "Aceptamos transferencias bancarias locales (Nequi, Daviplata, Bancolombia) y tarjetas de cr\u00e9dito/d\u00e9bito a trav\u00e9s de nuestra pasarela segura ePayco."},
-    {"pregunta": "\u00bfCu\u00e1ntas modificaciones gratis tengo?", "respuesta": "Todos los planes incluyen 3 modificaciones gratis gestionadas por nuestra IA. Si necesitas cambios extra despu\u00e9s, tienen un costo de USD 5 cada uno."},
-    {"pregunta": "\u00bfCu\u00e1nto tarda en estar lista mi web?", "respuesta": "Una vez confirmamos tu pago, nuestra IA genera, dise\u00f1a y publica tu web en un promedio de 24 a 48 horas. Recibir\u00e1s la URL en tu correo."},
-    {"pregunta": "\u00bfQu\u00e9 pasa si no me gusta el dise\u00f1o?", "respuesta": "Tus 3 modificaciones gratis sirven exactamente para eso. Ajustamos colores, textos y secciones hasta que quedes 100% satisfecho antes de la entrega final."},
+    {
+        "pregunta": "¿Cuál es la diferencia entre los planes?",
+        "respuesta": "- **Web Esencial:** Solo página web + formulario básico; sin CRM ni ARM.\n- **Web Premium CRM:** Sitio web + CRM para registrar leads manualmente; sin ARM automatizado.\n- **Web Premium Plus:** Sitio web + CRM + habilitación para el ARM automatizado (requiere suscripción mensual ARM + contratar BSP/Meta WhatsApp)."
+    },
+    {
+        "pregunta": "¿Qué es el CRM?",
+        "respuesta": "Es tu base de datos para gestionar contactos y oportunidades. Cuando alguien llena el formulario de tu web se guarda en un panel privado para que puedas hacer seguimiento y no pierdas ventas. En Premium CRM es manual; en Premium Plus el ARM ayuda a alimentarlo automáticamente."
+    },
+    {
+        "pregunta": "¿Qué es el ARM y cómo funciona?",
+        "respuesta": "El **ARM (Automated Relationship Manager)** es tu asistente comercial automático exclusivo para Web Premium Plus. Cuando un cliente te escribe por WhatsApp, el orquestador IA responde al instante, califica el lead, lo registra en Odoo y avisa a tu equipo para que tú realices el cierre de la venta.\n\n- **Límite:** hasta 1,500 conversaciones procesadas por ARM al mes (incluidas en la suscripción ARM).\n- El cliente debe contratar directamente un BSP autorizado por Meta para WhatsApp Cloud API; costos de Meta/BSP y tokens IA son a cargo del cliente."
+    },
+    {
+        "pregunta": "¿Cómo funciona el pago del plan Premium Plus?",
+        "respuesta": "- **Pago único (USD 499):** Corresponde al desarrollo del sitio web + el bonus de lanzamiento.\n- **Suscripción mensual ARM (USD 150):** Es un pago adicional por el servicio de orquestación, sincronización con Odoo y soporte del ARM.\n- **Meta / BSP / tokens IA:** Son pagos independientes que el cliente realiza directamente al proveedor."
+    },
+    {
+        "pregunta": "¿El hosting es realmente gratis?",
+        "respuesta": "Sí, el hosting Premium por 1 año es el bonus para los primeros 50 clientes: aplica **solo para el sitio web**. No incluye: Hosting dedicado para el ARM, dominios adicionales, servicios de Meta, BSP ni tokens IA. Después del año se cobra la renovación."
+    }
 ]
 
+# AQUI ESTA TU CSS ORIGINAL INTACTO
 CSS_LANDING_V2 = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap');
@@ -166,106 +177,10 @@ p, li, label { color: #94A3B8 !important; }
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-8px); }
 }
-.logo-real:hover { 
-    transform: scale(1.03); 
-    filter: drop-shadow(0 0 35px rgba(0, 212, 255, 0.7));
-}
-.logo-real {
-    height: 260px !important;
-    width: auto !important;
-    max-width: 90% !important;
-    border-radius: 20px;
-    filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.4)) drop-shadow(0 0 40px rgba(0, 119, 255, 0.2));
-    transition: transform 0.4s ease, filter 0.4s ease;
-    animation: logoFloat 6s ease-in-out infinite;
-}
-.logo-real:hover { 
-    transform: scale(1.04); 
-    filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.6)) drop-shadow(0 0 60px rgba(0, 119, 255, 0.3));
-}
-@keyframes logoFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
-.logo-real:hover { transform: scale(1.08); }
-.logo-real {
-    height: 260px !important;
-    width: auto !important;
-    max-width: 90% !important;
-    border-radius: 20px;
-    filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.4)) drop-shadow(0 0 40px rgba(0, 119, 255, 0.2));
-    transition: transform 0.4s ease, filter 0.4s ease;
-    animation: logoFloat 6s ease-in-out infinite;
-}
-.logo-real:hover { 
-    transform: scale(1.04); 
-    filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.6)) drop-shadow(0 0 60px rgba(0, 119, 255, 0.3));
-}
-@keyframes logoFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
-.logo-real:hover { transform: scale(1.05); }
-.logo-real {
-    height: 260px !important;
-    width: auto !important;
-    max-width: 90% !important;
-    border-radius: 20px;
-    filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.4)) drop-shadow(0 0 40px rgba(0, 119, 255, 0.2));
-    transition: transform 0.4s ease, filter 0.4s ease;
-    animation: logoFloat 6s ease-in-out infinite;
-}
-.logo-real:hover { 
-    transform: scale(1.04); 
-    filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.6)) drop-shadow(0 0 60px rgba(0, 119, 255, 0.3));
-}
-@keyframes logoFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
-.logo-real:hover { transform: scale(1.05); }
-.logo-real {
-    height: 260px !important;
-    width: auto !important;
-    max-width: 90% !important;
-    border-radius: 20px;
-    filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.4)) drop-shadow(0 0 40px rgba(0, 119, 255, 0.2));
-    transition: transform 0.4s ease, filter 0.4s ease;
-    animation: logoFloat 6s ease-in-out infinite;
-}
-.logo-real:hover { 
-    transform: scale(1.04); 
-    filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.6)) drop-shadow(0 0 60px rgba(0, 119, 255, 0.3));
-}
-@keyframes logoFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
-.logo-real:hover { transform: scale(1.08); }
-.logo-real {
-    height: 260px !important;
-    width: auto !important;
-    max-width: 90% !important;
-    border-radius: 20px;
-    filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.4)) drop-shadow(0 0 40px rgba(0, 119, 255, 0.2));
-    transition: transform 0.4s ease, filter 0.4s ease;
-    animation: logoFloat 6s ease-in-out infinite;
-}
-.logo-real:hover { 
-    transform: scale(1.04); 
-    filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.6)) drop-shadow(0 0 60px rgba(0, 119, 255, 0.3));
-}
-@keyframes logoFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
 .logo-real:hover { transform: scale(1.05); }
 .header-logo svg {
     width: 56px; height: 56px; flex-shrink: 0;
     filter: drop-shadow(0 0 12px rgba(0, 212, 255, 0.4));
-}
-.header-logo svg {
-    width: 40px; height: 40px; flex-shrink: 0;
 }
 .header-logo-text {
     font-family: 'Space Grotesk', sans-serif;
@@ -273,8 +188,6 @@ p, li, label { color: #94A3B8 !important; }
     letter-spacing: 3px;
     text-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
 }
-.header-logo-text span { color: #00D4FF; }
-.header-logo-text span { color: #00D4FF; }
 .header-logo-text span { color: #00D4FF; }
 
 .hero-container { text-align: center; padding: 2rem 1rem 3rem; }
@@ -300,59 +213,28 @@ p, li, label { color: #94A3B8 !important; }
     display: flex; flex-direction: column; align-items: center;
 }
 .glass-card:hover { transform: translateY(-5px); border-color: rgba(0, 212, 255, 0.3); }
-.glass-card h3 {
-    word-break: keep-all;
-    hyphens: none;
-    text-align: center;
-}
+.glass-card h3 { word-break: keep-all; hyphens: none; text-align: center; }
 
 .tier-card { height: 100%; display: flex; flex-direction: column; }
-.tier-card.destacado { 
-    border-color: #00D4FF; 
-    box-shadow: 0 0 30px rgba(0, 212, 255, 0.15); 
-    position: relative;
-    padding-bottom: 2.5rem !important;
-}
+.tier-card.destacado { border-color: #00D4FF; box-shadow: 0 0 30px rgba(0, 212, 255, 0.15); position: relative; padding-bottom: 2.5rem !important; }
 .tier-precio { font-size: 2.5rem; font-weight: 700; color: #FFF; margin: 1rem 0; }
 .tier-features { list-style: none; padding: 0; margin: 1.5rem 0; flex-grow: 1; }
 .tier-features li { padding: 8px 0; color: #CBD5E1; font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.badge-popular { 
-    position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-    background: #00D4FF; color: #050A14; padding: 4px 12px; border-radius: 999px;
-    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-}
+.badge-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #00D4FF; color: #050A14; padding: 4px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
 
-.browser-mockup {
-    background: #1E293B; border-radius: 12px; overflow: hidden;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
-}
+.browser-mockup { background: #1E293B; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
 .browser-header { background: #0F172A; padding: 12px; display: flex; gap: 8px; }
 .browser-dot { width: 12px; height: 12px; border-radius: 50%; background: #EF4444; }
 .browser-dot:nth-child(2) { background: #F59E0B; }
 .browser-dot:nth-child(3) { background: #10B981; }
 .browser-img { width: 100%; height: auto; display: block; }
 
-.sector-card {
-    position: relative; overflow: hidden;
-    border-radius: 16px; height: 320px;
-    cursor: pointer; transition: all 0.4s ease;
-}
+.sector-card { position: relative; overflow: hidden; border-radius: 16px; height: 320px; cursor: pointer; transition: all 0.4s ease; }
 .sector-card:hover { transform: translateY(-8px); }
-.sector-img {
-    width: 100%; height: 100%; object-fit: cover;
-    transition: transform 0.6s ease;
-}
+.sector-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease; }
 .sector-card:hover .sector-img { transform: scale(1.08); }
-.sector-overlay {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    background: linear-gradient(to top, rgba(5,10,20,0.95) 0%, rgba(5,10,20,0.7) 60%, transparent 100%);
-    padding: 2rem 1.5rem 1.5rem;
-}
-.sector-tag {
-    display: inline-block; padding: 4px 10px; border-radius: 999px;
-    font-size: 0.7rem; font-weight: 700; color: #050A14;
-    margin-bottom: 0.5rem; text-transform: uppercase;
-}
+.sector-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(5,10,20,0.95) 0%, rgba(5,10,20,0.7) 60%, transparent 100%); padding: 2rem 1.5rem 1.5rem; }
+.sector-tag { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; color: #050A14; margin-bottom: 0.5rem; text-transform: uppercase; }
 .sector-title { color: #FFF; font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
 .sector-desc { color: #CBD5E1; font-size: 0.85rem; line-height: 1.5; }
 
@@ -364,25 +246,8 @@ p, li, label { color: #94A3B8 !important; }
 .section-title { text-align: center; font-size: 2.2rem; margin: 4rem 0 1rem; color: #FFF; }
 .section-subtitle { text-align: center; color: #94A3B8; margin-bottom: 3rem; font-size: 1.05rem; }
 
-.footer-solido {
-    background: #111827;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    padding: 2rem 1rem;
-    text-align: center;
-    margin-top: 4rem;
-}
+.footer-solido { background: #111827; border-top: 1px solid rgba(255,255,255,0.08); padding: 2rem 1rem; text-align: center; margin-top: 4rem; }
 .footer-solido p { color: #64748B; font-size: 0.85rem; margin: 0; }
 .footer-solido .footer-brand { color: #00D4FF; font-weight: 600; }
 </style>
 """
-
-
-
-
-
-
-
-
-
-
-
