@@ -71,10 +71,10 @@ TIERS = [
 ]
 
 SECTORES_PRO = [
-    {"titulo": "Consultorios Odontol\u00f3gicos", "desc": "Agenda de citas, ficha de pacientes, galer\u00eda de antes/despu\u00e9s y recordatorios autom\u00e1ticos.", "imagen": "https://images.unsplash.com/photo-1629909613654-28e377c37b09", "color": "#00D4FF"},
-    {"titulo": "Estudios de Arquitectura", "desc": "Portafolio de proyectos, renders 3D, ficha t\u00e9cnica de obras y formulario de cotizaci\u00f3n.", "imagen": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab", "color": "#0077FF"},
-    {"titulo": "Firmas de Ingenier\u00eda", "desc": "Presentaci\u00f3n de servicios t\u00e9cnicos, casos de \u00e9xito, certificaciones y contacto directo con ingenieros.", "imagen": "https://images.unsplash.com/photo-1581094794329-c8112a89af12", "color": "#00D4FF"},
-    {"titulo": "Empresas Corporativas", "desc": "Sitio institucional, secci\u00f3n de inversionistas, blog corporativo y portal de proveedores.", "imagen": "https://images.unsplash.com/photo-1497366216548-37526070297c", "color": "#0077FF"},
+    {"titulo": "Consultorios Odontol\u00f3gicos", "desc": "Agenda de citas, ficha de pacientes, galer\u00eda de antes/despu\u00e9s y recordatorios autom\u00e1ticos.", "imagen": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80", "color": "#00D4FF"},
+    {"titulo": "Estudios de Arquitectura", "desc": "Portafolio de proyectos, renders 3D, ficha t\u00e9cnica de obras y formulario de cotizaci\u00f3n.", "imagen": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80", "color": "#0077FF"},
+    {"titulo": "Firmas de Ingenier\u00eda", "desc": "Presentaci\u00f3n de servicios t\u00e9cnicos, casos de \u00e9xito, certificaciones y contacto directo con ingenieros.", "imagen": "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80", "color": "#00D4FF"},
+    {"titulo": "Empresas Corporativas", "desc": "Sitio institucional, secci\u00f3n de inversionistas, blog corporativo y portal de proveedores.", "imagen": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80", "color": "#0077FF"},
 ]
 
 COMPARACION = [
@@ -103,7 +103,7 @@ DEMO_BAKERY = {
     "titulo": "Panader\u00eda Premium Los Tres Amigos",
     "subtitulo": "Artesan\u00eda en masa madre y reposter\u00eda premium",
     "descripcion": "Mira lo que SAMU IA dise\u00f1\u00f3 para una panader\u00eda local en Bogot\u00e1 en un parpadeo. Textos persuasivos, im\u00e1genes generadas por IA y secciones autom\u00e1ticas (Ubicaci\u00f3n, Horarios, Contacto). Tu negocio se ver\u00e1 as\u00ed de premium hoy mismo.",
-    "imagen_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff"
+    "imagen_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80"
 }
 
 FAQ_ITEMS = [
