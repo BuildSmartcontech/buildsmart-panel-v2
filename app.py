@@ -2,10 +2,9 @@
 # ============================================
 # DECIDE QUE PANEL MOSTRAR
 # ============================================
-# 1. Si URL tiene ?web=landing -> Landing Web Gancho
-# 2. Si es dueno (env var) -> Panel Dueno
-# 3. Si esta en tabla staff activo -> Panel Dueno (rol)
-# 4. Si es usuario normal -> Panel Usuario
+# 1. Si URL tiene ?web=admin o ?web=app -> Panel Dueno / ERP
+# 2. Si URL tiene ?web=landing, checkout, panel -> Web Gancho
+# 3. Si URL no tiene parametros (/) -> Landing Web Gancho (PUBLICO)
 # ============================================
 
 import streamlit as st
@@ -34,7 +33,7 @@ st.set_page_config(
 # DETECTAR RUTA WEB GANCHO (?web=...)
 # ==========================================
 def detectar_subruta_web():
-    """Detecta si el usuario esta navegando al modulo Web Gancho."""
+    """Detecta si el usuario esta navegando al modulo Web Gancho o al ERP."""
     try:
         params = st.query_params
         if "web" in params:
@@ -82,23 +81,13 @@ def detectar_rol():
         return None
 
 # ==========================================
-# ROUTING
+# ROUTING PRINCIPAL
 # ==========================================
 subruta_web = detectar_subruta_web()
 
-if subruta_web is not None:
-    # ==== WEB GANCHO (modulo separado) ====
-    print(f"[app] Modulo WEB GANCHO - subruta: {subruta_web}")
-    st.session_state["_web_subruta"] = subruta_web
-    try:
-        from panels import web
-        web.renderizar()
-    except Exception as e:
-        st.error(f"Error cargando Web Gancho: {e}")
-        print(traceback.format_exc())
-
-else:
-    # ==== ERP PRINCIPAL ====
+# CASO 1: PANEL DEL DUEÑO (Ruta oculta: ?web=admin)
+if subruta_web in ("admin", "app"):
+    print(f"[app] Acceso al ERP - Ruta: {subruta_web}")
     try:
         from panels import panel_usuario, panel_dueno
         rol_actual = detectar_rol()
@@ -108,8 +97,23 @@ else:
             print(f"[app] Usuario con rol: {rol_actual}")
             panel_dueno.renderizar()
         else:
-            print("[app] Usuario normal")
+            print("[app] Usuario normal (ERP)")
             panel_usuario.renderizar()
     except Exception as e:
         st.error(f"Error crítico cargando el panel: {e}")
+        print(traceback.format_exc())
+
+# CASO 2: WEB GANCHO (Landing, Checkout, Panel Cliente) y Ruta Raíz
+else:
+    # Si no hay subruta, forzamos la landing
+    if subruta_web is None:
+        subruta_web = "landing"
+        
+    print(f"[app] Modulo WEB GANCHO - subruta: {subruta_web}")
+    st.session_state["_web_subruta"] = subruta_web
+    try:
+        from panels import web
+        web.renderizar()
+    except Exception as e:
+        st.error(f"Error cargando Web Gancho: {e}")
         print(traceback.format_exc())
