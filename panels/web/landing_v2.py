@@ -1,10 +1,11 @@
 # panels/web/landing_v2.py
 # ============================================
-# LANDING PUBLICA V2.1 - DARK PREMIUM
+# LANDING PUBLICA V2.2 - DARK PREMIUM
 # ============================================
 
 import streamlit as st
 from panels.web import landing_data_v2 as D
+
 
 def _renderizar_header():
     st.markdown(
@@ -13,6 +14,7 @@ def _renderizar_header():
         f'</div>',
         unsafe_allow_html=True
     )
+
 
 def _renderizar_hero():
     st.markdown('<div class="hero-container">', unsafe_allow_html=True)
@@ -38,6 +40,7 @@ def _renderizar_hero():
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
+
 def _renderizar_demo():
     demo = D.DEMO_BAKERY
     st.markdown(f'<h2 class="section-title">{D.E_GEMA} As\u00ed se ve tu negocio en SAMU IA</h2>', unsafe_allow_html=True)
@@ -50,7 +53,7 @@ def _renderizar_demo():
             '<div class="browser-header">'
             '<div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div>'
             '</div>'
-            f'<img src="{demo["imagen_url"]}" class="browser-img" alt="Demo Web">'
+            f'<img src="{demo["imagen_url"]}" class="browser-img" alt="Demo Web" referrerpolicy="no-referrer">'
             '</div>', 
             unsafe_allow_html=True
         )
@@ -58,6 +61,7 @@ def _renderizar_demo():
         st.markdown(f"### {demo['titulo']}", unsafe_allow_html=True)
         st.markdown(demo["descripcion"])
         st.markdown(f"**Resultado:** Web publicada en 24h con secciones autom\u00e1ticas de Ubicaci\u00f3n, Horarios y Contacto.")
+
 
 def _renderizar_sectores():
     st.markdown(f'<h2 class="section-title">{D.E_GLOBO} Para cada profesi\u00f3n</h2>', unsafe_allow_html=True)
@@ -68,7 +72,7 @@ def _renderizar_sectores():
         with cols[i % 2]:
             st.markdown(
                 f'<div class="sector-card">'
-                f'<img src="{sector["imagen"]}" class="sector-img" alt="{sector["titulo"]}">'
+                f'<img src="{sector["imagen"]}" class="sector-img" alt="{sector["titulo"]}" referrerpolicy="no-referrer">'
                 f'<div class="sector-overlay">'
                 f'<span class="sector-tag" style="background:{sector["color"]}">CASO REAL</span>'
                 f'<div class="sector-title">{sector["titulo"]}</div>'
@@ -78,10 +82,10 @@ def _renderizar_sectores():
                 unsafe_allow_html=True
             )
 
-# NUEVA SECCIÓN: CRM VS ARM
+
 def _renderizar_crm_vs_arm():
-    st.markdown(f'<h2 class="section-title">{D.E_ROBOT} CRM vs ARM: La evolución de tu negocio</h2>', unsafe_allow_html=True)
-    st.markdown('<p class="section-subtitle">No es solo una página web. Es un sistema completo de ventas.</p>', unsafe_allow_html=True)
+    st.markdown(f'<h2 class="section-title">{D.E_ROBOT} CRM vs ARM: La evoluci\u00f3n de tu negocio</h2>', unsafe_allow_html=True)
+    st.markdown('<p class="section-subtitle">No es solo una p\u00e1gina web. Es un sistema completo de ventas.</p>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
@@ -95,7 +99,7 @@ def _renderizar_crm_vs_arm():
             f'<li>{D.E_OK} Captura los datos de quienes te contactan</li>'
             f'<li>{D.E_OK} Los guarda organizados en un panel</li>'
             f'<li>{D.E_OK} Te avisa por correo cuando entra un lead</li>'
-            f'<li>{D.E_OK} Tú decides cuándo llamarlos</li>'
+            f'<li>{D.E_OK} T\u00fa decides cu\u00e1ndo llamarlos</li>'
             f'</ul>'
             f'</div>',
             unsafe_allow_html=True
@@ -105,17 +109,18 @@ def _renderizar_crm_vs_arm():
         st.markdown(
             f'<div class="glass-card" style="border-left: 4px solid #00D4FF; box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);">'
             f'<div style="font-size:3rem; margin-bottom:1rem">{D.E_ROBOT}</div>'
-            f'<h3>ARM (Vendedor Automático)</h3>'
+            f'<h3>ARM (Vendedor Autom\u00e1tico)</h3>'
             f'<p style="color:#00D4FF; margin-bottom:1rem">Exclusivo del plan <b>Premium Plus</b></p>'
             f'<ul class="tier-features">'
             f'<li>{D.E_OK} La IA responde por ti en WhatsApp al instante</li>'
-            f'<li>{D.E_OK} Califica al cliente sin que tú intervengas</li>'
+            f'<li>{D.E_OK} Califica al cliente sin que t\u00fa intervengas</li>'
             f'<li>{D.E_OK} Sincroniza el lead directo a Odoo</li>'
             f'<li>{D.E_OK} Atiende hasta 1,500 conversaciones al mes</li>'
             f'</ul>'
             f'</div>',
             unsafe_allow_html=True
         )
+
 
 def _renderizar_tiers():
     st.markdown(f'<h2 class="section-title">{D.E_GLOBO} Elige tu Plan</h2>', unsafe_allow_html=True)
@@ -147,6 +152,7 @@ def _renderizar_tiers():
                 st.session_state["_web_subruta"] = "checkout"
                 st.rerun()
 
+
 def _renderizar_bonus():
     st.markdown(f'<h2 class="section-title">{D.E_REGALO} Bonus de Lanzamiento</h2>', unsafe_allow_html=True)
     st.markdown('<p class="section-subtitle">Valor total: USD 174. Gratis para los primeros 50 clientes.</p>', unsafe_allow_html=True)
@@ -164,6 +170,7 @@ def _renderizar_bonus():
                 unsafe_allow_html=True
             )
 
+
 def _renderizar_comparacion():
     st.markdown(f'<h2 class="section-title">{D.E_FUEGO} SAMU IA vs La Competencia</h2>', unsafe_allow_html=True)
     
@@ -172,6 +179,7 @@ def _renderizar_comparacion():
         tabla += f"<tr><td>{c['aspecto']}</td><td><b>{c['samu']}</b></td><td>{c['wix']}</td><td>{c['squarespace']}</td><td>{c['polsia']}</td></tr>"
     tabla += '</tbody></table>'
     st.markdown(tabla, unsafe_allow_html=True)
+
 
 def _renderizar_testimonios():
     st.markdown(f'<h2 class="section-title">{D.E_CHAT} Lo que dicen los clientes</h2>', unsafe_allow_html=True)
@@ -187,11 +195,13 @@ def _renderizar_testimonios():
                 unsafe_allow_html=True
             )
 
+
 def _renderizar_faq():
     st.markdown(f'<h2 class="section-title">{D.E_PIN} Preguntas Frecuentes</h2>', unsafe_allow_html=True)
     for item in D.FAQ_ITEMS:
         with st.expander(item["pregunta"]):
             st.markdown(item["respuesta"])
+
 
 def _renderizar_footer():
     st.markdown(
@@ -201,6 +211,7 @@ def _renderizar_footer():
         '</div>',
         unsafe_allow_html=True
     )
+
 
 def renderizar():
     st.markdown(D.CSS_LANDING_V2, unsafe_allow_html=True)
@@ -212,11 +223,8 @@ def renderizar():
     st.divider()
     _renderizar_sectores()
     st.divider()
-    
-    # NUEVA SECCIÓN INTEGRADA AQUÍ
     _renderizar_crm_vs_arm()
     st.divider()
-    
     _renderizar_tiers()
     st.divider()
     _renderizar_bonus()

@@ -3,7 +3,6 @@
 # DATOS Y CSS - LANDING V2.1 (DARK PREMIUM)
 # ============================================
 
-# DEFINICIÓN DE EMOJIS (Asegurando que E_CEREBRO esté aquí)
 E_RAYO      = "\u26A1"
 E_OK        = "\u2705"
 E_X         = "\u274C"
@@ -72,10 +71,10 @@ TIERS = [
 ]
 
 SECTORES_PRO = [
-    {"titulo": "Consultorios Odontol\u00f3gicos", "desc": "Agenda de citas, ficha de pacientes, galer\u00eda de antes/despu\u00e9s y recordatorios autom\u00e1ticos.", "imagen": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80", "color": "#00D4FF"},
-    {"titulo": "Estudios de Arquitectura", "desc": "Portafolio de proyectos, renders 3D, ficha t\u00e9cnica de obras y formulario de cotizaci\u00f3n.", "imagen": "https://images.unsplash.com/photo-1487958449943-2429e8be8625?auto=format&fit=crop&w=800&q=80", "color": "#0077FF"},
-    {"titulo": "Firmas de Ingenier\u00eda", "desc": "Presentaci\u00f3n de servicios t\u00e9cnicos, casos de \u00e9xito, certificaciones y contacto directo con ingenieros.", "imagen": "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80", "color": "#00D4FF"},
-    {"titulo": "Empresas Corporativas", "desc": "Sitio institucional, secci\u00f3n de inversionistas, blog corporativo y portal de proveedores.", "imagen": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80", "color": "#0077FF"},
+    {"titulo": "Consultorios Odontol\u00f3gicos", "desc": "Agenda de citas, ficha de pacientes, galer\u00eda de antes/despu\u00e9s y recordatorios autom\u00e1ticos.", "imagen": "https://images.unsplash.com/photo-1629909613654-28e377c37b09", "color": "#00D4FF"},
+    {"titulo": "Estudios de Arquitectura", "desc": "Portafolio de proyectos, renders 3D, ficha t\u00e9cnica de obras y formulario de cotizaci\u00f3n.", "imagen": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab", "color": "#0077FF"},
+    {"titulo": "Firmas de Ingenier\u00eda", "desc": "Presentaci\u00f3n de servicios t\u00e9cnicos, casos de \u00e9xito, certificaciones y contacto directo con ingenieros.", "imagen": "https://images.unsplash.com/photo-1581094794329-c8112a89af12", "color": "#00D4FF"},
+    {"titulo": "Empresas Corporativas", "desc": "Sitio institucional, secci\u00f3n de inversionistas, blog corporativo y portal de proveedores.", "imagen": "https://images.unsplash.com/photo-1497366216548-37526070297c", "color": "#0077FF"},
 ]
 
 COMPARACION = [
@@ -89,24 +88,9 @@ COMPARACION = [
 ]
 
 BONUS_ITEMS = [
-    {
-        "icono": E_CEREBRO, 
-        "titulo": "Análisis Profundo con IA", 
-        "valor": "USD 99", 
-        "desc": "Reporte personalizado de tu sector y competencia (NO incluye ARM mensual ni WhatsApp)."
-    },
-    {
-        "icono": E_RAYO, 
-        "titulo": "3 Modificaciones Gratis", 
-        "valor": "USD 15", 
-        "desc": "Cambios de textos o colores en tu página web (adicionales se cotizan aparte)."
-    },
-    {
-        "icono": E_GLOBO, 
-        "titulo": "Hosting Premium 1 Año", 
-        "valor": "USD 60", 
-        "desc": "CDN global para tu sitio web. NO incluye hosting del ARM, Meta ni tokens IA."
-    }
+    {"icono": E_CEREBRO, "titulo": "An\u00e1lisis Profundo con IA", "valor": "USD 99", "desc": "Reporte personalizado de tu sector y competencia (NO incluye ARM mensual ni WhatsApp)."},
+    {"icono": E_RAYO, "titulo": "3 Modificaciones Gratis", "valor": "USD 15", "desc": "Cambios de textos o colores en tu p\u00e1gina web (adicionales se cotizan aparte)."},
+    {"icono": E_GLOBO, "titulo": "Hosting Premium 1 A\u00f1o", "valor": "USD 60", "desc": "CDN global para tu sitio web. NO incluye hosting del ARM, Meta ni tokens IA."}
 ]
 
 TESTIMONIOS = [
@@ -119,33 +103,32 @@ DEMO_BAKERY = {
     "titulo": "Panader\u00eda Premium Los Tres Amigos",
     "subtitulo": "Artesan\u00eda en masa madre y reposter\u00eda premium",
     "descripcion": "Mira lo que SAMU IA dise\u00f1\u00f3 para una panader\u00eda local en Bogot\u00e1 en un parpadeo. Textos persuasivos, im\u00e1genes generadas por IA y secciones autom\u00e1ticas (Ubicaci\u00f3n, Horarios, Contacto). Tu negocio se ver\u00e1 as\u00ed de premium hoy mismo.",
-    "imagen_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80"
+    "imagen_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff"
 }
 
 FAQ_ITEMS = [
     {
-        "pregunta": "¿Cuál es la diferencia entre los planes?",
-        "respuesta": "- **Web Esencial:** Solo página web + formulario básico; sin CRM ni ARM.\n- **Web Premium CRM:** Sitio web + CRM para registrar leads manualmente; sin ARM automatizado.\n- **Web Premium Plus:** Sitio web + CRM + habilitación para el ARM automatizado (requiere suscripción mensual ARM + contratar BSP/Meta WhatsApp)."
+        "pregunta": "\u00bfCu\u00e1l es la diferencia entre los planes?", 
+        "respuesta": "La calidad visual es PREMIUM en los 3. La diferencia son las herramientas: el Tier 1 es solo la web. El Tier 2 agrega un CRM para capturar clientes. El Tier 3 incluye el ARM (Ventas autom\u00e1ticas) por una suscripci\u00f3n mensual."
     },
     {
-        "pregunta": "¿Qué es el CRM?",
-        "respuesta": "Es tu base de datos para gestionar contactos y oportunidades. Cuando alguien llena el formulario de tu web se guarda en un panel privado para que puedas hacer seguimiento y no pierdas ventas. En Premium CRM es manual; en Premium Plus el ARM ayuda a alimentarlo automáticamente."
+        "pregunta": "\u00bfQu\u00e9 es el CRM?", 
+        "respuesta": "Es tu base de datos. Cuando alguien llena el formulario de tu web, se guarda en un panel privado donde ves su nombre y contacto, para que no pierdas ninguna venta."
     },
     {
-        "pregunta": "¿Qué es el ARM y cómo funciona?",
-        "respuesta": "El **ARM (Automated Relationship Manager)** es tu asistente comercial automático exclusivo para Web Premium Plus. Cuando un cliente te escribe por WhatsApp, el orquestador IA responde al instante, califica el lead, lo registra en Odoo y avisa a tu equipo para que tú realices el cierre de la venta.\n\n- **Límite:** hasta 1,500 conversaciones procesadas por ARM al mes (incluidas en la suscripción ARM).\n- El cliente debe contratar directamente un BSP autorizado por Meta para WhatsApp Cloud API; costos de Meta/BSP y tokens IA son a cargo del cliente."
+        "pregunta": "\u00bfQu\u00e9 es el ARM y c\u00f3mo funciona?", 
+        "respuesta": "El **Automated Relationship Manager** es un vendedor autom\u00e1tico. Si un cliente te escribe a tu WhatsApp, la IA lo responde al instante, califica si est\u00e1 interesado y lo guarda en Odoo. Todo sin que t\u00fa toques el celular. L\u00edmite: 1,500 msgs/mes."
     },
     {
-        "pregunta": "¿Cómo funciona el pago del plan Premium Plus?",
-        "respuesta": "- **Pago único (USD 499):** Corresponde al desarrollo del sitio web + el bonus de lanzamiento.\n- **Suscripción mensual ARM (USD 150):** Es un pago adicional por el servicio de orquestación, sincronización con Odoo y soporte del ARM.\n- **Meta / BSP / tokens IA:** Son pagos independientes que el cliente realiza directamente al proveedor."
+        "pregunta": "\u00bfC\u00f3mo funciona el pago del plan Premium Plus?",
+        "respuesta": "Tiene un costo inicial de USD 499 por la creaci\u00f3n de la web y la configuraci\u00f3n del sistema. A partir del segundo mes, se cobra una suscripci\u00f3n de USD 150/mes para mantener el ARM funcionando, la IA y el soporte."
     },
     {
-        "pregunta": "¿El hosting es realmente gratis?",
-        "respuesta": "Sí, el hosting Premium por 1 año es el bonus para los primeros 50 clientes: aplica **solo para el sitio web**. No incluye: Hosting dedicado para el ARM, dominios adicionales, servicios de Meta, BSP ni tokens IA. Después del año se cobra la renovación."
+        "pregunta": "\u00bfEl hosting es realmente gratis?", 
+        "respuesta": "S\u00ed, el primer a\u00f1o es 100% GRATIS en todos los planes. Usamos infraestructura de alto rendimiento (Vercel/Cloudflare). Despu\u00e9s del a\u00f1o 1, la renovaci\u00f3n es de solo USD 59/a\u00f1o."
     }
 ]
 
-# AQUI ESTA TU CSS ORIGINAL INTACTO
 CSS_LANDING_V2 = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap');
