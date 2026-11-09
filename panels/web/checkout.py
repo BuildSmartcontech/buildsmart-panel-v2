@@ -2,9 +2,7 @@
 # ============================================
 # CHECKOUT UI - Web Gancho SAMU IA
 # ============================================
-# V5.8: Bloqueo de archivos maliciosos (Security Shield)
-# V5.7: Enlace dinámico a política de privacidad (Local vs Producción)
-# V5.6: Alineación 100% con Ley 1581 y recomendaciones legales
+# V5.9: Mejora UX legal (Modal en lugar de redirección) y claridad de precios
 # ============================================
 
 import streamlit as st
@@ -18,17 +16,13 @@ except ImportError:
     proveedor_actual = None
 
 from utils.paises import PAISES_DEFAULT, obtener_prefijo, obtener_nombres
-from utils.security import validar_imagen_subida  # <-- IMPORTACIÓN DE SEGURIDAD
+from utils.security import validar_imagen_subida
 
 from panels.web.checkout_validators import (
-    SECTORES,
-    validar_formulario,
-    calcular_faltantes,
+    SECTORES, validar_formulario, calcular_faltantes,
 )
 from panels.web.checkout_data import (
-    datos_pago_desde_config,
-    crear_pedido_y_avanzar,
-    limpiar_estado_checkout,
+    datos_pago_desde_config, crear_pedido_y_avanzar, limpiar_estado_checkout,
 )
 
 E_OK        = "\u2705"
@@ -57,8 +51,15 @@ def _procesar_imagen_subida(file):
 
 def _renderizar_formulario(tier):
     st.markdown(f"# {E_CORONA} Checkout - {tier['nombre']}")
-    st.markdown(f"**Plan:** {tier['precio_label']} ({tier['pago_label']})")
-    st.caption("Los campos marcados con * son obligatorios. El resto es opcional.")
+    
+    # Claridad en el precio del Tier 3
+    if tier['id'] == "tier3":
+        st.markdown(f"**Plan:** {tier['precio_label']} ({tier['pago_label']})")
+        st.caption("El plan Premium Plus requiere un pago inicial de USD 499 por la creación de la web y configuración, más una suscripción mensual de USD 150 por mantenimiento del ARM a partir del mes 2.")
+    else:
+        st.markdown(f"**Plan:** {tier['precio_label']} ({tier['pago_label']})")
+        st.caption("Los campos marcados con * son obligatorios. El resto es opcional.")
+    
     st.divider()
 
     # TUS DATOS
@@ -100,7 +101,6 @@ def _renderizar_formulario(tier):
         pais_sel = st.selectbox(f"{E_GLOBO} Pais *", nombres_paises, index=idx_default, help="El prefijo del WhatsApp se ajusta automaticamente.", key="ck_pais")
 
     prefijo_pais = obtener_prefijo(pais_sel)
-
     direccion = st.text_input("Direccion fisica", placeholder="Ej: Calle 123 #45-67, Barrio Centro", help="Opcional. Si tenes local fisico, aparece un mapa en tu web.", key="ck_direccion")
 
     # CONTACTO DEL NEGOCIO
@@ -129,7 +129,7 @@ def _renderizar_formulario(tier):
 
     anio_fundacion = st.text_input("Año de fundación", placeholder="Ej: 2018", key="ck_anio")
 
-    # FOTOS Y LOGO (CON ESCUDO DE SEGURIDAD)
+    # FOTOS Y LOGO
     st.divider()
     st.markdown(f"### {E_CAMARA} Fotos de tu negocio (Opcional)")
     st.caption("Sube tu logo y hasta 3 fotos de tus productos. Máximo 5MB por archivo.")
@@ -141,7 +141,7 @@ def _renderizar_formulario(tier):
             es_valido, msg = validar_imagen_subida(logo_file)
             if not es_valido:
                 st.error(msg)
-                logo_file = None  # Bloqueamos el archivo malicioso
+                logo_file = None
 
     with col_img2:
         fotos_files = st.file_uploader("Sube hasta 3 fotos (PNG o JPG)", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="ck_fotos")
@@ -155,7 +155,7 @@ def _renderizar_formulario(tier):
                     fotos_validas.append(f)
             fotos_files = fotos_validas
 
-    # BLOQUE LEGAL (ALINEADO A LEY 1581)
+    # BLOQUE LEGAL (Modal interno)
     st.divider()
     st.markdown("### ⚖️ Términos y Privacidad")
     st.caption("Para continuar, debes aceptar nuestras políticas de tratamiento de datos.")
@@ -173,7 +173,7 @@ def _renderizar_formulario(tier):
         key="ck_acepta_legal"
     )
     
-    with st.expander("Ver resumen de la Política de Privacidad"):
+    with st.expander("📄 Ver resumen de la Política de Privacidad"):
         st.markdown(f"""
         *   **SAMU IA** usará tus datos personales solo para crear tu sitio web, gestionar tu cuenta, prestar el servicio ARM y enviar soporte relacionado con el servicio contratado.
         *   **Cuando contrates Web Premium Plus y actives el ARM:** las conversaciones recibidas por WhatsApp serán transferidas internacionalmente y procesadas por los modelos de IA (Groq, OpenRouter, Gemini) para calificar leads y alimentar Odoo; estos proveedores actúan como encargados del tratamiento bajo sus propias políticas de privacidad. (Meta y tu BSP también tienen sus propias políticas).
@@ -182,14 +182,7 @@ def _renderizar_formulario(tier):
         *   Este es un resumen; al aceptar accedes a nuestra política completa publicada en el sitio web y autorizas expresamente la transferencia internacional de datos necesaria para la ejecución de la IA.
         *   Los datos se conservarán solo por el tiempo necesario para prestar el servicio y cumplir obligaciones legales.
         """)
-
-    # LÓGICA DEL ENLACE DINÁMICO
-    try:
-        url_privacidad = "https://samu-ia.com/Privacidad"
-    except Exception:
-        url_privacidad = "https://samu-ia.com/Privacidad"
-        
-    st.link_button("📄 Leer Política de Privacidad Global", url_privacidad)
+        st.markdown("[Ver Política de Privacidad Completa (PDF)](https://samu-ia.com)")
 
     # BOTON CONFIRMAR
     st.divider()
@@ -200,7 +193,7 @@ def _renderizar_formulario(tier):
         use_container_width=True,
         type="primary",
         key="ck_btn_confirmar",
-        disabled=not acepta_terminos # BLOQUEO LEGAL
+        disabled=not acepta_terminos
     ):
         if sector_sel == "Otro (especificar abajo)":
             sector_final = sector_otro.strip()
@@ -239,7 +232,6 @@ def _renderizar_formulario(tier):
             else:
                 crear_pedido_y_avanzar(datos_form, tier)
 
-    # DIALOGO DE CONFIRMACION
     if st.session_state.get("_checkout_confirmando", False):
         faltantes = st.session_state.get("_checkout_faltantes", [])
         st.divider()

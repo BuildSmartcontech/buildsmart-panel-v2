@@ -1,16 +1,7 @@
 # app.py - SAMU IA Operations Center
-# ============================================
-# DECIDE QUE PANEL MOSTRAR
-# ============================================
-# 1. Si URL tiene ?web=admin o ?web=app -> Panel Dueno / ERP
-# 2. Si URL tiene ?web=landing, checkout, panel -> Web Gancho
-# 3. Si URL no tiene parametros (/) -> Landing Web Gancho (PUBLICO)
-# ============================================
-
 import streamlit as st
 import traceback
 
-# 1. Inicialización temprana de session_state para evitar loops
 if "_session_initialized" not in st.session_state:
     st.session_state._session_initialized = True
     st.session_state._rerun_count = 0
@@ -21,19 +12,15 @@ print(f"[RERUN {st.session_state._rerun_count}] Iniciando app...")
 
 from config_app import ES_DUENO, MODO, NOMBRE_APP, VERSION, obtener_usuario_actual
 
-# Configuracion de la pagina
+# Sidebar colapsado por defecto
 st.set_page_config(
     page_title=f"{NOMBRE_APP} - {MODO.upper()}",
     page_icon=":office:",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed" 
 )
 
-# ==========================================
-# DETECTAR RUTA WEB GANCHO (?web=...)
-# ==========================================
 def detectar_subruta_web():
-    """Detecta si el usuario esta navegando al modulo Web Gancho o al ERP."""
     try:
         params = st.query_params
         if "web" in params:
@@ -45,54 +32,35 @@ def detectar_subruta_web():
         pass
     return None
 
-# ==========================================
-# DETECTAR ROL DEL USUARIO (ERP)
-# ==========================================
 def detectar_rol():
-    """Retorna el rol del usuario actual o None si es usuario normal."""
     if ES_DUENO:
         return "dueno"
-
     try:
         from utils.supabase_rest import supabase_rest
-        if not supabase_rest.disponible:
-            return None
-
+        if not supabase_rest.disponible: return None
         uid = obtener_usuario_actual()
-        if not uid:
-            return None
-
+        if not uid: return None
         rows = supabase_rest.table("staff").select("*").eq("usuario_id", uid).execute().data or []
-        if not rows:
-            return None
-
+        if not rows: return None
         staff_info = rows[0]
-        if not staff_info.get("activo"):
-            return None
-
+        if not staff_info.get("activo"): return None
         rol = staff_info.get("rol")
         if rol in ("admin", "soporte", "marketing"):
             st.session_state._staff_info = staff_info
             return rol
         return None
-
     except Exception as e:
         print(f"[app] Error detectando staff: {e}")
         return None
 
-# ==========================================
-# ROUTING PRINCIPAL
-# ==========================================
 subruta_web = detectar_subruta_web()
 
-# CASO 1: PANEL DEL DUEÑO (Ruta oculta: ?web=admin)
 if subruta_web in ("admin", "app"):
     print(f"[app] Acceso al ERP - Ruta: {subruta_web}")
     try:
         from panels import panel_usuario, panel_dueno
         rol_actual = detectar_rol()
         st.session_state._rol_actual = rol_actual
-
         if rol_actual:
             print(f"[app] Usuario con rol: {rol_actual}")
             panel_dueno.renderizar()
@@ -102,10 +70,7 @@ if subruta_web in ("admin", "app"):
     except Exception as e:
         st.error(f"Error crítico cargando el panel: {e}")
         print(traceback.format_exc())
-
-# CASO 2: WEB GANCHO (Landing, Checkout, Panel Cliente) y Ruta Raíz
 else:
-    # Si no hay subruta, forzamos la landing
     if subruta_web is None:
         subruta_web = "landing"
         
