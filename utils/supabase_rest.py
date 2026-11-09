@@ -2,21 +2,25 @@
 # ============================================
 # Cliente REST minimal estilo SDK oficial
 # ============================================
-# V1.1: Agrega metodo delete()
-# V1.0: Cliente inicial (select, insert, update)
+# V1.4: Compatibilidad total con nuevas API keys (sb_publishable_...)
+#       - Solo usa el encabezado 'apikey' para llaves nuevas.
+#       - Usa 'Authorization: Bearer' solo para JWT legacy (eyJ...).
 # ============================================
 
 import os
+import time
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
+MAX_REINTENTOS = 3
+TIEMPO_ESPERA_BASE = 2
+
 
 class _Query:
-    """Query builder minimal estilo SDK oficial."""
-
-    def __init__(self, url, headers, tabla):
+    def __init__(self, session, url, headers, tabla):
+        self.session = session
         self.url = f"{url}/rest/v1/{tabla}"
         self.headers = headers
         self._select = "*"
@@ -52,13 +56,25 @@ class _Query:
         if self._limit:
             params["limit"] = self._limit
 
-        try:
-            r = requests.get(self.url, headers=headers, params=params, timeout=15)
-            if r.status_code == 200:
-                return _Response(r.json())
-            return _Response([], error=f"HTTP {r.status_code}: {r.text[:200]}")
-        except Exception as e:
-            return _Response([], error=str(e))
+        for intento in range(MAX_REINTENTOS):
+            try:
+                r = self.session.get(self.url, headers=headers, params=params, timeout=30)
+                if r.status_code == 200:
+                    return _Response(r.json())
+                elif r.status_code >= 500:
+                    print(f"[SUPABASE REST] Error {r.status_code}, reintentando...")
+                    time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
+                    continue
+                else:
+                    return _Response([], error=f"HTTP {r.status_code}: {r.text[:200]}")
+            except requests.exceptions.RequestException as e:
+                print(f"[SUPABASE REST] Excepción: {e}, reintentando...")
+                if intento < MAX_REINTENTOS - 1:
+                    time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
+                else:
+                    return _Response([], error=str(e))
+
+        return _Response([], error="Falló después de múltiples reintentos")
 
 
 class _Response:
@@ -68,69 +84,112 @@ class _Response:
 
 
 class SupabaseREST:
-    """Cliente REST minimal estilo SDK oficial."""
-
     def __init__(self):
-        self.url = os.getenv("SUPABASE_URL")
-        self.key = os.getenv("SUPABASE_KEY")
+        self.url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        self.key = os.getenv("SUPABASE_KEY", "")
+        self.disponible = bool(self.url and self.key)
+
+        # Construir encabezados según el tipo de llave
         self.headers = {
-            "apikey": self.key or "",
-            "Authorization": f"Bearer {self.key or ''}",
+            "apikey": self.key,
             "Content-Type": "application/json",
         }
-        self.disponible = bool(self.url and self.key)
+
+        # Las llaves legacy (anon/service_role) son JWT y empiezan con "eyJ".
+        # Las nuevas llaves sb_publishable_... no son JWT y NO deben ir en Authorization.
+        if self.key.startswith("eyJ"):
+            self.headers["Authorization"] = f"Bearer {self.key}"
+
+        self.session = requests.Session()
 
     def table(self, nombre):
         if not self.disponible:
             raise RuntimeError("SupabaseREST: faltan SUPABASE_URL o SUPABASE_KEY en .env")
-        return _Query(self.url, self.headers, nombre)
+        return _Query(self.session, self.url, self.headers, nombre)
 
     def insert(self, tabla, data):
-        """Insert directo (por si lo necesitas después)."""
         url = f"{self.url}/rest/v1/{tabla}"
         headers = dict(self.headers)
         headers["Prefer"] = "return=representation"
-        try:
-            r = requests.post(url, headers=headers, json=data, timeout=15)
-            return _Response(r.json() if r.status_code in (200, 201) else [], error=None if r.status_code in (200, 201) else r.text)
-        except Exception as e:
-            return _Response([], error=str(e))
+
+        for intento in range(MAX_REINTENTOS):
+            try:
+                r = self.session.post(url, headers=headers, json=data, timeout=30)
+                if r.status_code in (200, 201):
+                    return _Response(r.json())
+                elif r.status_code >= 500:
+                    time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
+                    continue
+                else:
+                    return _Response([], error=r.text)
+            except requests.exceptions.RequestException as e:
+                if intento < MAX_REINTENTOS - 1:
+                    time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
+                else:
+                    return _Response([], error=str(e))
+
+        return _Response([], error="Falló después de múltiples reintentos")
 
     def update(self, tabla, data, col, val):
-        """Update simple: update(tabla, {campo: valor}, col_filtro, valor_filtro)."""
         url = f"{self.url}/rest/v1/{tabla}"
         headers = dict(self.headers)
         headers["Prefer"] = "return=representation"
         params = {col: f"eq.{val}"}
-        try:
-            r = requests.patch(url, headers=headers, params=params, json=data, timeout=15)
-            return _Response(r.json() if r.status_code in (200, 204) else [], error=None if r.status_code in (200, 204) else r.text)
-        except Exception as e:
-            return _Response([], error=str(e))
+
+        for intento in range(MAX_REINTENTOS):
+            try:
+                r = self.session.patch(url, headers=headers, params=params, json=data, timeout=30)
+                if r.status_code in (200, 204):
+                    return _Response(r.json())
+                elif r.status_code >= 500:
+                    time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
+                    continue
+                else:
+                    return _Response([], error=r.text)
+            except requests.exceptions.RequestException as e:
+                if intento < MAX_REINTENTOS - 1:
+                    time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
+                else:
+                    return _Response([], error=str(e))
+
+        return _Response([], error="Falló después de múltiples reintentos")
 
     def delete(self, tabla, col, val):
-        """Delete simple: delete(tabla, col_filtro, valor_filtro)."""
         url = f"{self.url}/rest/v1/{tabla}"
         headers = dict(self.headers)
         headers["Prefer"] = "return=representation"
         params = {col: f"eq.{val}"}
-        try:
-            r = requests.delete(url, headers=headers, params=params, timeout=15)
-            return _Response(r.json() if r.status_code in (200, 204) else [], error=None if r.status_code in (200, 204) else r.text)
-        except Exception as e:
-            return _Response([], error=str(e))
+
+        for intento in range(MAX_REINTENTOS):
+            try:
+                r = self.session.delete(url, headers=headers, params=params, timeout=30)
+                if r.status_code in (200, 204):
+                    return _Response(r.json())
+                elif r.status_code >= 500:
+                    time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
+                    continue
+                else:
+                    return _Response([], error=r.text)
+            except requests.exceptions.RequestException as e:
+                if intento < MAX_REINTENTOS - 1:
+                    time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
+                else:
+                    return _Response([], error=str(e))
+
+        return _Response([], error="Falló después de múltiples reintentos")
 
 
-# Singleton listo para importar
 supabase_rest = SupabaseREST()
 
 
 if __name__ == "__main__":
-    print("Test SupabaseREST")
+    print("Test SupabaseREST (Compatibilidad total nuevas llaves)")
     if supabase_rest.disponible:
+        print(f"URL: {supabase_rest.url}")
+        print(f"Llave tipo: {'JWT (legacy)' if supabase_rest.key.startswith('eyJ') else 'Publishable/Secret (nueva)'}")
         r = supabase_rest.table("config_global").select("*").execute()
         print(f"config_global: {len(r.data)} filas")
         if r.error:
-            print(f"Error: {r.error}")
+            print(f"Error capturado: {r.error}")
     else:
         print("Faltan credenciales en .env")
