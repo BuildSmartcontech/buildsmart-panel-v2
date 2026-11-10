@@ -2,10 +2,7 @@
 # ============================================
 # CONSTANTES Y CONSTRUCTORES DE PROMPTS WEB
 # ============================================
-# V5.0: Corporate Premium Master Template
-#       - Diseno editorial, Bento Grid, tipografia Inter/Space Grotesk
-#       - Paleta Obsidiana + Teal/Blue accent
-#       - Forza inyeccion de {{FORMULARIO}}
+# V5.1: Corporate Premium Master Template (Mapa con boton, sin iframe)
 # ============================================
 
 PALABRAS_PROHIBIDAS = [
@@ -174,9 +171,16 @@ input:focus { outline: none; border-color: var(--primary); }
 
 REGLAS_SECCION_UBICACION = """
 ### SECCION UBICACION (OBLIGATORIA porque hay direccion):
+
 Genera una seccion <section id="ubicacion" class="ubicacion"> con:
 1. Titulo "Donde estamos" o "Visitanos"
-2. Mapa embebido de Google Maps usando iframe.
+2. Layout en 2 columnas (grid):
+   - Columna izquierda: datos de direccion con icono SVG de pin + ciudad + pais.
+   - Columna derecha: Un boton grande y elegante que diga "Abrir en Google Maps".
+3. El boton debe tener un enlace valido:
+   - Formato: <a href="https://www.google.com/maps/search/?api=1&query=DIRECCION,CIUDAD" target="_blank" class="btn">Abrir en Google Maps</a>
+4. NO uses iframes de mapas. Solo el boton. Esto evita errores de carga.
+5. Estilos premium: card con sombra, border-radius 16px, hover sutil.
 """
 
 REGLAS_SECCION_HORARIOS = """
@@ -312,7 +316,7 @@ def construir_reglas_contenido(sector, lista_negra):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("TEST WEB PROMPTS DATA V5.0 (Corporate Premium)")
+    print("TEST WEB PROMPTS DATA V5.1 (Corporate Premium + Map Button)")
     print("=" * 60)
     print("Palabras prohibidas: " + str(len(PALABRAS_PROHIBIDAS)))
     print("Director de Arte: " + str(len(DIRECTOR_DE_ARTE_PROMPT)) + " chars")
