@@ -1,6 +1,9 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS CON IA - VERSION 4.3
+# GENERADOR DE WEBS CON IA - V5.0 (OPENROUTER)
+# ============================================
+# V5.0: Usa OpenRouter (Claude/GPT-4o) para respetar el diseno premium
+#       Fallback automatico a Groq si OpenRouter falla.
 # ============================================
 
 import os
@@ -53,6 +56,13 @@ except ImportError:
         IMAGENES_DISPONIBLES = True
     except ImportError:
         IMAGENES_DISPONIBLES = False
+
+# Importar OpenRouter
+try:
+    from utils.openrouter_manager import consultar_openrouter
+    OPENROUTER_DISPONIBLE = True
+except ImportError:
+    OPENROUTER_DISPONIBLE = False
 
 MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
@@ -140,22 +150,14 @@ def inyectar_hero_automatico(html, hero_url):
         estilo = ' style="background-image: url(\'' + hero_url + '\'); background-size: cover; background-position: center; position: relative;"'
         nuevo_tag = match.group(0).replace(">", estilo + ">")
         return html.replace(match.group(0), nuevo_tag, 1)
-
-    patron_header = r'<header[^>]*>'
-    match = re.search(patron_header, html, re.IGNORECASE)
-    if match:
-        estilo = ' style="background-image: url(\'' + hero_url + '\'); background-size: cover; background-position: center;"'
-        nuevo_tag = match.group(0).replace(">", estilo + ">")
-        return html.replace(match.group(0), nuevo_tag, 1)
-
     return html
 
-def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=True):
+def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=True, modelo_ia="openrouter/free"):
     print("=" * 60)
-    print("GENERANDO WEB CON IA - V4.3")
+    print("GENERANDO WEB CON IA - V5.0 (OPENROUTER)")
     print("=" * 60)
 
-    if gateway is None:
+    if gateway is None and not OPENROUTER_DISPONIBLE:
         return {"exito": False, "html": None, "intentos": 0, "validacion": None, "sector_detectado": None, "imagenes_usadas": None, "error": "Gateway no disponible"}
 
     sector_detectado = None
@@ -172,7 +174,7 @@ def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=T
     descripcion = datos_negocio.get("descripcion", "Descripcion del negocio")
     publico = datos_negocio.get("publico_objetivo", "")
     diferenciadores = datos_negocio.get("diferenciadores", "")
-    colores = datos_negocio.get("colores", "#0f3460, #f39c12")
+    colores = datos_negocio.get("colores", "#0B0C14, #14B8A6")
 
     direccion = datos_negocio.get("direccion", "")
     ciudad = datos_negocio.get("ciudad", "")
@@ -184,8 +186,6 @@ def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=T
     anio_fundacion = datos_negocio.get("anio_fundacion", "")
     email_contacto = datos_negocio.get("email_contacto", "")
     whatsapp_negocio = datos_negocio.get("whatsapp_negocio", "")
-    logo_b64 = datos_negocio.get("logo_b64")
-    fotos_b64 = datos_negocio.get("fotos_b64", [])
 
     sector_para_imagenes = decidir_sector_para_imagenes(sector_original, sector_detectado)
     texto_negocio = (nombre + " " + descripcion + " " + diferenciadores).strip()
@@ -197,18 +197,9 @@ def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=T
             opciones = {"tipo_pagina": "Landing Page", "diseno": "Moderno", "tono": "Profesional", "secciones": ["Hero", "Servicios", "Sobre Nosotros", "Contacto"], "logica": "Formulario de contacto", "funcionalidades": ["SEO optimizado", "Animaciones"]}
 
     imagenes = None
-    if con_imagenes:
-        if fotos_b64 or logo_b64:
-            print("\n3. Usando imagenes subidas por el usuario...")
-            imagenes = {
-                "hero": fotos_b64[0] if fotos_b64 else logo_b64,
-                "servicios": fotos_b64[1:] if len(fotos_b64) > 1 else ([logo_b64] if logo_b64 else []),
-                "fuente": "usuario"
-            }
-        elif IMAGENES_DISPONIBLES:
-            print("\n3. Generando imagenes con IA (Pollinations)...")
-            negocio_info = {"nombre": nombre, "sector": sector_para_imagenes, "descripcion": descripcion}
-            imagenes = obtener_imagenes_para_web(sector_para_imagenes, texto_negocio=texto_negocio, negocio_info=negocio_info, precalentar=True)
+    if con_imagenes and IMAGENES_DISPONIBLES:
+        negocio_info = {"nombre": nombre, "sector": sector_para_imagenes, "descripcion": descripcion}
+        imagenes = obtener_imagenes_para_web(sector_para_imagenes, texto_negocio=texto_negocio, negocio_info=negocio_info, precalentar=True)
 
     for intento in range(1, MAX_INTENTOS + 1):
         try:
@@ -217,23 +208,43 @@ def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=T
             )
 
             sistema = "Eres un disenador web profesional. Genera codigo HTML/CSS limpio y moderno."
-            respuesta, fuente = gateway.chat_inteligente(prompt, sistema)
+            
+            # INTENTAR CON OPENROUTER PRIMERO
+            respuesta = None
+            if OPENROUTER_DISPONIBLE:
+                print(f"[OPENROUTER] Intentando con modelo: {modelo_ia}")
+                respuesta_ia, modelo_usado, error_or = consultar_openrouter(prompt, sistema, modelo=modelo_ia)
+                if error_or:
+                    print(f"[OPENROUTER] Error: {error_or}")
+                else:
+                    respuesta = respuesta_ia
+                    print(f"[OPENROUTER] Exito con: {modelo_usado}")
+
+            # FALLBACK A GROQ SI OPENROUTER FALLA
+            if not respuesta and gateway:
+                print("[FALLBACK] Usando Groq/Gateway...")
+                respuesta, fuente = gateway.chat_inteligente(prompt, sistema)
+                print(f"[FALLBACK] Exito con: {fuente}")
+
+            if not respuesta:
+                print("No se pudo obtener respuesta de ninguna IA.")
+                time.sleep(TIEMPO_ESPERA)
+                continue
+
             html = limpiar_html(respuesta)
 
             if imagenes and (imagenes.get("hero") or imagenes.get("servicios")):
                 html = inyectar_imagenes_en_html(html, imagenes)
 
-            # Inyectar logo si existe
-            if logo_b64:
-                html = html.replace("{{LOGO}}", logo_b64)
-
             validacion = validar_completo(html)
 
             if validacion["valido"]:
-                return {"exito": True, "html": html, "intentos": intento, "validacion": validacion, "fuente": fuente, "sector_detectado": sector_detectado, "sector_usado_imagenes": sector_para_imagenes, "imagenes_usadas": imagenes, "error": None}
+                return {"exito": True, "html": html, "intentos": intento, "validacion": validacion, "fuente": modelo_ia, "sector_detectado": sector_detectado, "sector_usado_imagenes": sector_para_imagenes, "imagenes_usadas": imagenes, "error": None}
 
+            print("HTML invalido. Reintentando en " + str(TIEMPO_ESPERA) + "s...")
             time.sleep(TIEMPO_ESPERA)
         except Exception as e:
+            print("Error en intento " + str(intento) + ": " + str(e))
             time.sleep(TIEMPO_ESPERA)
 
     return {"exito": False, "html": None, "intentos": MAX_INTENTOS, "validacion": None, "fuente": None, "sector_detectado": sector_detectado, "imagenes_usadas": imagenes, "error": "No se pudo generar HTML valido"}
