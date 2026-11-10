@@ -2,7 +2,7 @@
 # ============================================
 # CONSTANTES Y CONSTRUCTORES DE PROMPTS WEB
 # ============================================
-# V5.1: Corporate Premium Master Template (Mapa con boton, sin iframe)
+# V5.2: Ajuste de formulario para inyeccion forzada.
 # ============================================
 
 PALABRAS_PROHIBIDAS = [
@@ -215,8 +215,13 @@ REGLAS_IMAGENES = (
 REGLAS_FORMULARIO = (
     "### FORMULARIO DE CONTACTO (CRITICO):\n"
     "En la seccion de Contacto, DEBES incluir EXACTAMENTE este bloque:\n"
-    "<div id=\"formulario-contacto\">{{FORMULARIO}}</div>\n"
-    "NO crees tu propio <form> en HTML. Solo pon el div con el marcador.\n"
+    "<form action=\"/submit_lead\" method=\"POST\">\n"
+    "  <input type=\"text\" name=\"nombre\" placeholder=\"Nombre completo\" required>\n"
+    "  <input type=\"email\" name=\"email\" placeholder=\"Correo electronico\" required>\n"
+    "  <textarea name=\"mensaje\" placeholder=\"En que podemos ayudarte?\" required></textarea>\n"
+    "  <button type=\"submit\" class=\"btn\">Enviar Mensaje</button>\n"
+    "</form>\n"
+    "NO uses {{FORMULARIO}}. Solo el codigo HTML del form.\n"
 )
 
 REGLAS_SALIDA = (
@@ -312,18 +317,3 @@ def construir_reglas_contenido(sector, lista_negra):
         "4. SI usa ejemplos del sector " + sector + ".\n"
         "5. SI usa lenguaje natural y directo.\n\n"
     )
-
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("TEST WEB PROMPTS DATA V5.1 (Corporate Premium + Map Button)")
-    print("=" * 60)
-    print("Palabras prohibidas: " + str(len(PALABRAS_PROHIBIDAS)))
-    print("Director de Arte: " + str(len(DIRECTOR_DE_ARTE_PROMPT)) + " chars")
-    print("Reglas CSS: " + str(len(REGLAS_CSS_PREMIUM)) + " chars")
-    print("Reglas Ubicacion: " + str(len(REGLAS_SECCION_UBICACION)) + " chars")
-    print("Reglas Horarios: " + str(len(REGLAS_SECCION_HORARIOS)) + " chars")
-    print("Reglas Redes: " + str(len(REGLAS_REDES_SOCIALES)) + " chars")
-    print("Reglas Imagenes: " + str(len(REGLAS_IMAGENES)) + " chars")
-    print("Reglas Formulario: " + str(len(REGLAS_FORMULARIO)) + " chars")
-    print("=" * 60)

@@ -1,8 +1,8 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V9.0 (INYECCION FORZADA)
+# GENERADOR DE WEBS - V10.0 (BEAUTIFULSOUP INJECTION)
 # ============================================
-# V9.0: Fuerza la inyeccion de imagenes, logo y formulario escaneando el HTML.
+# V10.0: Usa BeautifulSoup para forzar la inyeccion de imagenes y logo.
 # ============================================
 
 import os
@@ -10,6 +10,7 @@ import sys
 import re
 import time
 import json
+from bs4 import BeautifulSoup
 
 try:
     import requests as _requests
@@ -20,10 +21,10 @@ except ImportError:
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from utils.web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_IMAGENES, REGLAS_SALIDA, construir_instrucciones_dinamicas
+    from utils.web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_SALIDA, construir_instrucciones_dinamicas
     from utils.web_validator import validar_completo, limpiar_html
 except ImportError:
-    from web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_IMAGENES, REGLAS_SALIDA, construir_instrucciones_dinamicas
+    from web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_SALIDA, construir_instrucciones_dinamicas
     from web_validator import validar_completo, limpiar_html
 
 try:
@@ -53,7 +54,6 @@ except ImportError:
 MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
 
-# --- PASO 1: EL ESTRATEGA ---
 def generar_copy_estrategico(datos_negocio, modelo_ia):
     prompt = f"""
 Eres un Director de Marketing Digital experto en ventas B2B.
@@ -88,7 +88,6 @@ Devuelve UNICAMENTE un JSON valido:
         return respuesta
     return None
 
-# --- PASO 2: EL PROGRAMADOR ---
 def generar_html_programador(datos_negocio, copy, modelo_ia):
     instrucciones_dinamicas = construir_instrucciones_dinamicas(datos_negocio)
     
@@ -128,70 +127,88 @@ GENERA LA PAGINA WEB COMPLETA
         return respuesta
     return None
 
-# --- FUNCION DE INYECCION A PRUEBA DE BALAS ---
 def inyectar_elementos_criticos(html, imagenes, logo_b64):
-    # 1. Inyectar Logo (busca el primer <a> dentro de <nav>)
+    """
+    Usa BeautifulSoup para forzar la inyeccion del logo, imagenes y formulario.
+    """
+    soup = BeautifulSoup(html, 'html.parser')
+
+    # 1. LOGO EN EL NAV
     if logo_b64:
-        nav_match = re.search(r'(<nav[^>]*>.*?)(<a[^>]*>)(.*?)(</a>)', html, re.DOTALL | re.IGNORECASE)
-        if nav_match:
-            logo_tag = f'<img src="{logo_b64}" alt="Logo" style="height:40px;width:auto;">'
-            html = html.replace(nav_match.group(2) + nav_match.group(3), nav_match.group(2) + logo_tag)
-    
-    # 2. Inyectar Imagenes (escanea todas las <img> y las reemplaza por orden)
-    img_pattern = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
-    matches = list(img_pattern.finditer(html))
-    
-    hero_url = imagenes.get("hero")
-    servicios_urls = imagenes.get("servicios", [])
-    
-    for i, match in enumerate(matches):
-        if i == 0 and hero_url:
-            html = html.replace(match.group(1), hero_url)
-        elif i > 0 and (i-1) < len(servicios_urls):
-            html = html.replace(match.group(1), servicios_urls[i-1])
+        nav = soup.find('nav')
+        if nav:
+            # Buscamos si ya hay un <a> para meter la imagen dentro
+            primer_a = nav.find('a')
+            logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
+            logo_img['style'] = "height:40px; width:auto; margin-right:10px;"
             
-    # Si la IA borro los marcadores, forzamos la inyeccion
-    if hero_url: html = html.replace("{{HERO_IMAGE}}", hero_url)
-    for i, img in enumerate(servicios_urls, 1): html = html.replace(f"{{{{SERVICIO_{i}}}}}", img)
+            if primer_a:
+                # Si el <a> ya tiene texto (ej. "SAMU IA"), lo reemplazamos por la imagen
+                primer_a.clear()
+                primer_a.append(logo_img)
+            else:
+                # Si no hay <a>, lo insertamos al inicio del nav
+                nav.insert(0, logo_img)
 
-    # 3. Formulario Automatico (Si la IA lo borro, lo inyectamos antes de </body>)
-    if "{{FORMULARIO}}" not in html:
-        form_html = """
-        <section id="contacto" class="contacto">
-            <h2>Contacto</h2>
-            <form action="/submit_lead" method="POST">
-                <input type="text" name="nombre" placeholder="Nombre completo" required>
-                <input type="email" name="email" placeholder="Correo electronico" required>
-                <textarea name="mensaje" placeholder="En que podemos ayudarte?" required></textarea>
-                <button type="submit" class="btn">Enviar Mensaje</button>
+    # 2. IMAGEN HERO (Buscamos la seccion con clase hero o el primer h1)
+    hero_url = imagenes.get("hero")
+    if hero_url:
+        hero_section = soup.find(class_=re.compile('hero', re.I))
+        if not hero_section:
+            # Si la IA no puso clase "hero", buscamos el h1 principal y subimos a su padre
+            h1 = soup.find('h1')
+            if h1:
+                hero_section = h1.parent
+
+        if hero_section:
+            # Si no hay una imagen en el hero, la insertamos
+            if not hero_section.find('img'):
+                img_tag = soup.new_tag('img', src=hero_url, alt="Hero Image")
+                img_tag['style'] = "width:100%; max-height:400px; object-fit:cover; border-radius:20px; margin-top:20px;"
+                hero_section.append(img_tag)
+
+    # 3. IMAGENES EN SERVICIOS (Buscamos tarjetas)
+    servicios_urls = imagenes.get("servicios", [])
+    if servicios_urls:
+        # La IA suele usar "card", "service", "grid-item" para las tarjetas
+        cards = soup.find_all(class_=re.compile('card|service|grid-item', re.I))
+        for i, card in enumerate(cards[:len(servicios_urls)]):
+            if not card.find('img'):
+                img_tag = soup.new_tag('img', src=servicios_urls[i], alt=f"Servicio {i+1}")
+                img_tag['style'] = "width:100%; height:200px; object-fit:cover; border-radius:12px; margin-bottom:15px;"
+                card.insert(0, img_tag)
+
+    # 4. FORMULARIO DE CONTACTO
+    form_section = soup.find(id='contacto') or soup.find(class_=re.compile('contact', re.I))
+    if form_section:
+        # Si el marcador {{FORMULARIO}} sigue ahí, o no hay un <form> real
+        if "{{FORMULARIO}}" in html or not form_section.find('form'):
+            form_html = """
+            <form action="/submit_lead" method="POST" style="display:flex; flex-direction:column; gap:15px; max-width:500px; margin:0 auto;">
+                <input type="text" name="nombre" placeholder="Nombre completo" required style="padding:15px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:white;">
+                <input type="email" name="email" placeholder="Correo electronico" required style="padding:15px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:white;">
+                <textarea name="mensaje" placeholder="En que podemos ayudarte?" required style="padding:15px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:white; min-height:120px;"></textarea>
+                <button type="submit" class="btn" style="padding:15px; border-radius:8px; border:none; background:#00d4ff; color:black; font-weight:bold; cursor:pointer;">Enviar Mensaje</button>
             </form>
-        </section>
-        """
-        html = html.replace("</body>", form_html + "</body>")
-    else:
-        # Si la IA si lo puso, lo reemplazamos por el formulario real
-        form_html = """
-        <form action="/submit_lead" method="POST">
-            <input type="text" name="nombre" placeholder="Nombre completo" required>
-            <input type="email" name="email" placeholder="Correo electronico" required>
-            <textarea name="mensaje" placeholder="En que podemos ayudarte?" required></textarea>
-            <button type="submit" class="btn">Enviar Mensaje</button>
-        </form>
-        """
-        html = html.replace("{{FORMULARIO}}", form_html)
+            """
+            form_soup = BeautifulSoup(form_html, 'html.parser')
+            # Reemplazamos el texto {{FORMULARIO}} o inyectamos al final
+            if "{{FORMULARIO}}" in html:
+                html = html.replace("{{FORMULARIO}}", str(form_soup))
+                soup = BeautifulSoup(html, 'html.parser')
+            else:
+                form_section.append(form_soup)
 
-    return html
+    return str(soup)
 
-# --- FUNCION PRINCIPAL ---
-def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=True, modelo_ia="nvidia/nemotron-3-super-120b"):
+def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V9.0 (Inyeccion Forzada)")
+    print("GENERANDO WEB - V10.0 (BeautifulSoup)")
     print("=" * 60)
 
     if not gateway and not OPENROUTER_DISPONIBLE:
         return {"exito": False, "html": None, "error": "Gateway no disponible"}
 
-    # 1. Copy
     copy_raw = generar_copy_estrategico(datos_negocio, modelo_ia)
     if not copy_raw:
         return {"exito": False, "html": None, "error": "Fallo el copy."}
@@ -203,7 +220,6 @@ def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=T
     except Exception:
         return {"exito": False, "html": None, "error": "JSON invalido."}
 
-    # 2. Imagenes
     imagenes = {"hero": None, "servicios": []}
     logo_b64 = datos_negocio.get("logo_b64")
     fotos_b64 = datos_negocio.get("fotos_b64", [])
@@ -211,7 +227,7 @@ def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=T
     if fotos_b64:
         imagenes["hero"] = fotos_b64[0] if len(fotos_b64) > 0 else None
         imagenes["servicios"] = fotos_b64[1:4]
-    elif con_imagenes and IMAGENES_DISPONIBLES:
+    elif IMAGENES_DISPONIBLES:
         keywords = copy.get("keywords_imagenes", ["business"])
         negocio_info = {"nombre": datos_negocio.get("nombre"), "sector": " ".join(keywords), "descripcion": datos_negocio.get("descripcion")}
         poll = obtener_urls_imagenes_negocio(negocio_info, cantidad=4)
@@ -219,7 +235,6 @@ def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=T
             imagenes["hero"] = poll[0]["url_regular"]
             imagenes["servicios"] = [p["url_regular"] for p in poll[1:4]]
 
-    # 3. HTML
     for intento in range(1, MAX_INTENTOS + 1):
         html_raw = generar_html_programador(datos_negocio, copy, modelo_ia)
         if not html_raw:

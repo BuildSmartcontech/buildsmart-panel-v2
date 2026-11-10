@@ -2,7 +2,7 @@
 # ============================================
 # TAB PEDIDOS WEB - Panel Dueno SAMU IA
 # ============================================
-# V2.5: Interfaz limpia, sin selector de modelo (usa default del sistema)
+# V3.0: Modo PREVIEW (ahorra creditos) y boton PUBLICAR.
 # ============================================
 
 import streamlit as st
@@ -16,16 +16,14 @@ E_AVISO    = "\u26A0\uFE0F"
 E_X        = "\u274C"
 E_DINERO   = "\U0001F4B0"
 E_RELOJ    = "\U0001F550"
-E_EMAIL    = "\U0001F4E7"
-E_TELEFONO = "\U0001F4F1"
 E_CORONA   = "\U0001F451"
 E_COHETE   = "\U0001F680"
 E_GLOBO    = "\U0001F310"
+E_OJO      = "\U0001F441\uFE0F"
 
 ESTADOS = {
     "pendiente_pago_manual": {"label": "Pendiente pago", "icono": E_RELOJ},
     "pagado":                {"label": "Pagado",          "icono": E_OK},
-    "generando":             {"label": "Generando",       "icono": E_COHETE},
     "entregado":             {"label": "Entregado",       "icono": E_OK},
     "fallido":               {"label": "Fallido",         "icono": E_X},
 }
@@ -38,10 +36,6 @@ def _fmt_fecha(iso_str):
     if dt is None: return str(iso_str)[:19].replace("T", " ")
     return dt.strftime("%d/%m/%Y %H:%M")
 
-def _estado_info(estado):
-    estado_limpio = str(estado).lower().strip()
-    return ESTADOS.get(estado_limpio, {"label": estado, "icono": E_AVISO})
-
 def _cargar_pedidos(sb):
     try:
         return sb.table("pedidos_web").select("*").order("created_at", desc=True).limit(500).execute().data or []
@@ -51,8 +45,6 @@ def _cargar_pedidos(sb):
 def _cambiar_estado(sb, pedido_id, nuevo_estado):
     try:
         payload = {"estado": nuevo_estado.lower().strip(), "updated_at": datetime.datetime.now().isoformat()}
-        if nuevo_estado == "pagado": payload["pagado_at"] = datetime.datetime.now().isoformat()
-        elif nuevo_estado == "entregado": payload["entregado_at"] = datetime.datetime.now().isoformat()
         sb.update("pedidos_web", payload, "id", pedido_id)
         return True, f"Estado cambiado a {nuevo_estado}"
     except Exception as e:
@@ -60,27 +52,12 @@ def _cambiar_estado(sb, pedido_id, nuevo_estado):
 
 def renderizar(sb, inicio=None, fin=None):
     st.markdown(f"### {E_PEDIDO} Pedidos Web Gancho")
-    st.caption("Gestiona los pedidos de webs individuales.")
+    st.caption("Genera VISTAS PREVIAS sin gastar creditos, y publica cuando estes seguro.")
 
     pedidos = _cargar_pedidos(sb)
 
-    total = len(pedidos)
-    pendientes = sum(1 for p in pedidos if str(p.get("estado", "")).lower() == "pendiente_pago_manual")
-    pagados = sum(1 for p in pedidos if str(p.get("estado", "")).lower() == "pagado")
-    entregados = sum(1 for p in pedidos if str(p.get("estado", "")).lower() == "entregado")
-    ingresos = sum(float(p.get("precio_usd", 0) or 0) for p in pedidos if str(p.get("estado", "")).lower() in ("pagado", "entregado", "generando"))
-
-    c1, c2, c3, c4, c5 = st.columns(5)
-    C._kpi(c1, f"{E_PEDIDO} Total", total)
-    C._kpi(c2, f"{E_RELOJ} Pendientes", pendientes)
-    C._kpi(c3, f"{E_OK} Pagados", pagados)
-    C._kpi(c4, f"{E_COHETE} Entregados", entregados)
-    C._kpi(c5, f"{E_DINERO} Ingresos", f"USD {ingresos:,.0f}")
-
-    st.divider()
-
     if not pedidos:
-        st.info(f"{E_AVISO} Aun no hay pedidos.")
+        st.info("Aun no hay pedidos.")
         return
 
     for p in pedidos:
@@ -89,64 +66,57 @@ def renderizar(sb, inicio=None, fin=None):
 def _renderizar_pedido(sb, p):
     pedido_id = p.get("id", "?")
     fecha = _fmt_fecha(p.get("created_at"))
-    tier_num = p.get("tier", 1)
-    tier_label = TIER_LABELS.get(tier_num, f"Tier {tier_num}")
-    precio = p.get("precio_usd", 0)
     estado = str(p.get("estado", "?")).lower().strip()
-    info_estado = _estado_info(estado)
-
+    info_estado = ESTADOS.get(estado, {"label": estado, "icono": E_AVISO})
     nombre = p.get("nombre_cliente", "Sin nombre")
-    email = p.get("email", "?")
-    titulo = f"{info_estado['icono']} [{fecha}] {nombre} - {tier_label} (USD {precio:.0f})"
-
+    
+    titulo = f"{info_estado['icono']} [{fecha}] {nombre} - USD {p.get('precio_usd', 0):.0f}"
+    
     with st.expander(titulo):
-        col_a, col_b = st.columns([3, 2])
-        with col_a:
-            st.markdown(f"**{E_CORONA} {nombre}**")
-            st.markdown(f"{E_EMAIL} {email}")
-            st.markdown(f"**Plan:** {tier_label} - USD {precio:.0f}")
-            st.markdown(f"**Estado:** {info_estado['icono']} {info_estado['label']}")
-            st.caption(f"ID: `{pedido_id}`")
-            if p.get("web_url"): st.markdown(f"**{E_GLOBO} Web:** [{p.get('web_url')}]({p.get('web_url')})")
-        
-        with col_b:
-            datos = p.get("datos_negocio") or {}
-            if isinstance(datos, dict):
-                st.markdown(f"**{E_CORONA} {datos.get('nombre_negocio', '?')}**")
-                st.caption(f"Sector: {datos.get('sector', '?')}")
-
+        col1, col2 = st.columns([3, 2])
+        with col1:
+            st.markdown(f"**Estado:** {info_estado['label']}")
+            if p.get("web_url"): st.markdown(f"**{E_GLOBO} Web Publica:** [{p.get('web_url')}]({p.get('web_url')})")
         st.divider()
-        _renderizar_acciones(sb, p)
 
-def _generar_web_accion(sb, p):
-    # Usamos el modelo por defecto definido en generar_web (nvidia/nemotron-3-super-120b)
-    with st.spinner("Generando web premium... (esto puede tardar 1-2 mins)"):
-        resultado = ACC.generar_web_para_pedido(sb, p)
+        # --- LOGICA DE BOTONES ---
+        if estado == "pagado":
+            st.markdown("#### 1. Generar y Previsualizar")
+            if st.button(f"{E_OJO} Generar Vista Previa (No gasta Netlify)", key=f"preview_{pedido_id}", use_container_width=True):
+                with st.spinner("Generando HTML... (esto toma 30-60s)"):
+                    res = ACC.generar_web_para_pedido(sb, p, publicar=False)
+                if res.get("exito"):
+                    st.session_state[f"html_preview_{pedido_id}"] = res.get("html")
+                    st.success(res.get("mensaje"))
+                else:
+                    st.error(res.get("mensaje"))
 
-    if resultado.get("exito"):
-        st.success(f"{E_OK} {resultado.get('mensaje')}")
-        url = resultado.get("url_publica", "")
-        if url: st.markdown(f"{E_GLOBO} **URL publica:** [{url}]({url})")
-        st.balloons()
-        st.rerun()
-    else:
-        st.error(f"{E_X} {resultado.get('mensaje')}")
+            # Si hay HTML en sesion, mostramos el iframe y el boton de publicar
+            if f"html_preview_{pedido_id}" in st.session_state:
+                st.markdown("#### 2. Revisar y Publicar")
+                html_preview = st.session_state[f"html_preview_{pedido_id}"]
+                st.components.v1.html(html_preview, height=600, scrolling=True)
+                
+                if st.button(f"{E_COHETE} PUBLICAR EN NETLIFY AHORA", key=f"publish_{pedido_id}", type="primary", use_container_width=True):
+                    with st.spinner("Subiendo a Netlify..."):
+                        res_pub = ACC.generar_web_para_pedido(sb, p, publicar=True) # Volvemos a generar y publicar
+                    if res_pub.get("exito"):
+                        st.success(res_pub.get("mensaje"))
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        st.error(res_pub.get("mensaje"))
 
-def _renderizar_acciones(sb, p):
-    pedido_id = p.get("id", "?")
-    estado = str(p.get("estado", "?")).lower().strip()
-
-    if estado == "pendiente_pago_manual":
-        if st.button(f"{E_OK} Marcar como PAGADO", key=f"marcar_pagado_{pedido_id}", use_container_width=True, type="primary"):
-            ok, msg = _cambiar_estado(sb, pedido_id, "pagado")
-            if ok: st.rerun()
-    elif estado == "pagado":
-        if st.button(f"{E_COHETE} Generar web ahora", key=f"generar_{pedido_id}", use_container_width=True, type="primary"):
-            _generar_web_accion(sb, p)
-    elif estado == "entregado":
-        st.success(f"{E_OK} Pedido entregado.")
-        if p.get("web_url"): st.markdown(f"**{E_GLOBO} URL:** [{p.get('web_url')}]({p.get('web_url')})")
-        if st.button(f"{E_COHETE} Forzar Regeneracion", key=f"force_regen_{pedido_id}", use_container_width=True):
-            _generar_web_accion(sb, p)
-    else:
-        st.info(f"Estado actual: {estado}")
+        elif estado == "entregado":
+            st.success(f"{E_OK} Pedido entregado.")
+            if st.button(f"{E_OJO} Regenerar Vista Previa", key=f"force_preview_{pedido_id}", use_container_width=True):
+                with st.spinner("Generando HTML..."):
+                    res = ACC.generar_web_para_pedido(sb, p, publicar=False)
+                if res.get("exito"):
+                    st.session_state[f"html_preview_{pedido_id}"] = res.get("html")
+                    st.success("Vista previa regenerada. Desplazate para ver.")
+                else:
+                    st.error(res.get("mensaje"))
+            
+            if f"html_preview_{pedido_id}" in st.session_state:
+                st.components.v1.html(st.session_state[f"html_preview_{pedido_id}"], height=600, scrolling=True)
