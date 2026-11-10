@@ -2,8 +2,7 @@
 # ============================================
 # CONSTANTES Y CONSTRUCTORES DE PROMPTS WEB
 # ============================================
-# V3.0: Forza el diseño Dark Premium (fondo oscuro)
-#       e inyección obligatoria de {{FORMULARIO}}
+# V4.0: Master Template (Fuerza tipografia Tech, Bento Grid y Glassmorphism)
 # ============================================
 
 PALABRAS_PROHIBIDAS = [
@@ -31,159 +30,169 @@ Implementar con CSS puro o JS vanilla. PROHIBIDO frameworks.
 
 DIRECTOR_DE_ARTE_PROMPT = """
 Eres el Director de Arte y Disenador Frontend Senior del equipo.
-Tu responsabilidad es entregar paginas web de nivel premium, sin excepciones.
+Tu unico objetivo es entregar paginas web de nivel PREMIUM, MODERNAS y de ALTA GAMA.
 
-PROCESO DE TRABAJO:
-1. Analiza el brief. Detecta el tipo de cliente (tech, creativo, corporativo).
-2. Aplica SIEMPRE un estandar premium: tipografia elegante, espaciado generoso, animaciones sutiles.
-3. El resultado debe notarse moderno y de alto nivel a simple vista.
+PROCESO OBLIGATORIO:
+1. Analiza el sector: Si es Tecnologia/Software, NO USES SERIF. Usa tipografia Sans-Serif moderna.
+2. Aplica SIEMPRE un diseno "Bento Grid" (tarjetas organizadas en cuadricula).
+3. Usa efectos de "Glassmorphism" (fondos semitransparentes con desenfoque).
 
-ESTANDARES PREMIUM OBLIGATORIOS:
-- Tipografia profesional (Google Fonts: Inter, Space Grotesk, Playfair Display).
-- Efecto "Glassmorphism" en cards y navbar.
-- Animaciones CSS avanzadas (scroll-driven, hover magnético).
+ESTANDARES PREMIUM OBLIGATORIOS (Si no cumples esto, fallas):
+- Tipografia: Usa SIEMPRE Google Fonts 'Plus Jakarta Sans' o 'Inter'. PROHIBIDO usar fuentes de revista (Playfair, Lora, Times) en sectores Tech.
+- Fondos: Oscuro profundo (#0B0F19).
+- Tarjetas: Fondo semi-transparente (rgba(255,255,255,0.03)), borde sutil (rgba(255,255,255,0.1)) y sombra interior.
+- Botones: Degradados vibrantes (Cyan #00D4FF a Azul #0077FF).
+- El resultado debe verse como una Startup de Silicon Valley valorada en millones.
 """ + EFECTOS_AVANZADOS_PROMPT
 
 REGLAS_CSS_PREMIUM = """
-### DISENO PREMIUM OBLIGATORIO (CRITICO):
+### DISENO PREMIUM OBLIGATORIO (CRITICO - COPIA ESTAS REGLAS):
 
-**ESTILO GENERAL (DARK PREMIUM):**
-- Fondo general: Oscuro profundo (#050A14 o #0F172A).
-- Textos principales: Blanco (#FFFFFF) o gris muy claro (#F8FAFC).
-- Textos secundarios: Gris azulado (#94A3B8).
-- Acentos: Degradados vibrantes (ej. cyan #00D4FF, azul #0077FF, purpura #8B5CF6).
+**1. VARIABLES GLOBALES Y RESET:**
+:root {
+    --bg: #0B0F19;
+    --card-bg: rgba(255, 255, 255, 0.03);
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #F8FAFC;
+    --text-muted: #94A3B8;
+    --primary: #00D4FF;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    line-height: 1.6;
+}
 
-**CARDS (Efecto Cristal):**
+**2. NAVEGACION (Fija y elegante):**
+nav {
+    padding: 20px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(11, 15, 25, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+}
+nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left: 20px; }
+
+**3. HERO SECTION (El impacto visual):**
+.hero {
+    min-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 100px 20px;
+    background: radial-gradient(circle at 50% 0%, rgba(0, 212, 255, 0.15) 0%, var(--bg) 70%);
+}
+.hero h1 {
+    font-size: 4rem;
+    font-weight: 800;
+    letter-spacing: -2px;
+    background: linear-gradient(90deg, #FFF, #00D4FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 24px;
+    max-width: 800px;
+}
+
+**4. BENTO GRID (Servicios):**
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    padding: 80px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
 .card {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 24px;
     padding: 32px;
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(12px);
+    position: relative;
+    overflow: hidden;
 }
 .card:hover {
-    transform: translateY(-5px);
-    border-color: rgba(0, 212, 255, 0.3);
-    box-shadow: 0 10px 30px rgba(0, 212, 255, 0.1);
+    transform: translateY(-8px);
+    border-color: rgba(0, 212, 255, 0.4);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+.card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 16px;
+    margin-bottom: 20px;
 }
 
-**BOTONES:**
+**5. BOTONES (CTA):**
 .btn {
-    background: linear-gradient(90deg, #00D4FF 0%, #0077FF 100%);
-    color: #FFFFFF;
-    padding: 14px 32px;
-    border-radius: 50px;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
+    display: inline-block;
+    padding: 16px 32px;
+    background: linear-gradient(135deg, #00D4FF 0%, #0077FF 100%);
+    color: #FFF;
+    font-weight: 700;
+    border-radius: 100px;
+    text-decoration: none;
     transition: all 0.3s ease;
+    box-shadow: 0 10px 20px rgba(0, 119, 255, 0.2);
 }
-.btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0, 212, 255, 0.3);
-}
+.btn:hover { transform: scale(1.05); box-shadow: 0 15px 30px rgba(0, 119, 255, 0.4); }
 
-**FORMULARIO (CRITICO):**
-- Los inputs deben tener fondo oscuro (rgba(255,255,255,0.05)) y texto blanco.
-- Border: 1px solid rgba(255,255,255,0.1).
-- Border-radius: 8px. Padding: 12px.
+**6. FORMULARIO DE CONTACTO:**
+.contacto { padding: 80px 20px; max-width: 600px; margin: 0 auto; }
+input, textarea {
+    width: 100%; padding: 16px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: #FFF; margin-bottom: 16px;
+    font-family: inherit;
+}
+input:focus { outline: none; border-color: var(--primary); }
 """
 
 REGLAS_SECCION_UBICACION = """
 ### SECCION UBICACION (OBLIGATORIA porque hay direccion):
-
 Genera una seccion <section id="ubicacion" class="ubicacion"> con:
 1. Titulo "Donde estamos" o "Visitanos"
-2. Layout en 2 columnas (grid):
-   - Columna izquierda: datos de direccion con icono SVG de pin + ciudad + pais
-   - Columna derecha: mapa embebido de Google Maps
-3. El mapa usa iframe SIN API key:
-   <iframe src="https://www.google.com/maps?q=DIRECCION,CIUDAD&output=embed"
-           width="100%" height="400" style="border:0;border-radius:16px;"
-           loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-4. Estilos premium: card con sombra, border-radius 16px, hover sutil
-5. Responsive: en mobile se apila en 1 columna
-
-IMPORTANTE:
-- URL-encode la direccion y ciudad (espacios a %20, comas a %2C)
-- Usa el formato exacto: https://www.google.com/maps?q=DIRECCION,CIUDAD&output=embed
-- NO uses la API de Google Maps (no tenemos key)
+2. Mapa embebido de Google Maps usando iframe.
 """
 
 REGLAS_SECCION_HORARIOS = """
 ### SECCION HORARIOS (OBLIGATORIA porque hay horarios):
-
 Genera una seccion <section id="horarios" class="horarios"> con:
 1. Titulo "Horarios de atencion"
-2. Card premium con la lista de horarios
-3. Si el texto tiene formato "Lun-Vie 8am-6pm, Sab 9am-1pm":
-   - Separa por comas y genera filas <div class="horario-row">
-   - Cada fila: <span class="horario-dia">...</span> <span class="horario-hora">...</span>
-4. Estilos: fondo blanco, border-radius 16px, padding 24px, hover sutil
-5. Anade badge verde si dice "Abierto ahora" (opcional)
+2. Card premium con la lista de horarios.
 """
 
 REGLAS_REDES_SOCIALES = """
-### REDES SOCIALES EN FOOTER (OBLIGATORIO si hay redes):
-
-En el footer, agrega una fila de iconos SVG inline para las redes que existan:
-- Instagram: https://instagram.com/{usuario}
-- Facebook: https://facebook.com/{usuario}
-- TikTok: https://tiktok.com/@{usuario}
-
-Formato HTML:
-<a href="URL_RED" target="_blank" rel="noopener" class="social-icon" aria-label="Instagram">
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-    <!-- path SVG de la red -->
-  </svg>
-</a>
-
-Estilos:
-.social-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.1);
-    color: #ffffff;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    margin: 0 8px;
-}
-.social-icon:hover {
-    transform: translateY(-3px);
-    background: rgba(255,255,255,0.2);
-}
-
-Usa SVGs oficiales simples (path de 24x24). NO uses librerias externas.
+### REDES SOCIALES EN FOOTER:
+En el footer, agrega una fila de iconos SVG inline para las redes que existan.
+Usa SVGs oficiales simples. NO uses librerias externas.
 """
 
 REGLAS_CODIGO = (
     "### REGLAS DE CODIGO:\n"
     "1. Empezar con <!DOCTYPE html> y terminar con </html>.\n"
     "2. Incluir <html>, <head>, <body> completas.\n"
-    "3. En <head>: meta charset, meta viewport, meta description, title, style.\n"
-    "4. CSS embebido en <style>.\n"
-    "5. HTML5 semantico y Responsive (mobile-first).\n"
-    "6. Minimo 3000 caracteres.\n\n"
-    "### COLORES Y FONDO:\n"
-    "OBLIGATORIO: Fondo oscuro (#050A14). NO uses fondos blancos.\n"
-    "OBLIGATORIO: Textos blancos o grises claros.\n\n"
+    "3. En <head>: meta charset, meta viewport, title, y el CDN de Google Fonts para 'Plus Jakarta Sans'.\n"
+    "4. CSS embebido en <style> respetando ESTRICTAMENTE el 'DISENO PREMIUM OBLIGATORIO'.\n"
+    "5. Minimo 3000 caracteres.\n\n"
 )
 
 REGLAS_IMAGENES = (
-    "### IMAGENES (CRITICO - usar marcadores EXACTOS):\n"
-    "HERO (1 vez):\n"
-    "   <img src=\"{{HERO_IMAGE}}\" alt=\"Imagen principal\" style=\"width:100%;height:auto;border-radius:20px;\">\n"
-    "SERVICIOS / PRODUCTOS (4 veces, SIN excepcion):\n"
-    "   <div class=\"card\">\n"
-    "     <img src=\"{{SERVICIO_1}}\" alt=\"[nombre]\" style=\"width:100%;height:200px;object-fit:cover;border-radius:12px;\">\n"
-    "     <h3>[Nombre]</h3><p>[Descripcion]</p>\n"
-    "   </div>\n"
-    "   (Repetir para SERVICIO_2, SERVICIO_3, SERVICIO_4).\n"
-    "NO inventes otras etiquetas. NO uses URLs directas.\n"
+    "### IMAGENES (CRITICO):\n"
+    "USA EXACTAMENTE el marcador {{HERO_IMAGE}} para la imagen principal.\n"
+    "USA EXACTAMENTE los marcadores {{SERVICIO_1}}, {{SERVICIO_2}}, {{SERVICIO_3}} para las tarjetas.\n"
+    "NO uses URLs reales, solo los marcadores.\n"
 )
 
 REGLAS_FORMULARIO = (
@@ -234,51 +243,34 @@ def construir_instrucciones_dinamicas(datos_negocio):
         secciones_extra.append("Horarios")
 
     redes = []
-    if instagram:
-        redes.append("Instagram: @" + instagram.lstrip("@"))
-    if facebook:
-        redes.append("Facebook: " + facebook)
-    if tiktok:
-        redes.append("TikTok: @" + tiktok.lstrip("@"))
+    if instagram: redes.append("Instagram: @" + instagram.lstrip("@"))
+    if facebook: redes.append("Facebook: " + facebook)
+    if tiktok: redes.append("TikTok: @" + tiktok.lstrip("@"))
 
     if redes:
         instrucciones.append(
             "\n### DATOS PARA REDES SOCIALES:\n" +
-            "\n".join(["- " + r for r in redes]) +
-            "\n"
+            "\n".join(["- " + r for r in redes]) + "\n"
         )
         instrucciones.append(REGLAS_REDES_SOCIALES)
 
     if anio:
-        instrucciones.append(
-            "\n### DATO HISTORICO:\n"
-            "- Ano de fundacion: " + anio + "\n"
-            "- Mencionalo en la seccion 'Sobre nosotros' de forma natural.\n"
-        )
+        instrucciones.append("\n### DATO HISTORICO:\n- Ano de fundacion: " + anio + "\n")
 
     if email_contacto:
-        instrucciones.append(
-            "\n### EMAIL DE CONTACTO:\n"
-            "- Incluye el email " + email_contacto + " en la seccion de contacto.\n"
-        )
+        instrucciones.append("\n### EMAIL DE CONTACTO:\n- Incluye el email " + email_contacto + " en la seccion de contacto.\n")
 
     if whatsapp:
         wa_limpio = whatsapp.replace("+", "").replace(" ", "")
-        instrucciones.append(
-            "\n### WHATSAPP:\n"
-            "- Incluye un boton/enlace de WhatsApp con el numero " + whatsapp + ".\n"
-            "- Formato: <a href=\"https://wa.me/" + wa_limpio + "\" class=\"btn\">WhatsApp</a>\n"
-        )
+        instrucciones.append("\n### WHATSAPP:\n- Boton: <a href=\"https://wa.me/" + wa_limpio + "\" class=\"btn\">WhatsApp</a>\n")
 
     if secciones_extra:
         instrucciones.insert(
             0,
             "\n### SECCIONES EXTRA REQUERIDAS:\n" +
-            "\n".join(["- " + s for s in secciones_extra]) +
-            "\n\nORDEN SUGERIDO: Hero, Servicios, Sobre Nosotros, "
+            "\n".join(["- " + s for s in secciones_extra]) + "\n\nORDEN SUGERIDO: Hero, Servicios, Sobre Nosotros, "
             + ", ".join(secciones_extra) + ", Contacto\n"
         )
-
     return "\n".join(instrucciones)
 
 
@@ -307,7 +299,7 @@ def construir_reglas_contenido(sector, lista_negra):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("TEST WEB PROMPTS DATA V3.0")
+    print("TEST WEB PROMPTS DATA V4.0 (Master Template)")
     print("=" * 60)
     print("Palabras prohibidas: " + str(len(PALABRAS_PROHIBIDAS)))
     print("Director de Arte: " + str(len(DIRECTOR_DE_ARTE_PROMPT)) + " chars")
