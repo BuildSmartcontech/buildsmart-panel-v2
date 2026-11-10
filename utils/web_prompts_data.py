@@ -90,6 +90,76 @@ REGLAS_CSS_PREMIUM = """
 - Border-radius: 8px. Padding: 12px.
 """
 
+REGLAS_SECCION_UBICACION = """
+### SECCION UBICACION (OBLIGATORIA porque hay direccion):
+
+Genera una seccion <section id="ubicacion" class="ubicacion"> con:
+1. Titulo "Donde estamos" o "Visitanos"
+2. Layout en 2 columnas (grid):
+   - Columna izquierda: datos de direccion con icono SVG de pin + ciudad + pais
+   - Columna derecha: mapa embebido de Google Maps
+3. El mapa usa iframe SIN API key:
+   <iframe src="https://www.google.com/maps?q=DIRECCION,CIUDAD&output=embed"
+           width="100%" height="400" style="border:0;border-radius:16px;"
+           loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+4. Estilos premium: card con sombra, border-radius 16px, hover sutil
+5. Responsive: en mobile se apila en 1 columna
+
+IMPORTANTE:
+- URL-encode la direccion y ciudad (espacios a %20, comas a %2C)
+- Usa el formato exacto: https://www.google.com/maps?q=DIRECCION,CIUDAD&output=embed
+- NO uses la API de Google Maps (no tenemos key)
+"""
+
+REGLAS_SECCION_HORARIOS = """
+### SECCION HORARIOS (OBLIGATORIA porque hay horarios):
+
+Genera una seccion <section id="horarios" class="horarios"> con:
+1. Titulo "Horarios de atencion"
+2. Card premium con la lista de horarios
+3. Si el texto tiene formato "Lun-Vie 8am-6pm, Sab 9am-1pm":
+   - Separa por comas y genera filas <div class="horario-row">
+   - Cada fila: <span class="horario-dia">...</span> <span class="horario-hora">...</span>
+4. Estilos: fondo blanco, border-radius 16px, padding 24px, hover sutil
+5. Anade badge verde si dice "Abierto ahora" (opcional)
+"""
+
+REGLAS_REDES_SOCIALES = """
+### REDES SOCIALES EN FOOTER (OBLIGATORIO si hay redes):
+
+En el footer, agrega una fila de iconos SVG inline para las redes que existan:
+- Instagram: https://instagram.com/{usuario}
+- Facebook: https://facebook.com/{usuario}
+- TikTok: https://tiktok.com/@{usuario}
+
+Formato HTML:
+<a href="URL_RED" target="_blank" rel="noopener" class="social-icon" aria-label="Instagram">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+    <!-- path SVG de la red -->
+  </svg>
+</a>
+
+Estilos:
+.social-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    color: #ffffff;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin: 0 8px;
+}
+.social-icon:hover {
+    transform: translateY(-3px);
+    background: rgba(255,255,255,0.2);
+}
+
+Usa SVGs oficiales simples (path de 24x24). NO uses librerias externas.
+"""
+
 REGLAS_CODIGO = (
     "### REGLAS DE CODIGO:\n"
     "1. Empezar con <!DOCTYPE html> y terminar con </html>.\n"
@@ -131,9 +201,10 @@ REGLAS_SALIDA = (
 )
 
 def construir_instrucciones_dinamicas(datos_negocio):
-    # (Se mantiene igual que en tu archivo actual, no requiere cambios)
+    """Genera instrucciones condicionales segun campos disponibles."""
     instrucciones = []
     secciones_extra = []
+
     direccion = (datos_negocio.get("direccion") or "").strip()
     ciudad = (datos_negocio.get("ciudad") or "").strip()
     pais = (datos_negocio.get("pais") or "").strip()
@@ -146,35 +217,104 @@ def construir_instrucciones_dinamicas(datos_negocio):
     whatsapp = (datos_negocio.get("whatsapp_negocio") or "").strip()
 
     if direccion and ciudad:
-        instrucciones.append(f"\n### UBICACION:\n- Direccion: {direccion}\n- Ciudad: {ciudad}\n- Pais: {pais or 'no especificado'}\n")
+        instrucciones.append(
+            "\n### DATOS PARA SECCION UBICACION:\n"
+            "- Direccion: " + direccion + "\n"
+            "- Ciudad: " + ciudad + "\n"
+            "- Pais: " + (pais or "no especificado") + "\n"
+        )
+        instrucciones.append(REGLAS_SECCION_UBICACION)
         secciones_extra.append("Ubicacion")
+
     if horarios:
-        instrucciones.append(f"\n### HORARIOS:\n- Horarios: {horarios}\n")
+        instrucciones.append(
+            "\n### DATOS PARA SECCION HORARIOS:\n- Horarios: " + horarios + "\n"
+        )
+        instrucciones.append(REGLAS_SECCION_HORARIOS)
         secciones_extra.append("Horarios")
+
     redes = []
-    if instagram: redes.append(f"Instagram: @{instagram.lstrip('@')}")
-    if facebook: redes.append(f"Facebook: {facebook}")
-    if tiktok: redes.append(f"TikTok: @{tiktok.lstrip('@')}")
+    if instagram:
+        redes.append("Instagram: @" + instagram.lstrip("@"))
+    if facebook:
+        redes.append("Facebook: " + facebook)
+    if tiktok:
+        redes.append("TikTok: @" + tiktok.lstrip("@"))
+
     if redes:
-        instrucciones.append("\n### REDES:\n" + "\n".join([f"- {r}" for r in redes]) + "\n")
+        instrucciones.append(
+            "\n### DATOS PARA REDES SOCIALES:\n" +
+            "\n".join(["- " + r for r in redes]) +
+            "\n"
+        )
+        instrucciones.append(REGLAS_REDES_SOCIALES)
+
     if anio:
-        instrucciones.append(f"\n### HISTORIA:\n- Ano de fundacion: {anio}\n")
+        instrucciones.append(
+            "\n### DATO HISTORICO:\n"
+            "- Ano de fundacion: " + anio + "\n"
+            "- Mencionalo en la seccion 'Sobre nosotros' de forma natural.\n"
+        )
+
     if email_contacto:
-        instrucciones.append(f"\n### EMAIL:\n- Incluye el email {email_contacto} en contacto.\n")
+        instrucciones.append(
+            "\n### EMAIL DE CONTACTO:\n"
+            "- Incluye el email " + email_contacto + " en la seccion de contacto.\n"
+        )
+
     if whatsapp:
         wa_limpio = whatsapp.replace("+", "").replace(" ", "")
-        instrucciones.append(f"\n### WHATSAPP:\n- Boton: <a href=\"https://wa.me/{wa_limpio}\" class=\"btn\">WhatsApp</a>\n")
+        instrucciones.append(
+            "\n### WHATSAPP:\n"
+            "- Incluye un boton/enlace de WhatsApp con el numero " + whatsapp + ".\n"
+            "- Formato: <a href=\"https://wa.me/" + wa_limpio + "\" class=\"btn\">WhatsApp</a>\n"
+        )
 
     if secciones_extra:
-        instrucciones.insert(0, "\n### SECCIONES EXTRA:\n" + "\n".join([f"- {s}" for s in secciones_extra]) + "\n")
+        instrucciones.insert(
+            0,
+            "\n### SECCIONES EXTRA REQUERIDAS:\n" +
+            "\n".join(["- " + s for s in secciones_extra]) +
+            "\n\nORDEN SUGERIDO: Hero, Servicios, Sobre Nosotros, "
+            + ", ".join(secciones_extra) + ", Contacto\n"
+        )
+
     return "\n".join(instrucciones)
 
+
 def construir_reglas_contenido(sector, lista_negra):
+    """Reglas de contenido con datos dinamicos."""
     return (
-        "\n## REGLAS DE CONTENIDO\n"
-        "### PROHIBIDO USAR:\n" + lista_negra + "\n\n"
-        "### ANTI-ALUCINACION:\n"
-        "1. NO INVENTES telefonos, direcciones, emails o nombres.\n"
-        "2. SOLO usa los datos proporcionados.\n"
-        "3. Lenguaje natural y directo.\n\n"
+        "\n## REGLAS DE CONTENIDO\n\n"
+        "### PROHIBIDO USAR ESTAS FRASES:\n" + lista_negra + "\n\n"
+        "### ANTI-ALUCINACION (CRITICO):\n"
+        "1. PROHIBIDO INVENTAR numeros de telefono.\n"
+        "2. PROHIBIDO INVENTAR direcciones.\n"
+        "3. PROHIBIDO INVENTAR emails.\n"
+        "4. PROHIBIDO INVENTAR anos de fundacion.\n"
+        "5. PROHIBIDO INVENTAR nombres de clientes.\n"
+        "6. PROHIBIDO INVENTAR certificaciones o premios.\n"
+        "7. Si falta info, usa texto generico sin datos.\n"
+        "8. SOLO usa los datos que aparecen en la seccion DATOS.\n\n"
+        "### REGLAS DE ESTILO:\n"
+        "1. NO uses rayas largas.\n"
+        "2. NO uses emojis en el contenido.\n"
+        "3. NO uses frases genericas de IA.\n"
+        "4. SI usa ejemplos del sector " + sector + ".\n"
+        "5. SI usa lenguaje natural y directo.\n\n"
     )
+
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("TEST WEB PROMPTS DATA V3.0")
+    print("=" * 60)
+    print("Palabras prohibidas: " + str(len(PALABRAS_PROHIBIDAS)))
+    print("Director de Arte: " + str(len(DIRECTOR_DE_ARTE_PROMPT)) + " chars")
+    print("Reglas CSS: " + str(len(REGLAS_CSS_PREMIUM)) + " chars")
+    print("Reglas Ubicacion: " + str(len(REGLAS_SECCION_UBICACION)) + " chars")
+    print("Reglas Horarios: " + str(len(REGLAS_SECCION_HORARIOS)) + " chars")
+    print("Reglas Redes: " + str(len(REGLAS_REDES_SOCIALES)) + " chars")
+    print("Reglas Imagenes: " + str(len(REGLAS_IMAGENES)) + " chars")
+    print("Reglas Formulario: " + str(len(REGLAS_FORMULARIO)) + " chars")
+    print("=" * 60)
