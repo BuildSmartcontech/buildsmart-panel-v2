@@ -2,14 +2,14 @@
 # ============================================
 # TAB PEDIDOS WEB - Panel Dueno SAMU IA
 # ============================================
-# V2.3: Integra selector de modelo OpenRouter para generar webs
+# V2.4: Selector de modelo OpenRouter visible en el tab
 # ============================================
 
 import streamlit as st
 import datetime
 from panels.dueno import comun as C
 from panels.dueno import pedidos_web_acciones as ACC
-from utils.openrouter_manager import renderizar_selector_modelo
+from utils.openrouter_manager import MODELOS_GRATUITOS, MODELOS_PREMIUM
 
 E_PEDIDO   = "\U0001F4E6"
 E_OK       = "\u2705"
@@ -23,6 +23,7 @@ E_CORONA   = "\U0001F451"
 E_COHETE   = "\U0001F680"
 E_OJO      = "\U0001F441\uFE0F"
 E_GLOBO    = "\U0001F310"
+E_ROBOT    = "\U0001F916"
 
 ESTADOS = {
     "pendiente_pago_manual": {"label": "Pendiente pago", "icono": E_RELOJ},
@@ -61,21 +62,23 @@ def _cambiar_estado(sb, pedido_id, nuevo_estado):
     except Exception as e:
         return False, f"Error: {e}"
 
-def _registrar_accion(pedido_id, accion, detalle=None):
-    try:
-        from utils.logger import log_evento
-        payload = {"accion": accion, "pedido_id": pedido_id, "origen": "panel_dueno"}
-        if detalle: payload.update(detalle)
-        log_evento("pedido_web_accion", detalle=payload)
-    except Exception: pass
-
 def renderizar(sb, inicio=None, fin=None):
     st.markdown(f"### {E_PEDIDO} Pedidos Web Gancho")
     st.caption("Gestiona los pedidos de webs individuales.")
 
-    # Selector de modelo OpenRouter
-    modelo_seleccionado = renderizar_selector_modelo()
-    st.session_state["modelo_generacion_web"] = modelo_seleccionado
+    # --- SELECTOR DE MODELO VISIBLE EN EL TAB ---
+    st.markdown(f"#### {E_ROBOT} Motor de IA para generar webs")
+    st.caption("Selecciona el modelo de OpenRouter que se usará al hacer clic en 'Generar web'.")
+    
+    opciones = {**MODELOS_GRATUITOS, **MODELOS_PREMIUM}
+    modelo_seleccionado = st.selectbox(
+        "Modelo de generación",
+        options=list(opciones.keys()),
+        format_func=lambda x: f"{x.split('/')[-1]} — {opciones[x]}",
+        index=0,
+        key="modelo_generacion_web_tab"
+    )
+    st.divider()
 
     pedidos = _cargar_pedidos(sb)
 
@@ -122,9 +125,9 @@ def renderizar(sb, inicio=None, fin=None):
         return
 
     for p in filtrados:
-        _renderizar_pedido(sb, p)
+        _renderizar_pedido(sb, p, modelo_seleccionado)
 
-def _renderizar_pedido(sb, p):
+def _renderizar_pedido(sb, p, modelo_seleccionado):
     pedido_id = p.get("id", "?")
     fecha = _fmt_fecha(p.get("created_at"))
     tier_num = p.get("tier", 1)
@@ -160,32 +163,25 @@ def _renderizar_pedido(sb, p):
             else: st.caption("(Sin datos del negocio)")
 
         st.divider()
-        _renderizar_acciones(sb, p)
+        _renderizar_acciones(sb, p, modelo_seleccionado)
 
-def _generar_web_accion(sb, p):
-    pedido_id = p.get("id", "?")
-    modelo = st.session_state.get("modelo_generacion_web", "openrouter/free")
-    
+def _generar_web_accion(sb, p, modelo):
     with st.spinner(f"Generando web con {modelo}... (esto puede tardar 60s)"):
-        # Pasamos el modelo seleccionado a la accion
         resultado = ACC.generar_web_para_pedido(sb, p, modelo_ia=modelo)
 
     exito = resultado.get("exito", False)
     msg = resultado.get("mensaje", "")
     url = resultado.get("url_publica", "")
-    email_enviado = resultado.get("email_enviado", False)
-    email_msg = resultado.get("email_mensaje", "")
 
     if exito:
         st.success(f"{E_OK} {msg}")
         if url: st.markdown(f"{E_GLOBO} **URL publica:** [{url}]({url})")
-        if email_enviado: st.info(f"{E_EMAIL} Email enviado al cliente")
-        elif email_msg: st.warning(f"{E_AVISO} Email no enviado: {email_msg[:120]}")
         st.balloons()
+        st.rerun()
     else:
         st.error(f"{E_X} {msg}")
 
-def _renderizar_acciones(sb, p):
+def _renderizar_acciones(sb, p, modelo_seleccionado):
     pedido_id = p.get("id", "?")
     estado = str(p.get("estado", "?")).lower().strip()
 
@@ -194,32 +190,23 @@ def _renderizar_acciones(sb, p):
         with col1:
             if st.button(f"{E_OK} Marcar como PAGADO", key=f"marcar_pagado_{pedido_id}", use_container_width=True, type="primary"):
                 ok, msg = _cambiar_estado(sb, pedido_id, "pagado")
-                if ok:
-                    _registrar_accion(pedido_id, "marcar_pagado")
-                    st.success(msg)
-                    st.rerun()
+                if ok: st.success(msg); st.rerun()
                 else: st.error(msg)
         with col2:
             if st.button(f"{E_X} Rechazar pedido", key=f"rechazar_{pedido_id}", use_container_width=True):
                 ok, msg = _cambiar_estado(sb, pedido_id, "fallido")
-                if ok:
-                    _registrar_accion(pedido_id, "rechazar")
-                    st.warning(f"{E_AVISO} Pedido marcado como fallido")
-                    st.rerun()
+                if ok: st.warning(f"{E_AVISO} Pedido marcado como fallido"); st.rerun()
                 else: st.error(msg)
 
     elif estado == "pagado":
         col1, col2 = st.columns(2)
         with col1:
             if st.button(f"{E_COHETE} Generar web ahora", key=f"generar_{pedido_id}", use_container_width=True, type="primary"):
-                _generar_web_accion(sb, p)
+                _generar_web_accion(sb, p, modelo_seleccionado)
         with col2:
             if st.button(f"{E_OK} Marcar como ENTREGADO", key=f"entregar_{pedido_id}", use_container_width=True):
                 ok, msg = _cambiar_estado(sb, pedido_id, "entregado")
-                if ok:
-                    _registrar_accion(pedido_id, "marcar_entregado")
-                    st.success(msg)
-                    st.rerun()
+                if ok: st.success(msg); st.rerun()
                 else: st.error(msg)
 
     elif estado == "entregado":
@@ -227,9 +214,9 @@ def _renderizar_acciones(sb, p):
         if p.get("web_url"): st.markdown(f"**{E_GLOBO} URL de la web:** [{p.get('web_url')}]({p.get('web_url')})")
         if p.get("web_id"): st.caption(f"Web ID: `{p.get('web_id')}`")
         st.write("")
-        st.caption("¿Quieres cambiar el diseño o los textos? Puedes regenerar la web desde cero.")
-        if st.button(f"{E_COHETE} Forzar Regeneracion de Web (Sobrescribir)", key=f"force_regen_{pedido_id}", use_container_width=True, type="secondary"):
-            _generar_web_accion(sb, p)
+        st.caption("¿Quieres cambiar el diseño? Puedes regenerar la web.")
+        if st.button(f"{E_COHETE} Forzar Regeneracion de Web", key=f"force_regen_{pedido_id}", use_container_width=True, type="secondary"):
+            _generar_web_accion(sb, p, modelo_seleccionado)
 
     elif estado == "fallido":
         st.error(f"{E_X} Pedido rechazado o fallido.")
