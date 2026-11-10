@@ -2,7 +2,10 @@
 # ============================================
 # CONSTANTES Y CONSTRUCTORES DE PROMPTS WEB
 # ============================================
-# V4.0: Master Template (Fuerza tipografia Tech, Bento Grid y Glassmorphism)
+# V5.0: Corporate Premium Master Template
+#       - Diseno editorial, Bento Grid, tipografia Inter/Space Grotesk
+#       - Paleta Obsidiana + Teal/Blue accent
+#       - Forza inyeccion de {{FORMULARIO}}
 # ============================================
 
 PALABRAS_PROHIBIDAS = [
@@ -23,25 +26,27 @@ PALABRAS_PROHIBIDAS = [
 EFECTOS_AVANZADOS_PROMPT = """
 EFECTOS VISUALES AVANZADOS (estilo React Bits, en CSS/JS vanilla):
 - Texto animado: split-text, blur-text, shiny-text, count-up
-- Fondos animados: gradientes animados, particulas sutiles, malla radial
+- Fondos animados: gradientes sutiles, particulas, malla radial
 - Cards interactivas: spotlight-card, hover-magnet
+- Motion que respeta `prefers-reduced-motion`
 Implementar con CSS puro o JS vanilla. PROHIBIDO frameworks.
 """
 
 DIRECTOR_DE_ARTE_PROMPT = """
 Eres el Director de Arte y Disenador Frontend Senior del equipo.
-Tu unico objetivo es entregar paginas web de nivel PREMIUM, MODERNAS y de ALTA GAMA.
+Tu unico objetivo es entregar paginas web de nivel PREMIUM CORPORATIVO, MODERNAS y de ALTA GAMA.
 
 PROCESO OBLIGATORIO:
 1. Analiza el sector: Si es Tecnologia/Software, NO USES SERIF. Usa tipografia Sans-Serif moderna.
 2. Aplica SIEMPRE un diseno "Bento Grid" (tarjetas organizadas en cuadricula).
-3. Usa efectos de "Glassmorphism" (fondos semitransparentes con desenfoque).
+3. Usa efectos de "Glassmorphism 2.0" (fondos semitransparentes con desenfoque y bordes de 1px).
+4. El layout debe ser editorial: asimetrico, con mucho espacio en blanco y tipografia grande como ancla visual.
 
 ESTANDARES PREMIUM OBLIGATORIOS (Si no cumples esto, fallas):
-- Tipografia: Usa SIEMPRE Google Fonts 'Plus Jakarta Sans' o 'Inter'. PROHIBIDO usar fuentes de revista (Playfair, Lora, Times) en sectores Tech.
-- Fondos: Oscuro profundo (#0B0F19).
-- Tarjetas: Fondo semi-transparente (rgba(255,255,255,0.03)), borde sutil (rgba(255,255,255,0.1)) y sombra interior.
-- Botones: Degradados vibrantes (Cyan #00D4FF a Azul #0077FF).
+- Tipografia: Usa SIEMPRE Google Fonts 'Inter' o 'Space Grotesk'. PROHIBIDO usar fuentes de revista (Playfair, Lora, Times).
+- Fondos: Oscuro profundo (#0B0C14) o Blanco Puro (#FFFFFF) con acentos.
+- Tarjetas: Fondo semi-transparente, borde de 1px (rgba(255,255,255,0.1)), sin sombras exageradas.
+- Botones: Estilo "Pill" (border-radius: 999px) con color de acento solido o gradiente sutil.
 - El resultado debe verse como una Startup de Silicon Valley valorada en millones.
 """ + EFECTOS_AVANZADOS_PROMPT
 
@@ -50,19 +55,23 @@ REGLAS_CSS_PREMIUM = """
 
 **1. VARIABLES GLOBALES Y RESET:**
 :root {
-    --bg: #0B0F19;
+    --bg: #0B0C14; /* Obsidiana Oscura */
+    --bg-light: #F7F7F4; /* Papel */
     --card-bg: rgba(255, 255, 255, 0.03);
     --border: rgba(255, 255, 255, 0.08);
     --text: #F8FAFC;
+    --text-dark: #1a1a1a;
     --text-muted: #94A3B8;
-    --primary: #00D4FF;
+    --primary: #14B8A6; /* Signal Teal */
+    --primary-blue: #0F62FE; /* IBM Blue */
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
     background-color: var(--bg);
     color: var(--text);
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Inter', sans-serif;
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
 }
 
 **2. NAVEGACION (Fija y elegante):**
@@ -71,33 +80,34 @@ nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(11, 15, 25, 0.8);
-    backdrop-filter: blur(10px);
+    background: rgba(11, 12, 20, 0.8);
+    backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
     position: sticky; top: 0; z-index: 100;
 }
-nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left: 20px; }
+nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left: 24px; font-size: 0.9rem; }
 
 **3. HERO SECTION (El impacto visual):**
 .hero {
-    min-height: 80vh;
+    min-height: 85vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 100px 20px;
-    background: radial-gradient(circle at 50% 0%, rgba(0, 212, 255, 0.15) 0%, var(--bg) 70%);
+    padding: 120px 20px;
+    background: radial-gradient(circle at 50% 0%, rgba(20, 184, 166, 0.15) 0%, var(--bg) 70%);
 }
 .hero h1 {
-    font-size: 4rem;
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
     font-weight: 800;
-    letter-spacing: -2px;
-    background: linear-gradient(90deg, #FFF, #00D4FF);
+    letter-spacing: -0.03em;
+    background: linear-gradient(180deg, #FFFFFF 0%, #94A3B8 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 24px;
-    max-width: 800px;
+    max-width: 900px;
+    line-height: 1.1;
 }
 
 **4. BENTO GRID (Servicios):**
@@ -105,56 +115,59 @@ nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 24px;
-    padding: 80px 20px;
+    padding: 100px 20px;
     max-width: 1200px;
     margin: 0 auto;
 }
 .card {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 32px;
+    border-radius: 20px;
+    padding: 40px;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     backdrop-filter: blur(12px);
     position: relative;
     overflow: hidden;
 }
 .card:hover {
-    transform: translateY(-8px);
-    border-color: rgba(0, 212, 255, 0.4);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    transform: translateY(-6px);
+    border-color: rgba(20, 184, 166, 0.4);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 .card img {
     width: 100%;
-    height: 200px;
+    height: 220px;
     object-fit: cover;
-    border-radius: 16px;
-    margin-bottom: 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
 }
 
 **5. BOTONES (CTA):**
 .btn {
     display: inline-block;
-    padding: 16px 32px;
-    background: linear-gradient(135deg, #00D4FF 0%, #0077FF 100%);
-    color: #FFF;
+    padding: 16px 36px;
+    background: var(--primary);
+    color: #0B0C14;
     font-weight: 700;
-    border-radius: 100px;
+    font-size: 0.95rem;
+    border-radius: 999px;
     text-decoration: none;
     transition: all 0.3s ease;
-    box-shadow: 0 10px 20px rgba(0, 119, 255, 0.2);
+    border: none;
+    cursor: pointer;
 }
-.btn:hover { transform: scale(1.05); box-shadow: 0 15px 30px rgba(0, 119, 255, 0.4); }
+.btn:hover { background: #0E7C86; transform: scale(1.02); }
 
 **6. FORMULARIO DE CONTACTO:**
-.contacto { padding: 80px 20px; max-width: 600px; margin: 0 auto; }
+.contacto { padding: 100px 20px; max-width: 600px; margin: 0 auto; }
 input, textarea {
-    width: 100%; padding: 16px;
+    width: 100%; padding: 18px;
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
     border-radius: 12px;
-    color: #FFF; margin-bottom: 16px;
+    color: #FFF; margin-bottom: 20px;
     font-family: inherit;
+    font-size: 1rem;
 }
 input:focus { outline: none; border-color: var(--primary); }
 """
@@ -183,9 +196,9 @@ REGLAS_CODIGO = (
     "### REGLAS DE CODIGO:\n"
     "1. Empezar con <!DOCTYPE html> y terminar con </html>.\n"
     "2. Incluir <html>, <head>, <body> completas.\n"
-    "3. En <head>: meta charset, meta viewport, title, y el CDN de Google Fonts para 'Plus Jakarta Sans'.\n"
+    "3. En <head>: meta charset, meta viewport, title, y el CDN de Google Fonts para 'Inter' o 'Space Grotesk'.\n"
     "4. CSS embebido en <style> respetando ESTRICTAMENTE el 'DISENO PREMIUM OBLIGATORIO'.\n"
-    "5. Minimo 3000 caracteres.\n\n"
+    "5. Minimo 3500 caracteres.\n\n"
 )
 
 REGLAS_IMAGENES = (
@@ -299,7 +312,7 @@ def construir_reglas_contenido(sector, lista_negra):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("TEST WEB PROMPTS DATA V4.0 (Master Template)")
+    print("TEST WEB PROMPTS DATA V5.0 (Corporate Premium)")
     print("=" * 60)
     print("Palabras prohibidas: " + str(len(PALABRAS_PROHIBIDAS)))
     print("Director de Arte: " + str(len(DIRECTOR_DE_ARTE_PROMPT)) + " chars")
