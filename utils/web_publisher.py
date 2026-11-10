@@ -1,9 +1,8 @@
 # utils/web_publisher.py
 # ============================================
-# PUBLICADOR DE WEBS - V6.0 (PROVIDER MANAGER)
+# PUBLICADOR DE WEBS - V6.1 (PROVIDER MANAGER FIX)
 # ============================================
-# Orquestador que usa ProviderManager para
-# seleccionar el mejor proveedor disponible.
+# V6.1: Corregido el fallback para incluir Netlify cuando no hay ProviderManager
 # ============================================
 
 import os
@@ -27,34 +26,22 @@ try:
     from utils.vercel_publisher import publicar_web as vercel_publicar
     VERCEL_DISPONIBLE = True
 except ImportError:
-    try:
-        from vercel_publisher import publicar_web as vercel_publicar
-        VERCEL_DISPONIBLE = True
-    except ImportError:
-        VERCEL_DISPONIBLE = False
-        vercel_publicar = None
+    VERCEL_DISPONIBLE = False
+    vercel_publicar = None
 
 try:
     from utils.cloudflare_publisher import publicar_carpeta as cf_publicar
     CLOUDFLARE_DISPONIBLE = True
 except ImportError:
-    try:
-        from cloudflare_publisher import publicar_carpeta as cf_publicar
-        CLOUDFLARE_DISPONIBLE = True
-    except ImportError:
-        CLOUDFLARE_DISPONIBLE = False
-        cf_publicar = None
+    CLOUDFLARE_DISPONIBLE = False
+    cf_publicar = None
 
 try:
     from utils.netlify_publisher import publicar_html as netlify_publicar
     NETLIFY_DISPONIBLE = True
 except ImportError:
-    try:
-        from netlify_publisher import publicar_html as netlify_publicar
-        NETLIFY_DISPONIBLE = True
-    except ImportError:
-        NETLIFY_DISPONIBLE = False
-        netlify_publicar = None
+    NETLIFY_DISPONIBLE = False
+    netlify_publicar = None
 
 # Provider Manager
 try:
@@ -63,20 +50,13 @@ try:
     )
     PM_DISPONIBLE = True
 except ImportError:
-    try:
-        from provider_manager import (
-            seleccionar_provider, registrar_deploy, estado_providers, esta_habilitado,
-        )
-        PM_DISPONIBLE = True
-    except ImportError:
-        PM_DISPONIBLE = False
-        seleccionar_provider = None
-        registrar_deploy = None
-        estado_providers = None
-        esta_habilitado = None
+    PM_DISPONIBLE = False
+    seleccionar_provider = None
+    registrar_deploy = None
+    estado_providers = None
+    esta_habilitado = None
 
 URL_BASE_LOCAL = "http://localhost:8000"
-
 
 def _resultado_error(msg, modo=None):
     return {
@@ -84,7 +64,6 @@ def _resultado_error(msg, modo=None):
         "url_publica": None, "subdominio": None,
         "tipo": modo or "desconocido", "fecha": None, "error": msg,
     }
-
 
 def _resultado_exito(url, tipo, error=None, subdominio=None, url_local=None):
     return {
@@ -94,13 +73,12 @@ def _resultado_exito(url, tipo, error=None, subdominio=None, url_local=None):
         "fecha": datetime.datetime.now().isoformat(), "error": error,
     }
 
-
 def publicar_web(usuario_id, web_id, prefer=None):
     """
     Publica una web seleccionando automaticamente el mejor proveedor.
     """
     print("=" * 60)
-    print("PUBLICANDO WEB - V6.0 (PROVIDER MANAGER)")
+    print("PUBLICANDO WEB - V6.1 (PROVIDER MANAGER FIX)")
     print("=" * 60)
 
     if leer_web is None:
@@ -124,12 +102,17 @@ def publicar_web(usuario_id, web_id, prefer=None):
             print(f"  {p}: {estado_txt} ({info['cuota_restante']}/{info['cuota_max']} restantes){hab_txt}")
 
     # Seleccionar provider
-    if PM_DISPONIBLE and seleccionar_provider:
-        provider = seleccionar_provider(prefer=prefer)
-    else:
-        # Fallback simple si no hay ProviderManager
-        provider = None
-        if VERCEL_DISPONIBLE:
+    provider = None
+    if prefer:
+        provider = prefer
+    elif PM_DISPONIBLE and seleccionar_provider:
+        provider = seleccionar_provider()
+
+    # Fallback robusto si no hay ProviderManager o si falló en elegir uno
+    if not provider:
+        if NETLIFY_DISPONIBLE:
+            provider = "netlify"
+        elif VERCEL_DISPONIBLE:
             provider = "vercel"
         elif CLOUDFLARE_DISPONIBLE:
             provider = "cloudflare"
@@ -168,7 +151,6 @@ def publicar_web(usuario_id, web_id, prefer=None):
         # Failover
         otros_providers = [p for p in ["vercel", "cloudflare", "netlify"] if p != provider]
         for otro in otros_providers:
-            # No intentar con providers deshabilitados
             if PM_DISPONIBLE and esta_habilitado and not esta_habilitado(otro):
                 print(f"   [SKIP] {otro} esta deshabilitado")
                 continue
@@ -195,9 +177,6 @@ def publicar_web(usuario_id, web_id, prefer=None):
 
     return _resultado_error(f"Todos los providers fallaron: {error}")
 
-
 def despublicar_web(usuario_id, web_id):
     print(f"Despublicando web: {str(web_id)[:8]}")
     return {"exito": True, "error": None}
-
-# ... (resto de funciones auxiliares)
