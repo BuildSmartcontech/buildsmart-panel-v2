@@ -1,8 +1,8 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS CON IA - V8.0 (BLINDAJE DE IMAGENES)
+# GENERADOR DE WEBS - V9.0 (INYECCION FORZADA)
 # ============================================
-# V8.0: Fuerza la inyeccion de imagenes buscando etiquetas <img> genericas.
+# V9.0: Fuerza la inyeccion de imagenes, logo y formulario escaneando el HTML.
 # ============================================
 
 import os
@@ -53,9 +53,7 @@ except ImportError:
 MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
 
-# ==========================================
-# PASO 1: EL ESTRATEGA (Redacta el Copy)
-# ==========================================
+# --- PASO 1: EL ESTRATEGA ---
 def generar_copy_estrategico(datos_negocio, modelo_ia):
     prompt = f"""
 Eres un Director de Marketing Digital experto en ventas B2B.
@@ -65,20 +63,19 @@ Analiza el siguiente negocio:
 - Descripcion: {datos_negocio.get('descripcion')}
 - Publico: {datos_negocio.get('publico_objetivo')}
 
-Tu tarea es redactar el Copy exacto para su pagina web premium.
-Debes devolver UNICAMENTE un JSON valido con la siguiente estructura:
+Redacta el Copy exacto para su pagina web premium.
+Devuelve UNICAMENTE un JSON valido:
 {{
-  "headline": "Un titulo impactante para el Hero (max 10 palabras)",
-  "subheadline": "Un subtitulo persuasivo (max 25 palabras)",
+  "headline": "Titulo impactante (max 10 palabras)",
+  "subheadline": "Subtitulo persuasivo (max 25 palabras)",
   "servicios": [
     {{"titulo": "Servicio 1", "descripcion": "Texto persuasivo (20 palabras)"}},
     {{"titulo": "Servicio 2", "descripcion": "Texto persuasivo (20 palabras)"}},
     {{"titulo": "Servicio 3", "descripcion": "Texto persuasivo (20 palabras)"}}
   ],
-  "sobre_nosotros": "Un parrafo de 40 palabras sobre la historia y vision del negocio.",
+  "sobre_nosotros": "Parrafo de 40 palabras sobre la vision del negocio.",
   "keywords_imagenes": ["keyword_ingles_1", "keyword_ingles_2"]
 }}
-NO incluyas markdown, solo el JSON.
 """
     sistema = "Eres un copywriter experto. Devuelves solo JSON."
     
@@ -91,10 +88,8 @@ NO incluyas markdown, solo el JSON.
         return respuesta
     return None
 
-# ==========================================
-# PASO 2: EL PROGRAMADOR (Genera el HTML)
-# ==========================================
-def generar_html_programador(datos_negocio, copy, imagenes, modelo_ia):
+# --- PASO 2: EL PROGRAMADOR ---
+def generar_html_programador(datos_negocio, copy, modelo_ia):
     instrucciones_dinamicas = construir_instrucciones_dinamicas(datos_negocio)
     
     prompt = f"""
@@ -104,7 +99,7 @@ def generar_html_programador(datos_negocio, copy, imagenes, modelo_ia):
 GENERA LA PAGINA WEB COMPLETA
 =========================================================
 
-## COPY EXACTO A UTILIZAR (NO INVENTES TEXTO)
+## COPY EXACTO (NO INVENTES TEXTO, USA ESTE)
 - Headline Hero: {copy.get('headline')}
 - Subheadline Hero: {copy.get('subheadline')}
 - Servicios:
@@ -116,7 +111,7 @@ GENERA LA PAGINA WEB COMPLETA
 ## INSTRUCCIONES DINAMICAS
 {instrucciones_dinamicas}
 
-## REGLAS DE DISENO (OBLIGATORIO - COPIA EL CSS EXACTO)
+## REGLAS DE DISENO
 {REGLAS_CSS_PREMIUM}
 
 {REGLAS_FORMULARIO}
@@ -133,68 +128,82 @@ GENERA LA PAGINA WEB COMPLETA
         return respuesta
     return None
 
-# ==========================================
-# FUNCION DE INYECCION A PRUEBA DE BALAS
-# ==========================================
-def inyectar_imagenes_blindado(html, imagenes, logo_b64):
-    # 1. Inyectar Logo (en el nav o header)
+# --- FUNCION DE INYECCION A PRUEBA DE BALAS ---
+def inyectar_elementos_criticos(html, imagenes, logo_b64):
+    # 1. Inyectar Logo (busca el primer <a> dentro de <nav>)
     if logo_b64:
-        # Buscamos la primera etiqueta <a> dentro de <nav> o <header>
         nav_match = re.search(r'(<nav[^>]*>.*?)(<a[^>]*>)(.*?)(</a>)', html, re.DOTALL | re.IGNORECASE)
         if nav_match:
             logo_tag = f'<img src="{logo_b64}" alt="Logo" style="height:40px;width:auto;">'
             html = html.replace(nav_match.group(2) + nav_match.group(3), nav_match.group(2) + logo_tag)
     
-    # 2. Inyectar Hero y Servicios
-    # Buscamos TODAS las etiquetas <img> que la IA haya puesto
+    # 2. Inyectar Imagenes (escanea todas las <img> y las reemplaza por orden)
     img_pattern = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
     matches = list(img_pattern.finditer(html))
     
     hero_url = imagenes.get("hero")
     servicios_urls = imagenes.get("servicios", [])
     
-    # Reemplazamos las primeras 5 imagenes que encontremos
-    for i, match in enumerate(matches[:5]):
+    for i, match in enumerate(matches):
         if i == 0 and hero_url:
             html = html.replace(match.group(1), hero_url)
         elif i > 0 and (i-1) < len(servicios_urls):
             html = html.replace(match.group(1), servicios_urls[i-1])
             
-    # 3. Si la IA no puso etiquetas <img>, forzamos la inyeccion en los marcadores
-    if hero_url:
-        html = html.replace("{{HERO_IMAGE}}", hero_url)
-    for i, img in enumerate(servicios_urls, 1):
-        html = html.replace(f"{{{{SERVICIO_{i}}}}}", img)
-        
+    # Si la IA borro los marcadores, forzamos la inyeccion
+    if hero_url: html = html.replace("{{HERO_IMAGE}}", hero_url)
+    for i, img in enumerate(servicios_urls, 1): html = html.replace(f"{{{{SERVICIO_{i}}}}}", img)
+
+    # 3. Formulario Automatico (Si la IA lo borro, lo inyectamos antes de </body>)
+    if "{{FORMULARIO}}" not in html:
+        form_html = """
+        <section id="contacto" class="contacto">
+            <h2>Contacto</h2>
+            <form action="/submit_lead" method="POST">
+                <input type="text" name="nombre" placeholder="Nombre completo" required>
+                <input type="email" name="email" placeholder="Correo electronico" required>
+                <textarea name="mensaje" placeholder="En que podemos ayudarte?" required></textarea>
+                <button type="submit" class="btn">Enviar Mensaje</button>
+            </form>
+        </section>
+        """
+        html = html.replace("</body>", form_html + "</body>")
+    else:
+        # Si la IA si lo puso, lo reemplazamos por el formulario real
+        form_html = """
+        <form action="/submit_lead" method="POST">
+            <input type="text" name="nombre" placeholder="Nombre completo" required>
+            <input type="email" name="email" placeholder="Correo electronico" required>
+            <textarea name="mensaje" placeholder="En que podemos ayudarte?" required></textarea>
+            <button type="submit" class="btn">Enviar Mensaje</button>
+        </form>
+        """
+        html = html.replace("{{FORMULARIO}}", form_html)
+
     return html
 
-# ==========================================
-# FUNCION PRINCIPAL
-# ==========================================
-def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=True, modelo_ia="openrouter/free"):
+# --- FUNCION PRINCIPAL ---
+def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=True, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V8.0 (Blindaje de Imagenes)")
+    print("GENERANDO WEB - V9.0 (Inyeccion Forzada)")
     print("=" * 60)
 
     if not gateway and not OPENROUTER_DISPONIBLE:
         return {"exito": False, "html": None, "error": "Gateway no disponible"}
 
-    # 1. Generar Copy
+    # 1. Copy
     copy_raw = generar_copy_estrategico(datos_negocio, modelo_ia)
     if not copy_raw:
-        return {"exito": False, "html": None, "error": "Fallo la redaccion del copy."}
-        
+        return {"exito": False, "html": None, "error": "Fallo el copy."}
     try:
         copy_str = copy_raw.replace("```json", "").replace("```", "").strip()
-        # A veces la IA devuelve texto antes del JSON
         start = copy_str.find('{')
         end = copy_str.rfind('}') + 1
         copy = json.loads(copy_str[start:end])
-    except Exception as e:
-        print(f"Error parseando JSON: {e}")
-        return {"exito": False, "html": None, "error": "La IA no devolvio un JSON valido."}
+    except Exception:
+        return {"exito": False, "html": None, "error": "JSON invalido."}
 
-    # 2. Preparar Imagenes
+    # 2. Imagenes
     imagenes = {"hero": None, "servicios": []}
     logo_b64 = datos_negocio.get("logo_b64")
     fotos_b64 = datos_negocio.get("fotos_b64", [])
@@ -210,19 +219,16 @@ def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=T
             imagenes["hero"] = poll[0]["url_regular"]
             imagenes["servicios"] = [p["url_regular"] for p in poll[1:4]]
 
-    # 3. Generar HTML
+    # 3. HTML
     for intento in range(1, MAX_INTENTOS + 1):
-        html_raw = generar_html_programador(datos_negocio, copy, imagenes, modelo_ia)
+        html_raw = generar_html_programador(datos_negocio, copy, modelo_ia)
         if not html_raw:
             time.sleep(TIEMPO_ESPERA)
             continue
 
         html = limpiar_html(html_raw)
-        
-        # Aplicar el Blindaje de Imagenes
-        html = inyectar_imagenes_blindado(html, imagenes, logo_b64)
+        html = inyectar_elementos_criticos(html, imagenes, logo_b64)
 
-        # Validar
         validacion = validar_completo(html)
         if validacion["valido"]:
             return {"exito": True, "html": html, "error": None}
