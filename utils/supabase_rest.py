@@ -2,9 +2,7 @@
 # ============================================
 # Cliente REST minimal estilo SDK oficial
 # ============================================
-# V1.4: Compatibilidad total con nuevas API keys (sb_publishable_...)
-#       - Solo usa el encabezado 'apikey' para llaves nuevas.
-#       - Usa 'Authorization: Bearer' solo para JWT legacy (eyJ...).
+# V1.5: Agrega metodos gte y lte para filtros de fecha.
 # ============================================
 
 import os
@@ -16,7 +14,6 @@ load_dotenv()
 
 MAX_REINTENTOS = 3
 TIEMPO_ESPERA_BASE = 2
-
 
 class _Query:
     def __init__(self, session, url, headers, tabla):
@@ -34,6 +31,15 @@ class _Query:
 
     def eq(self, col, val):
         self._filters.append((col, f"eq.{val}"))
+        return self
+
+    # NUEVOS MÉTODOS PARA LA PESTAÑA ARM
+    def gte(self, col, val):
+        self._filters.append((col, f"gte.{val}"))
+        return self
+
+    def lte(self, col, val):
+        self._filters.append((col, f"lte.{val}"))
         return self
 
     def order(self, col, desc=False):
@@ -76,12 +82,10 @@ class _Query:
 
         return _Response([], error="Falló después de múltiples reintentos")
 
-
 class _Response:
     def __init__(self, data, error=None):
         self.data = data if data is not None else []
         self.error = error
-
 
 class SupabaseREST:
     def __init__(self):
@@ -89,14 +93,11 @@ class SupabaseREST:
         self.key = os.getenv("SUPABASE_KEY", "")
         self.disponible = bool(self.url and self.key)
 
-        # Construir encabezados según el tipo de llave
         self.headers = {
             "apikey": self.key,
             "Content-Type": "application/json",
         }
 
-        # Las llaves legacy (anon/service_role) son JWT y empiezan con "eyJ".
-        # Las nuevas llaves sb_publishable_... no son JWT y NO deben ir en Authorization.
         if self.key.startswith("eyJ"):
             self.headers["Authorization"] = f"Bearer {self.key}"
 
@@ -111,7 +112,6 @@ class SupabaseREST:
         url = f"{self.url}/rest/v1/{tabla}"
         headers = dict(self.headers)
         headers["Prefer"] = "return=representation"
-
         for intento in range(MAX_REINTENTOS):
             try:
                 r = self.session.post(url, headers=headers, json=data, timeout=30)
@@ -127,7 +127,6 @@ class SupabaseREST:
                     time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
                 else:
                     return _Response([], error=str(e))
-
         return _Response([], error="Falló después de múltiples reintentos")
 
     def update(self, tabla, data, col, val):
@@ -135,7 +134,6 @@ class SupabaseREST:
         headers = dict(self.headers)
         headers["Prefer"] = "return=representation"
         params = {col: f"eq.{val}"}
-
         for intento in range(MAX_REINTENTOS):
             try:
                 r = self.session.patch(url, headers=headers, params=params, json=data, timeout=30)
@@ -151,7 +149,6 @@ class SupabaseREST:
                     time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
                 else:
                     return _Response([], error=str(e))
-
         return _Response([], error="Falló después de múltiples reintentos")
 
     def delete(self, tabla, col, val):
@@ -159,7 +156,6 @@ class SupabaseREST:
         headers = dict(self.headers)
         headers["Prefer"] = "return=representation"
         params = {col: f"eq.{val}"}
-
         for intento in range(MAX_REINTENTOS):
             try:
                 r = self.session.delete(url, headers=headers, params=params, timeout=30)
@@ -175,21 +171,6 @@ class SupabaseREST:
                     time.sleep(TIEMPO_ESPERA_BASE * (intento + 1))
                 else:
                     return _Response([], error=str(e))
-
         return _Response([], error="Falló después de múltiples reintentos")
 
-
 supabase_rest = SupabaseREST()
-
-
-if __name__ == "__main__":
-    print("Test SupabaseREST (Compatibilidad total nuevas llaves)")
-    if supabase_rest.disponible:
-        print(f"URL: {supabase_rest.url}")
-        print(f"Llave tipo: {'JWT (legacy)' if supabase_rest.key.startswith('eyJ') else 'Publishable/Secret (nueva)'}")
-        r = supabase_rest.table("config_global").select("*").execute()
-        print(f"config_global: {len(r.data)} filas")
-        if r.error:
-            print(f"Error capturado: {r.error}")
-    else:
-        print("Faltan credenciales en .env")
