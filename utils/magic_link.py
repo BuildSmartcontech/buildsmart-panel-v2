@@ -2,12 +2,10 @@
 # ============================================
 # MAGIC LINK PARA CLIENTES WEB GANCHO - SAMU IA
 # ============================================
-# Genera y valida tokens unicos para acceso
-# al mini-panel del cliente.
-#
-# V1.0: Version inicial
+# V1.1: Detecta la URL base desde variables de entorno o usa samu-ia.com por defecto.
 # ============================================
 
+import os
 import secrets
 import datetime
 from datetime import timezone
@@ -34,12 +32,6 @@ def generar_expiracion(dias=DIAS_EXPIRACION):
 # GUARDADO EN PEDIDO
 # ==========================================
 def asignar_token_al_pedido(sb, pedido_id):
-    """
-    Genera un token y lo guarda en el pedido.
-
-    Returns:
-        tuple: (exito: bool, token: str or None, error: str)
-    """
     token = generar_token()
     expira = generar_expiracion()
 
@@ -60,7 +52,6 @@ def asignar_token_al_pedido(sb, pedido_id):
 
 
 def regenerar_token(sb, pedido_id):
-    """Fuerza la regeneracion del token."""
     return asignar_token_al_pedido(sb, pedido_id)
 
 
@@ -68,12 +59,6 @@ def regenerar_token(sb, pedido_id):
 # VALIDACION
 # ==========================================
 def validar_token(sb, token):
-    """
-    Valida un token y devuelve el pedido asociado.
-
-    Returns:
-        tuple: (exito: bool, pedido: dict or None, error: str)
-    """
     if not token or not isinstance(token, str):
         return False, None, "Token vacio"
 
@@ -91,7 +76,6 @@ def validar_token(sb, token):
 
     pedido = rows[0]
 
-    # Verificar expiracion
     expira_str = pedido.get("magic_token_expira")
     if expira_str:
         try:
@@ -120,40 +104,15 @@ def validar_token(sb, token):
 # ==========================================
 def construir_url_panel(token, base_url=None):
     """
-    Construye la URL del mini-panel con el token.
-
-    Args:
-        token (str): Token de acceso
-        base_url (str, opcional): Base URL. Default: localhost.
-
-    Returns:
-        str: URL completa
+    Construye la URL del mini-panel.
+    Si no se pasa base_url, intenta leer BASE_URL de las variables de entorno.
+    Si no existe, usa https://samu-ia.com por defecto.
     """
     if not base_url:
-        base_url = "http://localhost:8501"
+        # Busca en Secrets/Env. Si no está, usa el dominio real.
+        base_url = os.getenv("BASE_URL", "https://samu-ia.com")
+
+    # Quitar la barra final si la tiene para evitar dobles barras
+    base_url = base_url.rstrip("/")
 
     return f"{base_url}/?web=panel&token={token}"
-
-
-# ==========================================
-# TEST MANUAL
-# ==========================================
-if __name__ == "__main__":
-    print("=" * 60)
-    print("TEST MAGIC LINK")
-    print("=" * 60)
-
-    token = generar_token()
-    print(f"Token generado: {token[:16]}... ({len(token)} chars)")
-
-    expira = generar_expiracion()
-    print(f"Expira: {expira.isoformat()}")
-
-    url = construir_url_panel(token)
-    print(f"URL panel: {url}")
-
-    print()
-    print("Validaciones basicas:")
-    print(f"  Token vacio: {validar_token(None, '')[2]}")
-    print(f"  Token corto: {validar_token(None, 'abc')[2]}")
-    print("=" * 60)
