@@ -1,16 +1,15 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS CON IA - V5.0 (OPENROUTER)
+# GENERADOR DE WEBS CON IA - V7.0 (AGENTE ESTRATEGA + PROGRAMADOR)
 # ============================================
-# V5.0: Usa OpenRouter (Claude/GPT-4o) para respetar el diseno premium
-#       Fallback automatico a Groq si OpenRouter falla.
+# V7.0: Implementa Chain of Thought. Primero redacta el copy, luego el HTML.
 # ============================================
 
 import os
 import sys
 import re
 import time
-import datetime
+import json
 
 try:
     import requests as _requests
@@ -21,13 +20,11 @@ except ImportError:
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from utils.web_prompts import generar_prompt_web, generar_prompt_resumen, generar_prompt_seo
-    from utils.web_templates import renderizar_template
-    from utils.web_validator import validar_completo, limpiar_html, resumen_validacion
+    from utils.web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_IMAGENES, REGLAS_SALIDA, REGLAS_SECCION_UBICACION, REGLAS_SECCION_HORARIOS, REGLAS_REDES_SOCIALES, construir_instrucciones_dinamicas
+    from utils.web_validator import validar_completo, limpiar_html
 except ImportError:
-    from web_prompts import generar_prompt_web, generar_prompt_resumen, generar_prompt_seo
-    from web_templates import renderizar_template
-    from web_validator import validar_completo, limpiar_html, resumen_validacion
+    from web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_IMAGENES, REGLAS_SALIDA, REGLAS_SECCION_UBICACION, REGLAS_SECCION_HORARIOS, REGLAS_REDES_SOCIALES, construir_instrucciones_dinamicas
+    from web_validator import validar_completo, limpiar_html
 
 try:
     from backend.gateway import gateway
@@ -38,26 +35,15 @@ except ImportError:
         gateway = None
 
 try:
-    from utils.business_detector import analizar_negocio
-    ANALISIS_DISPONIBLE = True
-except ImportError:
-    try:
-        from business_detector import analizar_negocio
-        ANALISIS_DISPONIBLE = True
-    except ImportError:
-        ANALISIS_DISPONIBLE = False
-
-try:
-    from utils.image_fetcher import obtener_urls_imagenes_negocio, normalizar_sector, buscar_imagenes_sector
+    from utils.image_fetcher import obtener_urls_imagenes_negocio
     IMAGENES_DISPONIBLES = True
 except ImportError:
     try:
-        from image_fetcher import obtener_urls_imagenes_negocio, normalizar_sector, buscar_imagenes_sector
+        from image_fetcher import obtener_urls_imagenes_negocio
         IMAGENES_DISPONIBLES = True
     except ImportError:
         IMAGENES_DISPONIBLES = False
 
-# Importar OpenRouter
 try:
     from utils.openrouter_manager import consultar_openrouter
     OPENROUTER_DISPONIBLE = True
@@ -66,205 +52,167 @@ except ImportError:
 
 MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
-SECTORES_GENERICOS = ["general", "negocio general", "default", "otros", "varios", ""]
 
-def _es_sector_generico(sector):
-    if not sector: return True
-    return sector.lower().strip() in SECTORES_GENERICOS
+# ==========================================
+# PASO 1: EL ESTRATEGA (Redacta el Copy)
+# ==========================================
+def generar_copy_estrategico(datos_negocio, modelo_ia):
+    prompt = f"""
+Eres un Director de Marketing Digital experto en ventas B2B.
+Analiza el siguiente negocio:
+- Nombre: {datos_negocio.get('nombre')}
+- Sector: {datos_negocio.get('sector')}
+- Descripcion: {datos_negocio.get('descripcion')}
+- Publico: {datos_negocio.get('publico_objetivo')}
+- Diferenciadores: {datos_negocio.get('diferenciadores')}
 
-def decidir_sector_para_imagenes(sector_original, sector_detectado):
-    if not _es_sector_generico(sector_original): return sector_original
-    if sector_detectado and not _es_sector_generico(sector_detectado): return sector_detectado
-    return "General"
+Tu tarea es redactar el Copy exacto para su pagina web premium.
+Debes devolver UNICAMENTE un JSON valido con la siguiente estructura:
+{{
+  "headline": "Un titulo impactante para el Hero (max 10 palabras)",
+  "subheadline": "Un subtitulo persuasivo (max 25 palabras)",
+  "servicios": [
+    {{"titulo": "Servicio 1", "descripcion": "Texto persuasivo (20 palabras)"}},
+    {{"titulo": "Servicio 2", "descripcion": "Texto persuasivo (20 palabras)"}},
+    {{"titulo": "Servicio 3", "descripcion": "Texto persuasivo (20 palabras)"}}
+  ],
+  "sobre_nosotros": "Un parrafo de 40 palabras sobre la historia y vision del negocio.",
+  "keywords_imagenes": ["palabra_en_ingles_1", "palabra_en_ingles_2"]
+}}
+NO incluyas markdown, solo el JSON.
+"""
+    sistema = "Eres un copywriter experto. Devuelves solo JSON."
+    
+    if OPENROUTER_DISPONIBLE:
+        respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia)
+        if not error:
+            return respuesta
+            
+    if gateway:
+        respuesta, _ = gateway.chat_inteligente(prompt, sistema)
+        return respuesta
+        
+    return None
 
-def _precalentar_imagenes(urls, timeout=45):
-    if not REQUESTS_DISPONIBLE or not urls: return 0
-    ok = 0
-    for url in urls:
-        try:
-            r = _requests.get(url, timeout=timeout, stream=True)
-            if r.status_code == 200:
-                _ = r.raw.read(1024)
-                ok += 1
-            r.close()
-        except Exception: pass
-    return ok
+# ==========================================
+# PASO 2: EL PROGRAMADOR (Genera el HTML)
+# ==========================================
+def generar_html_programador(datos_negocio, copy, imagenes, modelo_ia):
+    instrucciones_dinamicas = construir_instrucciones_dinamicas(datos_negocio)
+    
+    prompt = f"""
+{DIRECTOR_DE_ARTE_PROMPT}
 
-def obtener_imagenes_para_web(sector, cantidad_servicios=4, texto_negocio="", negocio_info=None, precalentar=True):
-    if not IMAGENES_DISPONIBLES: return {"hero": None, "servicios": []}
-    info = negocio_info or {}
-    if not info.get("sector"): info["sector"] = sector
-    if not info.get("descripcion"): info["descripcion"] = texto_negocio
+=========================================================
+GENERA LA PAGINA WEB COMPLETA
+=========================================================
 
-    urls_data = obtener_urls_imagenes_negocio(info, cantidad=cantidad_servicios + 1)
-    if not urls_data: return {"hero": None, "servicios": []}
+## INFORMACION DEL NEGOCIO
+- Nombre: {datos_negocio.get('nombre')}
+- Sector: {datos_negocio.get('sector')}
 
-    resultado = {"hero": urls_data[0]["url_regular"], "servicios": [u["url_regular"] for u in urls_data[1:cantidad_servicios + 1]], "hero_prompt": urls_data[0]["descripcion"], "fuente": "pollinations"}
-    if precalentar:
-        todas_urls = [resultado["hero"]] + resultado["servicios"]
-        _precalentar_imagenes([u for u in todas_urls if u])
-    return resultado
+## COPY EXACTO A UTILIZAR (NO INVENTES TEXTO, USA ESTE)
+- Headline Hero: {copy.get('headline')}
+- Subheadline Hero: {copy.get('subheadline')}
+- Servicios:
+  1. {copy.get('servicios', [{}])[0].get('titulo')}: {copy.get('servicios', [{}])[0].get('descripcion')}
+  2. {copy.get('servicios', [{}, {}])[1].get('titulo')}: {copy.get('servicios', [{}, {}])[1].get('descripcion')}
+  3. {copy.get('servicios', [{}, {}, {}])[2].get('titulo')}: {copy.get('servicios', [{}, {}, {}])[2].get('descripcion')}
+- Sobre Nosotros: {copy.get('sobre_nosotros')}
 
-def inyectar_imagenes_en_html(html, imagenes):
-    if not imagenes: return html
-    hero = imagenes.get("hero")
-    servicios = imagenes.get("servicios", [])
-    if not hero and not servicios: return html
+## INSTRUCCIONES DINAMICAS (Ubicacion/Horarios/Redes)
+{instrucciones_dinamicas}
 
-    html_modificado = html
-    contador = 0
+## REGLAS DE DISENO (OBLIGATORIO)
+{REGLAS_CSS_PREMIUM}
 
-    if hero:
-        marcadores_hero = ["{{HERO_IMAGE}}", "{{IMAGEN_HERO}}", "{{HERO}}", "{{IMAGEN_PRINCIPAL}}", "{{BANNER}}"]
-        for marcador in marcadores_hero:
-            if marcador in html_modificado:
-                html_modificado = html_modificado.replace(marcador, hero)
-                contador += 1
-        if contador == 0:
-            html_modificado = inyectar_hero_automatico(html_modificado, hero)
+{REGLAS_IMAGENES}
+{REGLAS_FORMULARIO}
+{REGLAS_SALIDA}
+"""
+    sistema = "Eres un programador Frontend Senior. Devuelves solo HTML."
+    
+    if OPENROUTER_DISPONIBLE:
+        respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia)
+        if not error:
+            return respuesta
+            
+    if gateway:
+        respuesta, _ = gateway.chat_inteligente(prompt, sistema)
+        return respuesta
+        
+    return None
 
-    if servicios:
-        variantes = ["SERVICIO", "SERVICIOS", "PRODUCTO", "PRODUCTOS", "ARTICULO", "ARTICULOS", "ITEM", "ITEMS", "IMAGEN", "IMAGENES", "PROYECTO", "PROYECTOS", "GALERIA", "FOTO", "FOTOS", "CARD", "CARDS"]
-        for i, url in enumerate(servicios, 1):
-            for variante in variantes:
-                marcadores = ["{{" + variante + "_" + str(i) + "}}", "{{IMAGEN_" + variante + "_" + str(i) + "}}"]
-                for marcador in marcadores:
-                    if marcador in html_modificado:
-                        html_modificado = html_modificado.replace(marcador, url)
-                        contador += 1
-
-        patron_generico = r'(<img[^>]*src=")\{\{[A-Z_0-9]+\}\}(")'
-        matches = list(re.finditer(patron_generico, html_modificado))
-        for i, match in enumerate(matches):
-            if i < len(servicios):
-                reemplazo = match.group(1) + servicios[i] + match.group(2)
-                html_modificado = html_modificado.replace(match.group(0), reemplazo, 1)
-                contador += 1
-
-    return html_modificado
-
-def inyectar_hero_automatico(html, hero_url):
-    patron_hero = r'<section[^>]*class="[^"]*hero[^"]*"[^>]*>'
-    match = re.search(patron_hero, html, re.IGNORECASE)
-    if match:
-        estilo = ' style="background-image: url(\'' + hero_url + '\'); background-size: cover; background-position: center; position: relative;"'
-        nuevo_tag = match.group(0).replace(">", estilo + ">")
-        return html.replace(match.group(0), nuevo_tag, 1)
-    return html
-
+# ==========================================
+# FUNCION PRINCIPAL
+# ==========================================
 def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=True, modelo_ia="openrouter/free"):
     print("=" * 60)
-    print("GENERANDO WEB CON IA - V5.0 (OPENROUTER)")
+    print("GENERANDO WEB - V7.0 (Agente Estratega + Programador)")
     print("=" * 60)
 
-    if gateway is None and not OPENROUTER_DISPONIBLE:
-        return {"exito": False, "html": None, "intentos": 0, "validacion": None, "sector_detectado": None, "imagenes_usadas": None, "error": "Gateway no disponible"}
+    if not gateway and not OPENROUTER_DISPONIBLE:
+        return {"exito": False, "html": None, "error": "Gateway no disponible"}
 
-    sector_detectado = None
-    recomendaciones = None
+    # 1. Generar Copy Estrategico
+    print("[PASO 1] Generando copy persuasivo...")
+    copy_raw = generar_copy_estrategico(datos_negocio, modelo_ia)
+    if not copy_raw:
+        return {"exito": False, "html": None, "error": "Fallo el paso 1 (Copy)"}
+        
+    try:
+        # Limpiar el JSON por si la IA agrega markdown
+        copy_str = copy_raw.replace("```json", "").replace("```", "").strip()
+        copy = json.loads(copy_str)
+        print(f"[PASO 1] Exito. Headline: {copy.get('headline')}")
+    except Exception as e:
+        print(f"[PASO 1] Error parseando JSON: {e}")
+        return {"exito": False, "html": None, "error": "La IA no devolvio un JSON valido en el copy."}
 
-    if ANALISIS_DISPONIBLE:
-        texto_analisis = datos_negocio.get("descripcion", "") + " " + datos_negocio.get("sector", "") + " " + datos_negocio.get("nombre", "")
-        analisis = analizar_negocio(texto_analisis)
-        sector_detectado = analisis.get("sector")
-        if analisis.get("confianza", 0) >= 0.5: recomendaciones = analisis
+    # 2. Preparar Imagenes (Usuario o Pollinations)
+    imagenes = {"hero": None, "servicios": []}
+    logo_b64 = datos_negocio.get("logo_b64")
+    fotos_b64 = datos_negocio.get("fotos_b64", [])
+    
+    if fotos_b64:
+        imagenes["hero"] = fotos_b64[0] if len(fotos_b64) > 0 else None
+        imagenes["servicios"] = fotos_b64[1:4]
+    elif con_imagenes and IMAGENES_DISPONIBLES:
+        keywords = copy.get("keywords_imagenes", ["business"])
+        negocio_info = {"nombre": datos_negocio.get("nombre"), "sector": " ".join(keywords), "descripcion": datos_negocio.get("descripcion")}
+        poll = obtener_urls_imagenes_negocio(negocio_info, cantidad=4)
+        if poll:
+            imagenes["hero"] = poll[0]["url_regular"]
+            imagenes["servicios"] = [p["url_regular"] for p in poll[1:4]]
 
-    nombre = datos_negocio.get("nombre", "Mi Negocio")
-    sector_original = datos_negocio.get("sector", "")
-    descripcion = datos_negocio.get("descripcion", "Descripcion del negocio")
-    publico = datos_negocio.get("publico_objetivo", "")
-    diferenciadores = datos_negocio.get("diferenciadores", "")
-    colores = datos_negocio.get("colores", "#0B0C14, #14B8A6")
-
-    direccion = datos_negocio.get("direccion", "")
-    ciudad = datos_negocio.get("ciudad", "")
-    pais = datos_negocio.get("pais", "")
-    horarios = datos_negocio.get("horarios", "")
-    instagram = datos_negocio.get("instagram", "")
-    facebook = datos_negocio.get("facebook", "")
-    tiktok = datos_negocio.get("tiktok", "")
-    anio_fundacion = datos_negocio.get("anio_fundacion", "")
-    email_contacto = datos_negocio.get("email_contacto", "")
-    whatsapp_negocio = datos_negocio.get("whatsapp_negocio", "")
-
-    sector_para_imagenes = decidir_sector_para_imagenes(sector_original, sector_detectado)
-    texto_negocio = (nombre + " " + descripcion + " " + diferenciadores).strip()
-
-    if opciones is None:
-        if recomendaciones:
-            opciones = {"tipo_pagina": recomendaciones.get("tipo_pagina", "Landing Page"), "diseno": recomendaciones.get("diseno", "Moderno"), "tono": recomendaciones.get("tono", "Profesional"), "secciones": recomendaciones.get("secciones"), "logica": "Formulario de contacto", "funcionalidades": ["SEO optimizado", "Animaciones"]}
-        else:
-            opciones = {"tipo_pagina": "Landing Page", "diseno": "Moderno", "tono": "Profesional", "secciones": ["Hero", "Servicios", "Sobre Nosotros", "Contacto"], "logica": "Formulario de contacto", "funcionalidades": ["SEO optimizado", "Animaciones"]}
-
-    imagenes = None
-    if con_imagenes and IMAGENES_DISPONIBLES:
-        negocio_info = {"nombre": nombre, "sector": sector_para_imagenes, "descripcion": descripcion}
-        imagenes = obtener_imagenes_para_web(sector_para_imagenes, texto_negocio=texto_negocio, negocio_info=negocio_info, precalentar=True)
-
+    # 3. Generar HTML Programador
+    print("[PASO 2] Generando HTML con el copy inyectado...")
     for intento in range(1, MAX_INTENTOS + 1):
-        try:
-            prompt = generar_prompt_web(
-                nombre_negocio=nombre, sector=sector_original or sector_detectado or "general", descripcion=descripcion, publico_objetivo=publico, diferenciadores=diferenciadores, tono=opciones.get("tono", "Profesional"), colores=colores, tipo_pagina=opciones.get("tipo_pagina", "Landing Page"), diseno=opciones.get("diseno", "Moderno"), secciones=opciones.get("secciones"), logica=opciones.get("logica", "Estatica"), funcionalidades=opciones.get("funcionalidades"), direccion=direccion, ciudad=ciudad, pais=pais, horarios=horarios, instagram=instagram, facebook=facebook, tiktok=tiktok, anio_fundacion=anio_fundacion, email_contacto=email_contacto, whatsapp_negocio=whatsapp_negocio,
-            )
+        html_raw = generar_html_programador(datos_negocio, copy, imagenes, modelo_ia)
+        
+        if not html_raw:
+            time.sleep(TIEMPO_ESPERA)
+            continue
 
-            sistema = "Eres un disenador web profesional. Genera codigo HTML/CSS limpio y moderno."
+        html = limpiar_html(html_raw)
+        
+        # Inyectar Logo
+        if logo_b64:
+            html = html.replace("{{LOGO_IMAGE}}", logo_b64)
             
-            # INTENTAR CON OPENROUTER PRIMERO
-            respuesta = None
-            if OPENROUTER_DISPONIBLE:
-                print(f"[OPENROUTER] Intentando con modelo: {modelo_ia}")
-                respuesta_ia, modelo_usado, error_or = consultar_openrouter(prompt, sistema, modelo=modelo_ia)
-                if error_or:
-                    print(f"[OPENROUTER] Error: {error_or}")
-                else:
-                    respuesta = respuesta_ia
-                    print(f"[OPENROUTER] Exito con: {modelo_usado}")
+        # Inyectar Hero y Servicios
+        if imagenes.get("hero"):
+            html = html.replace("{{HERO_IMAGE}}", imagenes["hero"])
+        for i, img in enumerate(imagenes.get("servicios", []), 1):
+            html = html.replace(f"{{{{SERVICIO_{i}}}}}", img)
 
-            # FALLBACK A GROQ SI OPENROUTER FALLA
-            if not respuesta and gateway:
-                print("[FALLBACK] Usando Groq/Gateway...")
-                respuesta, fuente = gateway.chat_inteligente(prompt, sistema)
-                print(f"[FALLBACK] Exito con: {fuente}")
+        # Validar
+        validacion = validar_completo(html)
+        if validacion["valido"]:
+            print(f"[PASO 2] Exito. HTML valido en intento {intento}.")
+            return {"exito": True, "html": html, "error": None}
 
-            if not respuesta:
-                print("No se pudo obtener respuesta de ninguna IA.")
-                time.sleep(TIEMPO_ESPERA)
-                continue
+        print(f"[PASO 2] HTML invalido en intento {intento}. Reintentando...")
+        time.sleep(TIEMPO_ESPERA)
 
-            html = limpiar_html(respuesta)
-
-            if imagenes and (imagenes.get("hero") or imagenes.get("servicios")):
-                html = inyectar_imagenes_en_html(html, imagenes)
-
-            validacion = validar_completo(html)
-
-            if validacion["valido"]:
-                return {"exito": True, "html": html, "intentos": intento, "validacion": validacion, "fuente": modelo_ia, "sector_detectado": sector_detectado, "sector_usado_imagenes": sector_para_imagenes, "imagenes_usadas": imagenes, "error": None}
-
-            print("HTML invalido. Reintentando en " + str(TIEMPO_ESPERA) + "s...")
-            time.sleep(TIEMPO_ESPERA)
-        except Exception as e:
-            print("Error en intento " + str(intento) + ": " + str(e))
-            time.sleep(TIEMPO_ESPERA)
-
-    return {"exito": False, "html": None, "intentos": MAX_INTENTOS, "validacion": None, "fuente": None, "sector_detectado": sector_detectado, "imagenes_usadas": imagenes, "error": "No se pudo generar HTML valido"}
-
-def generar_resumen(html):
-    if gateway is None: return "Gateway no disponible"
-    try:
-        prompt = generar_prompt_resumen(html)
-        sistema = "Eres un experto en marketing digital."
-        respuesta, fuente = gateway.chat_rapido(prompt, sistema)
-        return limpiar_html(respuesta)
-    except Exception as e: return "Error: " + str(e)
-
-def generar_seo(nombre_negocio, sector, descripcion):
-    if gateway is None: return {}
-    try:
-        prompt = generar_prompt_seo(nombre_negocio, sector, descripcion)
-        sistema = "Eres un experto en SEO."
-        respuesta, fuente = gateway.chat_rapido(prompt, sistema)
-        import json
-        try: return json.loads(respuesta)
-        except Exception: return {}
-    except Exception as e: return {}
+    return {"exito": False, "html": None, "error": "No se pudo generar HTML valido."}
