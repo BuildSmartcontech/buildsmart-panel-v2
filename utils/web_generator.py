@@ -1,8 +1,8 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS CON IA - V7.0 (AGENTE ESTRATEGA + PROGRAMADOR)
+# GENERADOR DE WEBS CON IA - V8.0 (BLINDAJE DE IMAGENES)
 # ============================================
-# V7.0: Implementa Chain of Thought. Primero redacta el copy, luego el HTML.
+# V8.0: Fuerza la inyeccion de imagenes buscando etiquetas <img> genericas.
 # ============================================
 
 import os
@@ -20,10 +20,10 @@ except ImportError:
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from utils.web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_IMAGENES, REGLAS_SALIDA, REGLAS_SECCION_UBICACION, REGLAS_SECCION_HORARIOS, REGLAS_REDES_SOCIALES, construir_instrucciones_dinamicas
+    from utils.web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_IMAGENES, REGLAS_SALIDA, construir_instrucciones_dinamicas
     from utils.web_validator import validar_completo, limpiar_html
 except ImportError:
-    from web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_IMAGENES, REGLAS_SALIDA, REGLAS_SECCION_UBICACION, REGLAS_SECCION_HORARIOS, REGLAS_REDES_SOCIALES, construir_instrucciones_dinamicas
+    from web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_IMAGENES, REGLAS_SALIDA, construir_instrucciones_dinamicas
     from web_validator import validar_completo, limpiar_html
 
 try:
@@ -64,7 +64,6 @@ Analiza el siguiente negocio:
 - Sector: {datos_negocio.get('sector')}
 - Descripcion: {datos_negocio.get('descripcion')}
 - Publico: {datos_negocio.get('publico_objetivo')}
-- Diferenciadores: {datos_negocio.get('diferenciadores')}
 
 Tu tarea es redactar el Copy exacto para su pagina web premium.
 Debes devolver UNICAMENTE un JSON valido con la siguiente estructura:
@@ -77,7 +76,7 @@ Debes devolver UNICAMENTE un JSON valido con la siguiente estructura:
     {{"titulo": "Servicio 3", "descripcion": "Texto persuasivo (20 palabras)"}}
   ],
   "sobre_nosotros": "Un parrafo de 40 palabras sobre la historia y vision del negocio.",
-  "keywords_imagenes": ["palabra_en_ingles_1", "palabra_en_ingles_2"]
+  "keywords_imagenes": ["keyword_ingles_1", "keyword_ingles_2"]
 }}
 NO incluyas markdown, solo el JSON.
 """
@@ -85,13 +84,11 @@ NO incluyas markdown, solo el JSON.
     
     if OPENROUTER_DISPONIBLE:
         respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia)
-        if not error:
-            return respuesta
+        if not error: return respuesta
             
     if gateway:
         respuesta, _ = gateway.chat_inteligente(prompt, sistema)
         return respuesta
-        
     return None
 
 # ==========================================
@@ -107,11 +104,7 @@ def generar_html_programador(datos_negocio, copy, imagenes, modelo_ia):
 GENERA LA PAGINA WEB COMPLETA
 =========================================================
 
-## INFORMACION DEL NEGOCIO
-- Nombre: {datos_negocio.get('nombre')}
-- Sector: {datos_negocio.get('sector')}
-
-## COPY EXACTO A UTILIZAR (NO INVENTES TEXTO, USA ESTE)
+## COPY EXACTO A UTILIZAR (NO INVENTES TEXTO)
 - Headline Hero: {copy.get('headline')}
 - Subheadline Hero: {copy.get('subheadline')}
 - Servicios:
@@ -120,56 +113,88 @@ GENERA LA PAGINA WEB COMPLETA
   3. {copy.get('servicios', [{}, {}, {}])[2].get('titulo')}: {copy.get('servicios', [{}, {}, {}])[2].get('descripcion')}
 - Sobre Nosotros: {copy.get('sobre_nosotros')}
 
-## INSTRUCCIONES DINAMICAS (Ubicacion/Horarios/Redes)
+## INSTRUCCIONES DINAMICAS
 {instrucciones_dinamicas}
 
-## REGLAS DE DISENO (OBLIGATORIO)
+## REGLAS DE DISENO (OBLIGATORIO - COPIA EL CSS EXACTO)
 {REGLAS_CSS_PREMIUM}
 
-{REGLAS_IMAGENES}
 {REGLAS_FORMULARIO}
 {REGLAS_SALIDA}
 """
-    sistema = "Eres un programador Frontend Senior. Devuelves solo HTML."
+    sistema = "Eres un programador Frontend Senior. Devuelves solo HTML. Usa el CSS exacto que se te da."
     
     if OPENROUTER_DISPONIBLE:
         respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia)
-        if not error:
-            return respuesta
+        if not error: return respuesta
             
     if gateway:
         respuesta, _ = gateway.chat_inteligente(prompt, sistema)
         return respuesta
-        
     return None
+
+# ==========================================
+# FUNCION DE INYECCION A PRUEBA DE BALAS
+# ==========================================
+def inyectar_imagenes_blindado(html, imagenes, logo_b64):
+    # 1. Inyectar Logo (en el nav o header)
+    if logo_b64:
+        # Buscamos la primera etiqueta <a> dentro de <nav> o <header>
+        nav_match = re.search(r'(<nav[^>]*>.*?)(<a[^>]*>)(.*?)(</a>)', html, re.DOTALL | re.IGNORECASE)
+        if nav_match:
+            logo_tag = f'<img src="{logo_b64}" alt="Logo" style="height:40px;width:auto;">'
+            html = html.replace(nav_match.group(2) + nav_match.group(3), nav_match.group(2) + logo_tag)
+    
+    # 2. Inyectar Hero y Servicios
+    # Buscamos TODAS las etiquetas <img> que la IA haya puesto
+    img_pattern = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
+    matches = list(img_pattern.finditer(html))
+    
+    hero_url = imagenes.get("hero")
+    servicios_urls = imagenes.get("servicios", [])
+    
+    # Reemplazamos las primeras 5 imagenes que encontremos
+    for i, match in enumerate(matches[:5]):
+        if i == 0 and hero_url:
+            html = html.replace(match.group(1), hero_url)
+        elif i > 0 and (i-1) < len(servicios_urls):
+            html = html.replace(match.group(1), servicios_urls[i-1])
+            
+    # 3. Si la IA no puso etiquetas <img>, forzamos la inyeccion en los marcadores
+    if hero_url:
+        html = html.replace("{{HERO_IMAGE}}", hero_url)
+    for i, img in enumerate(servicios_urls, 1):
+        html = html.replace(f"{{{{SERVICIO_{i}}}}}", img)
+        
+    return html
 
 # ==========================================
 # FUNCION PRINCIPAL
 # ==========================================
 def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=True, modelo_ia="openrouter/free"):
     print("=" * 60)
-    print("GENERANDO WEB - V7.0 (Agente Estratega + Programador)")
+    print("GENERANDO WEB - V8.0 (Blindaje de Imagenes)")
     print("=" * 60)
 
     if not gateway and not OPENROUTER_DISPONIBLE:
         return {"exito": False, "html": None, "error": "Gateway no disponible"}
 
-    # 1. Generar Copy Estrategico
-    print("[PASO 1] Generando copy persuasivo...")
+    # 1. Generar Copy
     copy_raw = generar_copy_estrategico(datos_negocio, modelo_ia)
     if not copy_raw:
-        return {"exito": False, "html": None, "error": "Fallo el paso 1 (Copy)"}
+        return {"exito": False, "html": None, "error": "Fallo la redaccion del copy."}
         
     try:
-        # Limpiar el JSON por si la IA agrega markdown
         copy_str = copy_raw.replace("```json", "").replace("```", "").strip()
-        copy = json.loads(copy_str)
-        print(f"[PASO 1] Exito. Headline: {copy.get('headline')}")
+        # A veces la IA devuelve texto antes del JSON
+        start = copy_str.find('{')
+        end = copy_str.rfind('}') + 1
+        copy = json.loads(copy_str[start:end])
     except Exception as e:
-        print(f"[PASO 1] Error parseando JSON: {e}")
-        return {"exito": False, "html": None, "error": "La IA no devolvio un JSON valido en el copy."}
+        print(f"Error parseando JSON: {e}")
+        return {"exito": False, "html": None, "error": "La IA no devolvio un JSON valido."}
 
-    # 2. Preparar Imagenes (Usuario o Pollinations)
+    # 2. Preparar Imagenes
     imagenes = {"hero": None, "servicios": []}
     logo_b64 = datos_negocio.get("logo_b64")
     fotos_b64 = datos_negocio.get("fotos_b64", [])
@@ -185,34 +210,23 @@ def generar_web(datos_negocio, opciones=None, usar_template=True, con_imagenes=T
             imagenes["hero"] = poll[0]["url_regular"]
             imagenes["servicios"] = [p["url_regular"] for p in poll[1:4]]
 
-    # 3. Generar HTML Programador
-    print("[PASO 2] Generando HTML con el copy inyectado...")
+    # 3. Generar HTML
     for intento in range(1, MAX_INTENTOS + 1):
         html_raw = generar_html_programador(datos_negocio, copy, imagenes, modelo_ia)
-        
         if not html_raw:
             time.sleep(TIEMPO_ESPERA)
             continue
 
         html = limpiar_html(html_raw)
         
-        # Inyectar Logo
-        if logo_b64:
-            html = html.replace("{{LOGO_IMAGE}}", logo_b64)
-            
-        # Inyectar Hero y Servicios
-        if imagenes.get("hero"):
-            html = html.replace("{{HERO_IMAGE}}", imagenes["hero"])
-        for i, img in enumerate(imagenes.get("servicios", []), 1):
-            html = html.replace(f"{{{{SERVICIO_{i}}}}}", img)
+        # Aplicar el Blindaje de Imagenes
+        html = inyectar_imagenes_blindado(html, imagenes, logo_b64)
 
         # Validar
         validacion = validar_completo(html)
         if validacion["valido"]:
-            print(f"[PASO 2] Exito. HTML valido en intento {intento}.")
             return {"exito": True, "html": html, "error": None}
 
-        print(f"[PASO 2] HTML invalido en intento {intento}. Reintentando...")
         time.sleep(TIEMPO_ESPERA)
 
     return {"exito": False, "html": None, "error": "No se pudo generar HTML valido."}
