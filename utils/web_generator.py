@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V18.2 (ORTOGRAFIA Y LEGAL)
+# GENERADOR DE WEBS - V18.3 (IMPORTS CORREGIDOS)
 # ============================================
 
 import os
@@ -10,26 +10,18 @@ import time
 import json
 from bs4 import BeautifulSoup
 
+# Aseguramos la ruta raíz
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-try:
-    from utils.web_prompts_data import (
-        DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, 
-        REGLAS_SALIDA, REGLAS_ORTOGRAFIA, REGLAS_FOOTER_LEGAL, 
-        construir_instrucciones_dinamicas
-    )
-    from utils.web_validator import validar_completo, limpiar_html
-    from utils.image_fetcher import obtener_urls_imagenes_negocio
-    from utils.openrouter_manager import consultar_openrouter
-except ImportError:
-    from web_prompts_data import (
-        DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, 
-        REGLAS_SALIDA, REGLAS_ORTOGRAFIA, REGLAS_FOOTER_LEGAL, 
-        construir_instrucciones_dinamicas
-    )
-    from web_validator import validar_completo, limpiar_html
-    from image_fetcher import obtener_urls_imagenes_negocio
-    from openrouter_manager import consultar_openrouter
+# IMPORTACIONES ABSOLUTAS (Sin Try/Except para evitar errores ocultos)
+from utils.web_prompts_data import (
+    DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, 
+    REGLAS_SALIDA, REGLAS_ORTOGRAFIA, REGLAS_FOOTER_LEGAL, 
+    construir_instrucciones_dinamicas
+)
+from utils.web_validator import validar_completo, limpiar_html
+from utils.image_fetcher import obtener_urls_imagenes_negocio
+from utils.openrouter_manager import consultar_openrouter
 
 MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
@@ -112,7 +104,6 @@ def generar_html_programador(datos_negocio, copy, modelo_ia):
     return None
 
 def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
-    # 1. REEMPLAZO DE MARCADORES
     hero_url = imagenes.get("hero")
     servicios_urls = imagenes.get("servicios", [])
     
@@ -127,7 +118,6 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
 
     soup = BeautifulSoup(html, 'html.parser')
 
-    # 2. LOGO
     if logo_b64:
         print("[INYECTOR] Inyectando logo...")
         primer_enlace = soup.find('a')
@@ -146,7 +136,6 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
             if body:
                 body.insert(0, logo_img)
 
-    # 3. HERO IMAGE (INYECCIÓN FORZADA)
     if hero_url and "{{HERO_IMAGE}}" not in html:
         print("[INYECTOR] Forzando inyección de imagen Hero...")
         h1 = soup.find('h1')
@@ -160,7 +149,6 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
             img_tag['style'] = "width:100%; max-width:1000px; height:auto; max-height:600px; object-fit:cover; border-radius:24px; margin:40px auto 0; display:block; box-shadow: 0 20px 40px rgba(0,0,0,0.4);"
             container.append(img_tag)
 
-    # 4. IMAGENES EN SERVICIOS
     if servicios_urls and "{{SERVICIO_1}}" not in html:
         print(f"[INYECTOR] Buscando tarjetas para inyectar {len(servicios_urls)} imagenes...")
         tarjetas = []
@@ -179,7 +167,6 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
             
             tarjeta['style'] = "background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 30px; display: flex; flex-direction: column; height: 100%;"
 
-    # 5. FORMULARIO
     form_section = soup.find(id='contacto') or soup.find(class_=re.compile('contact', re.I))
     if form_section:
         if "{{FORMULARIO}}" in html or not form_section.find('form'):
@@ -202,7 +189,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V18.2")
+    print("GENERANDO WEB - V18.3")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")

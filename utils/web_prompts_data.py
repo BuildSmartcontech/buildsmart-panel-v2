@@ -2,7 +2,7 @@
 # ============================================
 # CONSTANTES Y CONSTRUCTORES DE PROMPTS WEB
 # ============================================
-# V5.3: Nav más espacioso y reglas de imagen estricta.
+# V5.5: Ortografia y footer legal garantizados.
 # ============================================
 
 PALABRAS_PROHIBIDAS = [
@@ -52,15 +52,15 @@ REGLAS_CSS_PREMIUM = """
 
 **1. VARIABLES GLOBALES Y RESET:**
 :root {
-    --bg: #0B0C14; /* Obsidiana Oscura */
-    --bg-light: #F7F7F4; /* Papel */
+    --bg: #0B0C14;
+    --bg-light: #F7F7F4;
     --card-bg: rgba(255, 255, 255, 0.03);
     --border: rgba(255, 255, 255, 0.08);
     --text: #F8FAFC;
     --text-dark: #1a1a1a;
     --text-muted: #94A3B8;
-    --primary: #14B8A6; /* Signal Teal */
-    --primary-blue: #0F62FE; /* IBM Blue */
+    --primary: #14B8A6;
+    --primary-blue: #0F62FE;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -73,7 +73,7 @@ body {
 
 **2. NAVEGACION (Fija y elegante - CON MAS ESPACIO):**
 nav {
-    padding: 24px 48px; /* Aumentado para que el logo respire */
+    padding: 24px 48px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -81,7 +81,7 @@ nav {
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
     position: sticky; top: 0; z-index: 100;
-    min-height: 90px; /* Altura mínima para el header */
+    min-height: 90px;
 }
 nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left: 24px; font-size: 0.9rem; }
 
@@ -107,7 +107,6 @@ nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left
     max-width: 900px;
     line-height: 1.1;
 }
-/* REGLA ESTRICTA PARA QUE LA IMAGEN HERO NO SE DEFORME */
 .hero img {
     width: 100%;
     max-width: 1000px;
@@ -133,7 +132,7 @@ nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 24px;
-    padding: 30px; /* Ajustado */
+    padding: 30px;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     backdrop-filter: blur(12px);
     position: relative;
@@ -186,9 +185,8 @@ input:focus { outline: none; border-color: var(--primary); }
 
 REGLAS_SECCION_UBICACION = """
 ### SECCION UBICACION (OBLIGATORIA porque hay direccion):
-
 Genera una seccion <section id="ubicacion" class="ubicacion"> con:
-1. Titulo "Donde estamos" o "Visitanos"
+1. Titulo "Dónde estamos" (CON TILDE).
 2. Layout en 2 columnas (grid):
    - Columna izquierda: datos de direccion con icono SVG de pin + ciudad + pais.
    - Columna derecha: Un boton grande y elegante que diga "Abrir en Google Maps".
@@ -201,7 +199,7 @@ Genera una seccion <section id="ubicacion" class="ubicacion"> con:
 REGLAS_SECCION_HORARIOS = """
 ### SECCION HORARIOS (OBLIGATORIA porque hay horarios):
 Genera una seccion <section id="horarios" class="horarios"> con:
-1. Titulo "Horarios de atencion"
+1. Titulo "Horarios de atención" (CON TILDE).
 2. Card premium con la lista de horarios.
 """
 
@@ -209,6 +207,22 @@ REGLAS_REDES_SOCIALES = """
 ### REDES SOCIALES EN FOOTER:
 En el footer, agrega una fila de iconos SVG inline para las redes que existan.
 Usa SVGs oficiales simples. NO uses librerias externas.
+"""
+
+REGLAS_ORTOGRAFIA = """
+### ORTOGRAFIA Y GRAMATICA (CRITICO):
+1. Usa ESPAÑOL PERFECTO. Revisa dos veces las tildes y acentuación.
+2. Títulos como "Dónde estamos", "Quiénes somos", "Horários" (si aplica) deben llevar tilde.
+3. Revisa que los botones digan "Enviar Mensaje" y no "Envlar Mensaje".
+4. Asegurate de que los textos de las tarjetas terminen con una idea completa y punto final.
+"""
+
+REGLAS_FOOTER_LEGAL = """
+### FOOTER LEGAL (OBLIGATORIO):
+Al final del <body>, antes de cerrar, incluye un <footer> estilizado con:
+<p>&copy; 2026 NOMBRE_DEL_NEGOCIO. Todos los derechos reservados.</p>
+<a href="/terminos" style="color: var(--text-muted); margin-right: 15px; text-decoration: none;">Términos y Condiciones</a> | 
+<a href="/privacidad" style="color: var(--text-muted); text-decoration: none;">Política de Privacidad</a>
 """
 
 REGLAS_CODIGO = (
@@ -247,7 +261,6 @@ REGLAS_SALIDA = (
 )
 
 def construir_instrucciones_dinamicas(datos_negocio):
-    """Genera instrucciones condicionales segun campos disponibles."""
     instrucciones = []
     secciones_extra = []
 
@@ -310,9 +323,7 @@ def construir_instrucciones_dinamicas(datos_negocio):
         )
     return "\n".join(instrucciones)
 
-
 def construir_reglas_contenido(sector, lista_negra):
-    """Reglas de contenido con datos dinamicos."""
     return (
         "\n## REGLAS DE CONTENIDO\n\n"
         "### PROHIBIDO USAR ESTAS FRASES:\n" + lista_negra + "\n\n"
