@@ -2,7 +2,7 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V2.0: Vista previa, contador, paquetes de pago ePayco y retorno automático.
+# V2.1: UI mejorada. Botones explicitos de Vista Previa y Publicar.
 # ============================================
 
 import streamlit as st
@@ -25,6 +25,7 @@ E_MALETIN   = "\U0001F4BC"
 E_DINERO    = "\U0001F4B0"
 E_LLAVE     = "\U0001F511"
 E_RAYO      = "\u26A1"
+E_OJO       = "\U0001F441\uFE0F"
 
 LIMITE_MODIFICACIONES_BASE = 3
 
@@ -75,7 +76,6 @@ def _solicitar_modificacion(sb, pedido, instruccion):
     usadas = int(pedido.get("modificaciones_usadas", 0))
     extras = int(pedido.get("modificaciones_extra", 0))
     
-    # Calculamos el límite dinámico
     limite_total = LIMITE_MODIFICACIONES_BASE + extras
     restantes = max(0, limite_total - usadas)
 
@@ -88,6 +88,7 @@ def _solicitar_modificacion(sb, pedido, instruccion):
         contexto = f"Negocio: {pedido.get('datos_negocio', {}).get('nombre_negocio', '')}\n"
         contexto += f"Sector: {pedido.get('datos_negocio', {}).get('sector', '')}"
 
+        # Solo editamos y guardamos en memoria, NO en Netlify
         resultado = editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto)
 
         if resultado.get("exito"):
@@ -96,7 +97,7 @@ def _solicitar_modificacion(sb, pedido, instruccion):
                 {"modificaciones_usadas": usadas + 1, "updated_at": datetime.datetime.now().isoformat()},
                 "id", pedido_id
             )
-            return True, "¡Tu web se ha modificado! Revisa la vista previa abajo y publica cuando estés listo.", resultado.get("html_nuevo")
+            return True, "¡Cambio generado! Revisa la vista previa abajo antes de publicar.", resultado.get("html_nuevo")
         else:
             return False, f"Error de la IA: {resultado.get('error')}", None
             
@@ -104,12 +105,9 @@ def _solicitar_modificacion(sb, pedido, instruccion):
         return False, f"Error del sistema: {str(e)}", None
 
 def _procesar_retorno_pago(sb, pedido_id, paquete):
-    """Si ePayco nos devuelve con pago=exitoso, sumamos los cambios."""
     try:
-        # Obtenemos los extras actuales
         res = sb.table("pedidos_web").select("modificaciones_extra").eq("id", pedido_id).execute()
-        if not res.data:
-            return False
+        if not res.data: return False
         
         extras_actuales = int(res.data[0].get("modificaciones_extra", 0))
         nuevos_extras = extras_actuales + int(paquete)
@@ -146,14 +144,12 @@ def _renderizar_panel(pedido, sb):
             paquete = int(params.get("paquete", 1))
             if _procesar_retorno_pago(sb, pedido_id, paquete):
                 st.success(f"{E_OK} ¡Pago recibido! Se han añadido {paquete} cambios extra a tu cuenta.")
-                # Limpiamos la URL para que no se procese dos veces
                 st.query_params.clear()
                 st.query_params.update({"web": "panel", "token": token})
                 st.rerun()
     except Exception:
         pass
 
-    # --- HEADER ---
     st.markdown(f"# {E_CORONA} Tu panel - SAMU IA")
     col_h1, col_h2 = st.columns([2, 1])
     with col_h1:
@@ -172,7 +168,6 @@ def _renderizar_panel(pedido, sb):
 
     st.divider()
 
-    # --- SECCIÓN WEB ---
     st.markdown(f"### {E_GLOBO} Tu web")
     if web_url:
         st.success(f"{E_OK} Tu web esta publicada y activa")
@@ -184,9 +179,11 @@ def _renderizar_panel(pedido, sb):
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles (de un total de {limite_total}).")
             
+            # PASO 1: PEDIR CAMBIO
+            st.markdown("**1️⃣ Pide tu cambio aquí:**")
             with st.form("form_modificacion"):
-                instruccion = st.text_area("¿Que quieres cambiar?", placeholder="Ej: Cambia el titulo a 'Bienvenidos' y pon el fondo de color gris oscuro.", height=100)
-                btn_mod = st.form_submit_button(f"{E_COHETE} Aplicar cambio", type="primary", use_container_width=True)
+                instruccion = st.text_area("¿Que quieres cambiar?", placeholder="Ej: Cambia el titulo a 'Bienvenidos' y pon el fondo gris oscuro.", height=100, label_visibility="collapsed")
+                btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa (No gasta Netlify)", type="primary", use_container_width=True)
                 
                 if btn_mod and instruccion.strip():
                     with st.spinner("La IA esta aplicando los cambios..."):
@@ -200,12 +197,17 @@ def _renderizar_panel(pedido, sb):
                 elif btn_mod:
                     st.warning("Escribe lo que quieres cambiar.")
             
+            # PASO 2: VISTA PREVIA Y PASO 3: PUBLICAR
             if "preview_html" in st.session_state and st.session_state["preview_html"]:
                 st.divider()
-                st.markdown("### 👁️ Vista Previa de tus cambios")
-                st.caption("Así se verá tu web. Si todo está bien, publícalo en vivo.")
-                st.components.v1.html(st.session_state["preview_html"], height=600, scrolling=True)
+                st.markdown("**2️⃣ Revisa cómo quedó tu web:**")
+                st.caption("Si no te gusta, puedes pedir otro cambio arriba. Si todo está bien, publícalo abajo.")
                 
+                # Renderizamos el HTML en un iframe
+                st.components.v1.html(st.session_state["preview_html"], height=500, scrolling=True)
+                
+                st.write("")
+                st.markdown("**3️⃣ Publicar en la nube:**")
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button(f"{E_COHETE} Publicar cambios en vivo", type="primary", use_container_width=True):
@@ -222,6 +224,8 @@ def _renderizar_panel(pedido, sb):
                     if st.button("Descartar vista previa", use_container_width=True):
                         del st.session_state["preview_html"]
                         st.rerun()
+            else:
+                st.info("💡 Arriba puedes pedir tu primer cambio. La vista previa aparecerá aquí antes de publicar.")
 
         else:
             st.warning(f"Has agotado tus {limite_total} modificaciones disponibles.")
@@ -258,11 +262,9 @@ def _renderizar_panel(pedido, sb):
 
     st.divider()
 
-    # --- SECCIÓN LEADS ---
     if tier_num >= 2:
         _renderizar_leads(sb, pedido_id, tier_num)
 
-    # --- DETALLES ---
     with st.expander(f"{E_DOC} Detalles del pedido"):
         st.text(f"ID: {pedido_id}")
         st.text(f"Plan: {tier_label} - USD {precio:.0f}")
