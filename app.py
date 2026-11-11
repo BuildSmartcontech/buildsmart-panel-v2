@@ -1,7 +1,12 @@
 # app.py - SAMU IA Operations Center
+# ============================================
+# V2.1: Previene el loop infinito en la landing y el ERP.
+# ============================================
+
 import streamlit as st
 import traceback
 
+# 1. Inicialización temprana de session_state (Evita el loop)
 if "_session_initialized" not in st.session_state:
     st.session_state._session_initialized = True
     st.session_state._rerun_count = 0
@@ -12,12 +17,11 @@ print(f"[RERUN {st.session_state._rerun_count}] Iniciando app...")
 
 from config_app import ES_DUENO, MODO, NOMBRE_APP, VERSION, obtener_usuario_actual
 
-# Sidebar colapsado por defecto
 st.set_page_config(
     page_title=f"{NOMBRE_APP} - {MODO.upper()}",
     page_icon=":office:",
     layout="wide",
-    initial_sidebar_state="collapsed" 
+    initial_sidebar_state="expanded"
 )
 
 def detectar_subruta_web():

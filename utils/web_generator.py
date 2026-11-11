@@ -1,8 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V15.0 (INYECCION POR TEXTO)
-# ============================================
-# V15.0: Busca titulos de servicios y textos de botones para forzar imagenes y CSS.
+# GENERADOR DE WEBS - V15.1 (INYECCION POR TEXTO)
 # ============================================
 
 import os
@@ -35,7 +33,6 @@ Analiza el siguiente negocio:
 - Nombre: {datos_negocio.get('nombre')}
 - Sector: {datos_negocio.get('sector')}
 - Descripcion: {datos_negocio.get('descripcion')}
-- Publico: {datos_negocio.get('publico_objetivo')}
 
 Redacta el Copy exacto para su pagina web premium.
 Devuelve UNICAMENTE un JSON valido:
@@ -53,7 +50,6 @@ Devuelve UNICAMENTE un JSON valido:
 
 ## REGLA CRITICA PARA LAS KEYWORDS:
 Actua como un Fotografo Publicitario. 3 keywords en INGLES muy visuales.
-NO uses marcas.
 """
     sistema = "Eres un copywriter experto. Devuelves solo JSON."
     
@@ -116,7 +112,7 @@ GENERA LA PAGINA WEB COMPLETA
 def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy):
     soup = BeautifulSoup(html, 'html.parser')
 
-    # 1. LOGO (Busca el texto del nombre en el nav)
+    # 1. LOGO
     if logo_b64:
         print("[INYECTOR] Inyectando logo...")
         logo_text = soup.find(string=re.compile(nombre_negocio, re.I))
@@ -127,7 +123,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy):
             logo_img['style'] = "height:45px; width:auto; object-fit:contain;"
             parent.append(logo_img)
 
-    # 2. HERO IMAGE (Buscamos el h1 principal)
+    # 2. HERO IMAGE
     hero_url = imagenes.get("hero")
     if hero_url:
         print("[INYECTOR] Inyectando imagen Hero...")
@@ -139,7 +135,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy):
                 img_tag['style'] = "width:100%; max-height:500px; object-fit:cover; border-radius:20px; margin-top:30px; display:block;"
                 parent.append(img_tag)
 
-    # 3. IMAGENES EN SERVICIOS (Buscamos por el texto del titulo de cada servicio)
+    # 3. IMAGENES EN SERVICIOS
     servicios_urls = imagenes.get("servicios", [])
     servicios_copy = copy.get("servicios", [])
     
@@ -147,10 +143,8 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy):
         if i >= len(servicios_copy): break
         titulo_servicio = servicios_copy[i].get('titulo', '')
         
-        # Buscamos el h3 o h2 que contenga el titulo del servicio
         title_el = soup.find(string=re.compile(titulo_servicio, re.I))
         if title_el:
-            # Subimos 2 niveles para encontrar el contenedor de la tarjeta
             card_container = title_el.parent.parent
             
             if not card_container.find('img'):
@@ -159,7 +153,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy):
                 img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:12px; margin-bottom:20px; display:block;"
                 card_container.insert(0, img_tag)
 
-    # 4. ESTILOS DE BOTONES (Busca enlaces y les mete la clase .btn)
+    # 4. ESTILOS DE BOTONES
     for a_tag in soup.find_all('a'):
         texto = a_tag.text.lower()
         if "comienza" in texto or "saber" in texto or "contacto" in texto:
@@ -190,7 +184,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy):
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V15.0 (Inyeccion por Texto)")
+    print("GENERANDO WEB - V15.1")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
