@@ -2,7 +2,7 @@
 # ============================================
 # TAB PEDIDOS WEB - Panel Dueno SAMU IA
 # ============================================
-# V3.0: Modo PREVIEW (ahorra creditos) y boton PUBLICAR.
+# V3.1: Normaliza el estado de la BD para mostrar botones correctamente.
 # ============================================
 
 import streamlit as st
@@ -29,6 +29,19 @@ ESTADOS = {
 }
 
 TIER_LABELS = {1: "Premium Esencial", 2: "Premium + CRM", 3: "Premium Plus"}
+
+def _normalizar_estado(estado_raw):
+    """Convierte cualquier variacion de texto a un ID interno valido."""
+    e = str(estado_raw).lower().strip()
+    if e in ("pendiente_pago_manual", "pendiente pago", "pendiente", "pending"):
+        return "pendiente_pago_manual"
+    if e in ("pagado", "paid"):
+        return "pagado"
+    if e in ("entregado", "delivered"):
+        return "entregado"
+    if e in ("fallido", "failed"):
+        return "fallido"
+    return e
 
 def _fmt_fecha(iso_str):
     if not iso_str: return "?"
@@ -66,7 +79,9 @@ def renderizar(sb, inicio=None, fin=None):
 def _renderizar_pedido(sb, p):
     pedido_id = p.get("id", "?")
     fecha = _fmt_fecha(p.get("created_at"))
-    estado = str(p.get("estado", "?")).lower().strip()
+    
+    # Normalizamos el estado aqui para que el titulo y los botones coincidan
+    estado = _normalizar_estado(p.get("estado", ""))
     info_estado = ESTADOS.get(estado, {"label": estado, "icono": E_AVISO})
     nombre = p.get("nombre_cliente", "Sin nombre")
     
@@ -80,7 +95,14 @@ def _renderizar_pedido(sb, p):
         st.divider()
 
         # --- LOGICA DE BOTONES ---
-        if estado == "pagado":
+        if estado == "pendiente_pago_manual":
+            st.markdown("#### 1. Confirmar Pago")
+            if st.button(f"{E_OK} Marcar como PAGADO", key=f"marcar_pagado_{pedido_id}", use_container_width=True, type="primary"):
+                ok, msg = _cambiar_estado(sb, pedido_id, "pagado")
+                if ok: st.rerun()
+                else: st.error(msg)
+
+        elif estado == "pagado":
             st.markdown("#### 1. Generar y Previsualizar")
             if st.button(f"{E_OJO} Generar Vista Previa (No gasta Netlify)", key=f"preview_{pedido_id}", use_container_width=True):
                 with st.spinner("Generando HTML... (esto toma 30-60s)"):
@@ -91,7 +113,6 @@ def _renderizar_pedido(sb, p):
                 else:
                     st.error(res.get("mensaje"))
 
-            # Si hay HTML en sesion, mostramos el iframe y el boton de publicar
             if f"html_preview_{pedido_id}" in st.session_state:
                 st.markdown("#### 2. Revisar y Publicar")
                 html_preview = st.session_state[f"html_preview_{pedido_id}"]
@@ -99,7 +120,7 @@ def _renderizar_pedido(sb, p):
                 
                 if st.button(f"{E_COHETE} PUBLICAR EN NETLIFY AHORA", key=f"publish_{pedido_id}", type="primary", use_container_width=True):
                     with st.spinner("Subiendo a Netlify..."):
-                        res_pub = ACC.generar_web_para_pedido(sb, p, publicar=True) # Volvemos a generar y publicar
+                        res_pub = ACC.generar_web_para_pedido(sb, p, publicar=True)
                     if res_pub.get("exito"):
                         st.success(res_pub.get("mensaje"))
                         st.balloons()
@@ -114,9 +135,11 @@ def _renderizar_pedido(sb, p):
                     res = ACC.generar_web_para_pedido(sb, p, publicar=False)
                 if res.get("exito"):
                     st.session_state[f"html_preview_{pedido_id}"] = res.get("html")
-                    st.success("Vista previa regenerada. Desplazate para ver.")
+                    st.success("Vista previa regenerada.")
                 else:
                     st.error(res.get("mensaje"))
             
             if f"html_preview_{pedido_id}" in st.session_state:
                 st.components.v1.html(st.session_state[f"html_preview_{pedido_id}"], height=600, scrolling=True)
+        else:
+            st.warning(f"Estado actual en BD: {p.get('estado')}")
