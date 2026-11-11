@@ -1,7 +1,7 @@
 # panels/panel_base.py
 # ============================================
 # PANEL BASE - CODIGO COMPARTIDO
-# V5.5: Contexto de IA adaptado para el DUEÑO (Admin de SAMU IA).
+# V5.6: Cobro automático por modificaciones extra (ePayco / Manual).
 # ============================================
 
 import streamlit as st
@@ -410,7 +410,7 @@ def mover_tarea(negocio_id, tarea_id, nuevo_estado):
                 return True
     return False
 
-# --- FUNCIONES DE IA Y WEB (100% ORIGINALES) ---
+# --- FUNCIONES DE IA Y WEB ---
 def generar_sitio_web_con_ia(negocio_id, datos_extra=None):
     if not WEB_DISPONIBLE: return False, "❌ Modulo web no disponible"
     negocio = st.session_state.negocios.get(negocio_id)
@@ -474,7 +474,30 @@ def modificar_web_con_ia(negocio_id, instruccion):
     if not web_id: return False, "⚠️ Primero debes generar tu web."
     
     usadas = negocio.get("modificaciones_usadas", 0)
-    if usadas >= MODIFICACIONES_GRATIS: return False, f"⚠️ Has agotado las {MODIFICACIONES_GRATIS} modificaciones gratis.\n\nEsta modificacion tendria un costo de **${COSTO_MODIFICACION_EXTRA} USD**.\n\nEn modo prueba no se cobra, pero en produccion se sumaria a tu plan."
+    
+    # --- NUEVA LÓGICA DE COBRO ---
+    if usadas >= MODIFICACIONES_GRATIS:
+        from panels.web.pagos import obtener_proveedor, proveedor_actual
+        prov_nombre = proveedor_actual()
+        proveedor = obtener_proveedor(prov_nombre, {})
+        pedido_id = f"mod_extra_{negocio_id}_{int(datetime.datetime.now().timestamp())}"
+        
+        res_pago = proveedor.crear_pago(
+            pedido_id=pedido_id,
+            monto=COSTO_MODIFICACION_EXTRA,
+            descripcion=f"Modificacion extra web - {negocio.get('nombre')}",
+            metadata={"email": "cliente@samu-ia.com"}
+        )
+        
+        if res_pago.get("exito"):
+            url_pago = res_pago.get("url_pago")
+            if url_pago:
+                return False, f"⚠️ Has agotado las {MODIFICACIONES_GRATIS} modificaciones gratis.\n\nPara aplicar este nuevo cambio, debes pagar **${COSTO_MODIFICACION_EXTRA} USD**.\n\n👉 [**Haz clic aquí para pagar con ePayco**]({url_pago})"
+            else:
+                return False, f"⚠️ Has agotado las {MODIFICACIONES_GRATIS} modificaciones gratis.\n\nEsta modificacion tiene un costo de **${COSTO_MODIFICACION_EXTRA} USD**.\n\nPor favor transfiere usando los datos manuales y envía el comprobante a pagos@samu-ia.com."
+        else:
+            return False, f"⚠️ Has agotado las {MODIFICACIONES_GRATIS} modificaciones gratis.\n\nEsta modificacion tiene un costo de **${COSTO_MODIFICACION_EXTRA} USD**.\n\n(Ocurrió un error generando el link de pago automático)."
+
     usuario_id = f"usuario_{negocio_id}"
     contexto = f"Negocio: {negocio.get('nombre', '')}\nSector: {negocio.get('sector', 'General')}\nDescripcion: {negocio.get('descripcion', '')}"
     
@@ -647,7 +670,6 @@ def construir_contexto_negocio():
 """
 
 def _construir_mensaje_estado(negocio):
-    # ... (El resto de la función se mantiene igual, omito para no hacer el bloque más largo de lo necesario, pero está en el archivo original)
     return "📊 **Estado del negocio**\n(Detalles en la interfaz)"
 
 def _construir_mensaje_fuera_de_tema(nombre_negocio):
