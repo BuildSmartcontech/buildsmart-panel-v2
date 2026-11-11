@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V16.0 (INYECCION ESTRUCTURAL)
+# GENERADOR DE WEBS - V17.0 (INYECCION A PRUEBA DE BALAS)
 # ============================================
 
 import os
@@ -105,65 +105,62 @@ def generar_html_programador(datos_negocio, copy, modelo_ia):
 def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
     soup = BeautifulSoup(html, 'html.parser')
 
-    # 1. LOGO
+    # 1. LOGO (Buscamos CUALQUIER <a> o <div> en la parte superior)
     if logo_b64:
         print("[INYECTOR] Inyectando logo...")
-        nav = soup.find('nav') or soup.find('header')
-        if nav:
-            logo_el = nav.find('a') or nav.find('div', class_=re.compile('logo|brand', re.I))
-            if logo_el:
-                logo_el.clear()
-                logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
-                logo_img['style'] = "height:45px; width:auto; object-fit:contain;"
-                logo_el.append(logo_img)
-            else:
-                logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
-                logo_img['style'] = "height:45px; width:auto; object-fit:contain; margin-right:20px;"
-                nav.insert(0, logo_img)
+        # Buscamos el primer enlace o el header
+        primer_enlace = soup.find('a')
+        header = soup.find('header') or soup.find('nav')
+        
+        logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
+        logo_img['style'] = "height:45px; width:auto; object-fit:contain; max-width:200px;"
+        
+        if header:
+            header.insert(0, logo_img)
+        elif primer_enlace:
+            primer_enlace.clear()
+            primer_enlace.append(logo_img)
+        else:
+            # Si no hay nada, lo metemos al principio del body
+            body = soup.find('body')
+            if body:
+                body.insert(0, logo_img)
 
-    # 2. HERO IMAGE
+    # 2. HERO IMAGE (Buscamos el H1 o la primera sección)
     hero_url = imagenes.get("hero")
     if hero_url:
         print("[INYECTOR] Inyectando imagen Hero...")
         h1 = soup.find('h1')
-        if h1:
-            parent = h1.parent
-            if not parent.find('img'):
-                img_tag = soup.new_tag('img', src=hero_url, alt="Hero Image")
-                img_tag['style'] = "width:100%; max-height:500px; object-fit:cover; border-radius:20px; margin-top:30px; display:block;"
-                parent.append(img_tag)
+        container = h1.parent if h1 else soup.find('section')
+        
+        if container and not container.find('img'):
+            img_tag = soup.new_tag('img', src=hero_url, alt="Hero Image")
+            img_tag['style'] = "width:100%; max-height:500px; object-fit:cover; border-radius:20px; margin-top:30px; display:block;"
+            container.append(img_tag)
 
-    # 3. IMAGENES EN SERVICIOS (Búsqueda Estructural)
+    # 3. IMAGENES EN SERVICIOS (Buscamos por estructura)
     servicios_urls = imagenes.get("servicios", [])
     if servicios_urls:
         print(f"[INYECTOR] Buscando tarjetas para inyectar {len(servicios_urls)} imagenes...")
-        tarjetas = soup.find_all('div', recursive=True)
-        tarjetas_validas = []
-        
-        for div in tarjetas:
-            if (div.find('h3') or div.find('h4')) and not div.find('img'):
-                if len(div.get_text(strip=True)) < 300:
-                    tarjetas_validas.append(div)
+        # Buscamos divs que tengan h3 o h4 dentro
+        tarjetas = []
+        for div in soup.find_all('div'):
+            if (div.find('h3') or div.find('h4')) and not div.find('img') and len(div.get_text(strip=True)) < 300:
+                tarjetas.append(div)
 
         for i, url in enumerate(servicios_urls):
-            if i >= len(tarjetas_validas): break
-            tarjeta = tarjetas_validas[i]
+            if i >= len(tarjetas): break
+            tarjeta = tarjetas[i]
             print(f"[INYECTOR] Inyectando imagen en tarjeta {i+1}...")
             
             img_tag = soup.new_tag('img', src=url, alt=f"Servicio {i+1}")
-            img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:12px; margin-bottom:20px; display:block;"
+            img_tag['style'] = "width:100%; height:200px; object-fit:cover; border-radius:12px; margin-bottom:20px; display:block;"
             tarjeta.insert(0, img_tag)
             
+            # Estilo de tarjeta
             tarjeta['style'] = "background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 30px; display: flex; flex-direction: column; height: 100%;"
 
-    # 4. BOTONES
-    for a_tag in soup.find_all('a'):
-        texto = a_tag.text.lower()
-        if "comienza" in texto or "saber" in texto or "contacto" in texto or "servicio" in texto:
-            a_tag['class'] = a_tag.get('class', []) + ['btn']
-            a_tag['style'] = "display:inline-block; padding:16px 36px; background:#14B8A6; color:#0B0C14; font-weight:700; border-radius:999px; text-decoration:none;"
-
-    # 5. FORMULARIO
+    # 4. FORMULARIO (Busca sección contacto)
     form_section = soup.find(id='contacto') or soup.find(class_=re.compile('contact', re.I))
     if form_section:
         if "{{FORMULARIO}}" in html or not form_section.find('form'):
@@ -186,7 +183,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V16.0 (Inyeccion Estructural)")
+    print("GENERANDO WEB - V17.0")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
