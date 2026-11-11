@@ -2,7 +2,7 @@
 # ============================================
 # CONSTANTES Y CONSTRUCTORES DE PROMPTS WEB
 # ============================================
-# V5.2: Ajuste de formulario para inyeccion forzada.
+# V5.3: Nav más espacioso y reglas de imagen estricta.
 # ============================================
 
 PALABRAS_PROHIBIDAS = [
@@ -71,9 +71,9 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-**2. NAVEGACION (Fija y elegante):**
+**2. NAVEGACION (Fija y elegante - CON MAS ESPACIO):**
 nav {
-    padding: 20px 40px;
+    padding: 24px 48px; /* Aumentado para que el logo respire */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -81,18 +81,19 @@ nav {
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
     position: sticky; top: 0; z-index: 100;
+    min-height: 90px; /* Altura mínima para el header */
 }
 nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left: 24px; font-size: 0.9rem; }
 
-**3. HERO SECTION (El impacto visual):**
+**3. HERO SECTION (El impacto visual - IMAGEN CONTROLADA):**
 .hero {
-    min-height: 85vh;
+    min-height: 80vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 120px 20px;
+    padding: 100px 20px 60px;
     background: radial-gradient(circle at 50% 0%, rgba(20, 184, 166, 0.15) 0%, var(--bg) 70%);
 }
 .hero h1 {
@@ -106,25 +107,39 @@ nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left
     max-width: 900px;
     line-height: 1.1;
 }
+/* REGLA ESTRICTA PARA QUE LA IMAGEN HERO NO SE DEFORME */
+.hero img {
+    width: 100%;
+    max-width: 1000px;
+    height: auto;
+    max-height: 550px;
+    object-fit: cover;
+    border-radius: 24px;
+    margin: 40px auto 0;
+    display: block;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
 
 **4. BENTO GRID (Servicios):**
 .services-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 24px;
-    padding: 100px 20px;
+    padding: 80px 20px;
     max-width: 1200px;
     margin: 0 auto;
 }
 .card {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 40px;
+    border-radius: 24px;
+    padding: 30px; /* Ajustado */
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     backdrop-filter: blur(12px);
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 .card:hover {
     transform: translateY(-6px);
@@ -135,7 +150,7 @@ nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left
     width: 100%;
     height: 220px;
     object-fit: cover;
-    border-radius: 12px;
+    border-radius: 16px;
     margin-bottom: 24px;
 }
 
@@ -156,7 +171,7 @@ nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left
 .btn:hover { background: #0E7C86; transform: scale(1.02); }
 
 **6. FORMULARIO DE CONTACTO:**
-.contacto { padding: 100px 20px; max-width: 600px; margin: 0 auto; }
+.contacto { padding: 80px 20px; max-width: 600px; margin: 0 auto; }
 input, textarea {
     width: 100%; padding: 18px;
     background: rgba(255,255,255,0.05);
@@ -207,7 +222,7 @@ REGLAS_CODIGO = (
 
 REGLAS_IMAGENES = (
     "### IMAGENES (CRITICO):\n"
-    "USA EXACTAMENTE el marcador {{HERO_IMAGE}} para la imagen principal.\n"
+    "USA EXACTAMENTE el marcador {{HERO_IMAGE}} para la imagen principal. Ejemplo: <img src='{{HERO_IMAGE}}' alt='Hero'>.\n"
     "USA EXACTAMENTE los marcadores {{SERVICIO_1}}, {{SERVICIO_2}}, {{SERVICIO_3}} para las tarjetas.\n"
     "NO uses URLs reales, solo los marcadores.\n"
 )
