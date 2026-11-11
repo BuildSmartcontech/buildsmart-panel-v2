@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V18.1 (INYECCIÓN FORZADA DE HERO)
+# GENERADOR DE WEBS - V18.2 (ORTOGRAFIA Y LEGAL)
 # ============================================
 
 import os
@@ -13,12 +13,20 @@ from bs4 import BeautifulSoup
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from utils.web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_SALIDA, construir_instrucciones_dinamicas
+    from utils.web_prompts_data import (
+        DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, 
+        REGLAS_SALIDA, REGLAS_ORTOGRAFIA, REGLAS_FOOTER_LEGAL, 
+        construir_instrucciones_dinamicas
+    )
     from utils.web_validator import validar_completo, limpiar_html
     from utils.image_fetcher import obtener_urls_imagenes_negocio
     from utils.openrouter_manager import consultar_openrouter
 except ImportError:
-    from web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_SALIDA, construir_instrucciones_dinamicas
+    from web_prompts_data import (
+        DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, 
+        REGLAS_SALIDA, REGLAS_ORTOGRAFIA, REGLAS_FOOTER_LEGAL, 
+        construir_instrucciones_dinamicas
+    )
     from web_validator import validar_completo, limpiar_html
     from image_fetcher import obtener_urls_imagenes_negocio
     from openrouter_manager import consultar_openrouter
@@ -40,9 +48,9 @@ Devuelve UNICAMENTE un JSON valido:
   "headline": "Titulo impactante (max 10 palabras)",
   "subheadline": "Subtitulo persuasivo (max 25 palabras)",
   "servicios": [
-    {{"titulo": "Servicio 1", "descripcion": "Texto persuasivo (20 palabras)"}},
-    {{"titulo": "Servicio 2", "descripcion": "Texto persuasivo (20 palabras)"}},
-    {{"titulo": "Servicio 3", "descripcion": "Texto persuasivo (20 palabras)"}}
+    {{"titulo": "Servicio 1", "descripcion": "Texto persuasivo (maximo 25 palabras, asegurando que la idea termine completa con punto final y con ortografia perfecta)"}},
+    {{"titulo": "Servicio 2", "descripcion": "Texto persuasivo (maximo 25 palabras, asegurando que la idea termine completa con punto final y con ortografia perfecta)"}},
+    {{"titulo": "Servicio 3", "descripcion": "Texto persuasivo (maximo 25 palabras, asegurando que la idea termine completa con punto final y con ortografia perfecta)"}}
   ],
   "sobre_nosotros": "Parrafo de 40 palabras.",
   "keywords_imagenes": ["keyword_1", "keyword_2", "keyword_3"]
@@ -81,10 +89,11 @@ def generar_html_programador(datos_negocio, copy, modelo_ia):
 ## INSTRUCCIONES DINAMICAS
 {instrucciones_dinamicas}
 
-## REGLAS DE DISENO
+## REGLAS OBLIGATORIAS
 {REGLAS_CSS_PREMIUM}
-
 {REGLAS_FORMULARIO}
+{REGLAS_ORTOGRAFIA}
+{REGLAS_FOOTER_LEGAL}
 {REGLAS_SALIDA}
 """
     sistema = "Eres un programador Frontend Senior. Devuelves solo HTML."
@@ -137,19 +146,17 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
             if body:
                 body.insert(0, logo_img)
 
-    # 3. HERO IMAGE (INYECCIÓN FORZADA Y LIMPIEZA DE FANTASMAS)
+    # 3. HERO IMAGE (INYECCIÓN FORZADA)
     if hero_url and "{{HERO_IMAGE}}" not in html:
         print("[INYECTOR] Forzando inyección de imagen Hero...")
         h1 = soup.find('h1')
         container = h1.parent if h1 else soup.find('section')
         
         if container:
-            # ELIMINAMOS cualquier imagen invisible o rota que haya puesto la IA
             for img in container.find_all('img'):
                 img.decompose()
                 
             img_tag = soup.new_tag('img', src=hero_url, alt="Hero Image")
-            # Forzamos estilos para que la imagen se vea bien y no se deforme
             img_tag['style'] = "width:100%; max-width:1000px; height:auto; max-height:600px; object-fit:cover; border-radius:24px; margin:40px auto 0; display:block; box-shadow: 0 20px 40px rgba(0,0,0,0.4);"
             container.append(img_tag)
 
@@ -195,7 +202,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V18.1")
+    print("GENERANDO WEB - V18.2")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
