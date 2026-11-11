@@ -1,13 +1,14 @@
 # utils/web_publisher.py
 # ============================================
-# PUBLICADOR DE WEBS - V6.1 (PROVIDER MANAGER FIX)
+# PUBLICADOR DE WEBS - V6.2 (RUTAS SEGURAS)
 # ============================================
-# V6.1: Corregido el fallback para incluir Netlify cuando no hay ProviderManager
+# V6.2: Sanitiza el usuario_id (quita el @ y puntos) para evitar errores 404 en Netlify.
 # ============================================
 
 import os
 import sys
 import datetime
+import re
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -58,6 +59,13 @@ except ImportError:
 
 URL_BASE_LOCAL = "http://localhost:8000"
 
+def _sanitizar_ruta(texto):
+    """Limpia el texto para que sea seguro en una URL (quita @, puntos, etc)."""
+    if not texto:
+        return "usuario_generico"
+    # Reemplaza cualquier caracter que no sea letra o número por guion bajo
+    return re.sub(r'[^a-zA-Z0-9]', '_', str(texto))
+
 def _resultado_error(msg, modo=None):
     return {
         "exito": False, "url_publicada": None, "url_local": None,
@@ -74,11 +82,8 @@ def _resultado_exito(url, tipo, error=None, subdominio=None, url_local=None):
     }
 
 def publicar_web(usuario_id, web_id, prefer=None):
-    """
-    Publica una web seleccionando automaticamente el mejor proveedor.
-    """
     print("=" * 60)
-    print("PUBLICANDO WEB - V6.1 (PROVIDER MANAGER FIX)")
+    print("PUBLICANDO WEB - V6.2 (RUTAS SEGURAS)")
     print("=" * 60)
 
     if leer_web is None:
@@ -89,7 +94,11 @@ def publicar_web(usuario_id, web_id, prefer=None):
         return _resultado_error(f"No se pudo leer la web: {resultado.get('error')}")
 
     html = resultado["html"]
-    subdominio = f"web-{str(web_id)[:8]}"
+    
+    # Limpiamos el correo y el ID para que la URL sea válida
+    safe_user = _sanitizar_ruta(usuario_id)
+    safe_web = str(web_id)[:8] # Acortamos el UUID
+    subdominio = f"web-{safe_web}"
     url_local = f"{URL_BASE_LOCAL}/web/{web_id}"
 
     # Mostrar estado de providers
@@ -131,7 +140,8 @@ def publicar_web(usuario_id, web_id, prefer=None):
         resultado_pub = cf_publicar(usuario_id, web_id, ruta_carpeta)
 
     elif provider == "netlify" and NETLIFY_DISPONIBLE and netlify_publicar:
-        ruta_web = f"{usuario_id}/{web_id}/index.html"
+        # Usamos safe_user y safe_web para evitar el 404
+        ruta_web = f"{safe_user}/{safe_web}/index.html"
         resultado_pub = netlify_publicar(ruta_web, html)
 
     else:
@@ -140,6 +150,11 @@ def publicar_web(usuario_id, web_id, prefer=None):
     # Procesar resultado
     if resultado_pub.get("exito"):
         url = resultado_pub.get("url_publica", "")
+        
+        # Si la URL no termina en /, se la agregamos para que Netlify cargue el index.html automáticamente
+        if url and not url.endswith("/"):
+            url += "/"
+            
         if PM_DISPONIBLE and registrar_deploy:
             registrar_deploy(provider)
         print(f"\n[OK] {provider}: {url}")
@@ -163,13 +178,15 @@ def publicar_web(usuario_id, web_id, prefer=None):
                 ruta_carpeta = Path(CARPETA_WEBS) / str(usuario_id) / str(web_id)
                 r2 = cf_publicar(usuario_id, web_id, ruta_carpeta)
             elif otro == "netlify" and NETLIFY_DISPONIBLE and netlify_publicar:
-                ruta_web = f"{usuario_id}/{web_id}/index.html"
+                ruta_web = f"{safe_user}/{safe_web}/index.html"
                 r2 = netlify_publicar(ruta_web, html)
             else:
                 continue
 
             if r2.get("exito"):
                 url = r2.get("url_publica", "")
+                if url and not url.endswith("/"):
+                    url += "/"
                 if PM_DISPONIBLE and registrar_deploy:
                     registrar_deploy(otro)
                 print(f"\n[OK] {otro}: {url}")
