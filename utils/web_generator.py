@@ -1,7 +1,6 @@
-
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V18.0 (HERO LIMITADO Y FALLBACK DE IMÁGENES)
+# GENERADOR DE WEBS - V18.1 (INYECCIÓN FORZADA DE HERO)
 # ============================================
 
 import os
@@ -104,7 +103,7 @@ def generar_html_programador(datos_negocio, copy, modelo_ia):
     return None
 
 def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
-    # 1. REEMPLAZO DE MARCADORES (Si la IA los usó)
+    # 1. REEMPLAZO DE MARCADORES
     hero_url = imagenes.get("hero")
     servicios_urls = imagenes.get("servicios", [])
     
@@ -119,7 +118,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
 
     soup = BeautifulSoup(html, 'html.parser')
 
-    # 2. LOGO (Aumentado a 60px para que respire mejor)
+    # 2. LOGO
     if logo_b64:
         print("[INYECTOR] Inyectando logo...")
         primer_enlace = soup.find('a')
@@ -138,25 +137,27 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
             if body:
                 body.insert(0, logo_img)
 
-    # 3. HERO IMAGE (Inyección estructural si la IA no usó marcadores)
+    # 3. HERO IMAGE (INYECCIÓN FORZADA Y LIMPIEZA DE FANTASMAS)
     if hero_url and "{{HERO_IMAGE}}" not in html:
-        print("[INYECTOR] Inyectando imagen Hero estructural...")
+        print("[INYECTOR] Forzando inyección de imagen Hero...")
         h1 = soup.find('h1')
         container = h1.parent if h1 else soup.find('section')
         
-        # Verificamos que no haya una imagen ya puesta
-        if container and not container.find('img'):
+        if container:
+            # ELIMINAMOS cualquier imagen invisible o rota que haya puesto la IA
+            for img in container.find_all('img'):
+                img.decompose()
+                
             img_tag = soup.new_tag('img', src=hero_url, alt="Hero Image")
-            # FORZAMOS LOS ESTILOS PARA EVITAR QUE SE DEFORME (El problema de la cara gigante)
+            # Forzamos estilos para que la imagen se vea bien y no se deforme
             img_tag['style'] = "width:100%; max-width:1000px; height:auto; max-height:600px; object-fit:cover; border-radius:24px; margin:40px auto 0; display:block; box-shadow: 0 20px 40px rgba(0,0,0,0.4);"
             container.append(img_tag)
 
-    # 4. IMAGENES EN SERVICIOS (Inyección estructural)
+    # 4. IMAGENES EN SERVICIOS
     if servicios_urls and "{{SERVICIO_1}}" not in html:
         print(f"[INYECTOR] Buscando tarjetas para inyectar {len(servicios_urls)} imagenes...")
         tarjetas = []
         for div in soup.find_all('div'):
-            # Buscamos tarjetas que tengan h3 o h4 pero NO tengan imágenes
             if (div.find('h3') or div.find('h4')) and not div.find('img') and len(div.get_text(strip=True)) < 350:
                 tarjetas.append(div)
 
@@ -169,10 +170,9 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
             img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:16px; margin-bottom:24px; display:block;"
             tarjeta.insert(0, img_tag)
             
-            # Estilo de tarjeta forzado
             tarjeta['style'] = "background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 30px; display: flex; flex-direction: column; height: 100%;"
 
-    # 5. FORMULARIO (Busca sección contacto)
+    # 5. FORMULARIO
     form_section = soup.find(id='contacto') or soup.find(class_=re.compile('contact', re.I))
     if form_section:
         if "{{FORMULARIO}}" in html or not form_section.find('form'):
@@ -195,7 +195,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V18.0")
+    print("GENERANDO WEB - V18.1")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
@@ -214,12 +214,10 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
     fotos_b64 = datos_negocio.get("fotos_b64", [])
     nombre_negocio = datos_negocio.get("nombre", "Mi Negocio")
     
-    # ASIGNACIÓN DE IMÁGENES (El Fix del problema de las fotos faltantes)
     if fotos_b64:
         imagenes["hero"] = fotos_b64[0] if len(fotos_b64) > 0 else None
-        imagenes["servicios"] = fotos_b64[1:4] # Toma hasta 3 fotos más para servicios
+        imagenes["servicios"] = fotos_b64[1:4]
     
-    # SI FALTAN IMÁGENES (Ya sea porque no subió fotos o porque subió menos de 4)
     faltan_servicios = 3 - len(imagenes["servicios"])
     if faltan_servicios > 0 or not imagenes["hero"]:
         print(f"[DIAGNOSTICO] Faltan imágenes. Buscando {faltan_servicios} en la IA...")
@@ -228,11 +226,9 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
         poll = obtener_urls_imagenes_negocio(negocio_info, cantidad=4)
         
         if poll:
-            # Si no había Hero, lo tomamos de Pollinations
             if not imagenes["hero"] and len(poll) > 0:
                 imagenes["hero"] = poll[0]["url_regular"]
             
-            # Rellenamos los servicios que falten
             imagenes_poll = [p["url_regular"] for p in poll[1:4]]
             for img in imagenes_poll:
                 if len(imagenes["servicios"]) < 3:
