@@ -2,10 +2,46 @@
 # ============================================
 # ACCIONES DE PEDIDOS WEB - Panel Dueno
 # ============================================
-# V2.1: Logs para verificar si el logo viene desde Supabase
+# V2.2: Envia email automatico cuando la web se publica en Netlify.
 # ============================================
 
 import datetime
+
+def _enviar_email_web_lista(pedido, url_publica):
+    """Envia el correo de confirmacion al cliente cuando la web esta online."""
+    try:
+        from utils.email_sender import email_sender
+        if not email_sender.disponible:
+            print("[EMAIL] Omitido: email_sender no configurado.")
+            return
+
+        email = pedido.get("email", "")
+        nombre = pedido.get("nombre_cliente", "Cliente")
+        
+        if not email:
+            return
+
+        asunto = f"Tu web esta lista - SAMU IA - Hola {nombre}"
+        
+        contenido = f"""Hola {nombre},
+
+¡Buenas noticias! Tu pagina web ya esta publicada y lista para recibir visitas.
+
+Puedes verla y compartirla aqui:
+{url_publica}
+
+Recuerda que tienes acceso a tu panel de cliente para hacer cambios usando el enlace que te enviamos anteriormente.
+
+Cualquier consulta, responde a este email.
+
+Saludos,
+El equipo de SAMU IA
+"""
+
+        resultado = email_sender.enviar_correo(email, asunto, contenido)
+        print(f"[EMAIL] Notificacion web lista enviada a {email}: {resultado}")
+    except Exception as e:
+        print(f"[EMAIL] Error enviando notificacion de web lista: {e}")
 
 def generar_web_para_pedido(sb, pedido, publicar=True):
     print(f"=== GENERANDO WEB PARA PEDIDO: {pedido.get('id')} ===")
@@ -46,12 +82,17 @@ def generar_web_para_pedido(sb, pedido, publicar=True):
             if not url_publica:
                  return {"exito": False, "mensaje": f"Error publicando: {resultado_pub.get('error')}"}
 
+            # 1. Actualizamos la base de datos
             sb.update(
                 "pedidos_web",
                 {"estado": "entregado", "web_id": web_id, "web_url": url_publica, "updated_at": datetime.datetime.now().isoformat(), "entregado_at": datetime.datetime.now().isoformat()},
                 "id", pedido.get("id")
             )
-            return {"exito": True, "mensaje": "Web generada y publicada en Netlify.", "url_publica": url_publica, "web_id": web_id, "html": html}
+
+            # 2. Enviamos el correo al cliente
+            _enviar_email_web_lista(pedido, url_publica)
+
+            return {"exito": True, "mensaje": "Web generada, publicada y correo enviado.", "url_publica": url_publica, "web_id": web_id, "html": html}
         
         else:
             return {"exito": True, "mensaje": "Web generada en modo VISTA PREVIA. No publicada.", "html": html, "web_id": web_id}
