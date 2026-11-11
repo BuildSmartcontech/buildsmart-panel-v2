@@ -2,7 +2,7 @@
 # ============================================
 # CHECKOUT UI - Web Gancho SAMU IA
 # ============================================
-# V5.9: Mejora UX legal (Modal en lugar de redirección) y claridad de precios
+# V5.9: Arreglo de loop en file_uploader y warnings de ancho.
 # ============================================
 
 import streamlit as st
@@ -51,15 +51,8 @@ def _procesar_imagen_subida(file):
 
 def _renderizar_formulario(tier):
     st.markdown(f"# {E_CORONA} Checkout - {tier['nombre']}")
-    
-    # Claridad en el precio del Tier 3
-    if tier['id'] == "tier3":
-        st.markdown(f"**Plan:** {tier['precio_label']} ({tier['pago_label']})")
-        st.caption("El plan Premium Plus requiere un pago inicial de USD 499 por la creación de la web y configuración, más una suscripción mensual de USD 150 por mantenimiento del ARM a partir del mes 2.")
-    else:
-        st.markdown(f"**Plan:** {tier['precio_label']} ({tier['pago_label']})")
-        st.caption("Los campos marcados con * son obligatorios. El resto es opcional.")
-    
+    st.markdown(f"**Plan:** {tier['precio_label']} ({tier['pago_label']})")
+    st.caption("Los campos marcados con * son obligatorios. El resto es opcional.")
     st.divider()
 
     # TUS DATOS
@@ -129,11 +122,14 @@ def _renderizar_formulario(tier):
 
     anio_fundacion = st.text_input("Año de fundación", placeholder="Ej: 2018", key="ck_anio")
 
-    # FOTOS Y LOGO
+    # FOTOS Y LOGO (ARREGLADO PARA EVITAR EL LOOP)
     st.divider()
     st.markdown(f"### {E_CAMARA} Fotos de tu negocio (Opcional)")
     st.caption("Sube tu logo y hasta 3 fotos de tus productos. Máximo 5MB por archivo.")
     
+    logo_b64 = None
+    fotos_b64 = []
+
     col_img1, col_img2 = st.columns(2)
     with col_img1:
         logo_file = st.file_uploader("Sube tu Logo (PNG o JPG)", type=["png", "jpg", "jpeg"], key="ck_logo")
@@ -141,21 +137,21 @@ def _renderizar_formulario(tier):
             es_valido, msg = validar_imagen_subida(logo_file)
             if not es_valido:
                 st.error(msg)
-                logo_file = None
+                # NO seteamos logo_file = None para no causar el loop.
+            else:
+                logo_b64 = _procesar_imagen_subida(logo_file)
 
     with col_img2:
         fotos_files = st.file_uploader("Sube hasta 3 fotos (PNG o JPG)", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="ck_fotos")
         if fotos_files:
-            fotos_validas = []
             for f in fotos_files:
                 es_valido, msg = validar_imagen_subida(f)
                 if not es_valido:
                     st.error(f"{f.name}: {msg}")
                 else:
-                    fotos_validas.append(f)
-            fotos_files = fotos_validas
+                    fotos_b64.append(_procesar_imagen_subida(f))
 
-    # BLOQUE LEGAL (Modal interno)
+    # BLOQUE LEGAL
     st.divider()
     st.markdown("### ⚖️ Términos y Privacidad")
     st.caption("Para continuar, debes aceptar nuestras políticas de tratamiento de datos.")
@@ -168,40 +164,25 @@ def _renderizar_formulario(tier):
     }
     ley_local = leyes_por_pais.get(pais_sel, "las normativas locales vigentes de Protección de Datos Personales")
     
-    acepta_terminos = st.checkbox(
-        f"Acepto los Términos y Condiciones y autorizo el Tratamiento de mis Datos Personales según la {ley_local} y la política completa de SAMU IA.",
-        key="ck_acepta_legal"
-    )
+    acepta_terminos = st.checkbox(f"Acepto los Términos y Condiciones y autorizo el Tratamiento de mis Datos Personales según la {ley_local} y la política completa de SAMU IA.", key="ck_acepta_legal")
     
-    with st.expander("📄 Ver resumen de la Política de Privacidad"):
+    with st.expander("Ver resumen de la Política de Privacidad"):
         st.markdown(f"""
         *   **SAMU IA** usará tus datos personales solo para crear tu sitio web, gestionar tu cuenta, prestar el servicio ARM y enviar soporte relacionado con el servicio contratado.
-        *   **Cuando contrates Web Premium Plus y actives el ARM:** las conversaciones recibidas por WhatsApp serán transferidas internacionalmente y procesadas por los modelos de IA (Groq, OpenRouter, Gemini) para calificar leads y alimentar Odoo; estos proveedores actúan como encargados del tratamiento bajo sus propias políticas de privacidad. (Meta y tu BSP también tienen sus propias políticas).
-        *   **SAMU IA NO es responsable del consentimiento** que tú debes obtener de tus propios clientes para el uso de WhatsApp y el tratamiento de sus datos; tú eres el único Responsable del Tratamiento frente a tus clientes finales.
-        *   Tienes derecho a acceder, rectificar, cancelar u oponerte (Derechos ARCO) al tratamiento de tus datos personales; puedes solicitar la eliminación o actualización escribiendo a soporte@samu-ia.com.
-        *   Este es un resumen; al aceptar accedes a nuestra política completa publicada en el sitio web y autorizas expresamente la transferencia internacional de datos necesaria para la ejecución de la IA.
-        *   Los datos se conservarán solo por el tiempo necesario para prestar el servicio y cumplir obligaciones legales.
+        *   **Cuando contrates Web Premium Plus y actives el ARM:** las conversaciones recibidas por WhatsApp serán transferidas internacionalmente y procesadas por los modelos de IA (Groq, OpenRouter, Gemini).
+        *   **SAMU IA NO es responsable del consentimiento** que tú debes obtener de tus propios clientes.
+        *   Tienes derecho a acceder, rectificar, cancelar u oponerte (Derechos ARCO) escribiendo a soporte@samu-ia.com.
         """)
-        st.markdown("[Ver Política de Privacidad Completa (PDF)](https://samu-ia.com)")
 
     # BOTON CONFIRMAR
     st.divider()
     st.caption("* Campos obligatorios")
 
-    if st.button(
-        f"{E_OK} Confirmar compra - {tier['precio_label']}",
-        use_container_width=True,
-        type="primary",
-        key="ck_btn_confirmar",
-        disabled=not acepta_terminos
-    ):
+    if st.button(f"{E_OK} Confirmar compra - {tier['precio_label']}", width="stretch", type="primary", key="ck_btn_confirmar", disabled=not acepta_terminos):
         if sector_sel == "Otro (especificar abajo)":
             sector_final = sector_otro.strip()
         else:
             sector_final = sector_sel
-
-        logo_b64 = _procesar_imagen_subida(logo_file) if logo_file else None
-        fotos_b64 = [_procesar_imagen_subida(f) for f in fotos_files] if fotos_files else []
 
         datos_form = {
             "nombre": nombre, "email": email, "telefono": telefono,
@@ -232,6 +213,7 @@ def _renderizar_formulario(tier):
             else:
                 crear_pedido_y_avanzar(datos_form, tier)
 
+    # DIALOGO DE CONFIRMACION
     if st.session_state.get("_checkout_confirmando", False):
         faltantes = st.session_state.get("_checkout_faltantes", [])
         st.divider()
@@ -239,12 +221,12 @@ def _renderizar_formulario(tier):
         st.info("Podes continuar sin estos datos o volver a completarlos. La IA completara lo que falte con contenido generico.")
         col_c1, col_c2 = st.columns(2)
         with col_c1:
-            if st.button(f"{E_OK} Continuar sin estos campos", type="primary", use_container_width=True, key="btn_continuar_sin_opc"):
+            if st.button(f"{E_OK} Continuar sin estos campos", type="primary", width="stretch", key="btn_continuar_sin_opc"):
                 datos = st.session_state.get("_checkout_datos_pendientes", {})
                 tier_actual = st.session_state.get("_checkout_tier_actual", tier)
                 crear_pedido_y_avanzar(datos, tier_actual)
         with col_c2:
-            if st.button(f"{E_FLECHA} Volver y completar", use_container_width=True, key="btn_volver_completar"):
+            if st.button(f"{E_FLECHA} Volver y completar", width="stretch", key="btn_volver_completar"):
                 st.session_state.pop("_checkout_confirmando", None)
                 st.session_state.pop("_checkout_faltantes", None)
                 st.rerun()
@@ -253,14 +235,14 @@ def _renderizar_formulario(tier):
     if st.button(f"{E_FLECHA} Volver al inicio", key="volver_form"):
         limpiar_estado_checkout()
 
+
 def _renderizar_instrucciones():
     datos = st.session_state.get("_web_pedido_creado", {})
     pedido = datos.get("pedido") or {}
     tier = datos.get("tier") or {}
     if not pedido or not tier:
         st.error("Datos del pedido no encontrados.")
-        if st.button("Volver al inicio"):
-            limpiar_estado_checkout()
+        if st.button("Volver al inicio"): limpiar_estado_checkout()
         return
     st.markdown(f"# {E_OK} Pedido registrado")
     st.markdown(f"**Pedido ID:** `{pedido.get('id', '?')}`")
@@ -276,7 +258,7 @@ def _renderizar_instrucciones():
         st.info("El proveedor de pagos no esta configurado.")
     st.divider()
     st.markdown(f"## {E_RELOJ} Que sigue?")
-    st.markdown("1. Realiza la transferencia con los datos de arriba.\n2. Envia el comprobante al email indicado.\n3. Confirmaremos tu pago en menos de 24 horas.\n4. **Recibiras un email con la URL de tu web.**\n5. **Recibiras otro email con acceso a tu panel de cliente.**\n")
+    st.markdown("1. Realiza la transferencia.\n2. Envia el comprobante.\n3. Confirmaremos en 24h.\n4. **Recibiras tu web y tu panel.**")
     token = pedido.get("magic_token", "")
     if token:
         st.divider()
@@ -286,17 +268,14 @@ def _renderizar_instrucciones():
             url_panel = construir_url_panel(token)
             st.markdown(f"**Link:** [Abrir mi panel]({url_panel})")
             st.code(url_panel, language=None)
-        except Exception:
-            pass
+        except Exception: pass
     st.divider()
     st.success(f"{E_CORONA} Recibimos tu pedido. Guarda este ID: `{pedido.get('id', '?')}`")
     col1, col2 = st.columns(2)
     with col1:
-        if st.button(f"{E_DOC} Hacer otro pedido", use_container_width=True):
-            limpiar_estado_checkout()
+        if st.button(f"{E_DOC} Hacer otro pedido", width="stretch"): limpiar_estado_checkout()
     with col2:
-        if st.button(f"{E_FLECHA} Volver al inicio", use_container_width=True):
-            limpiar_estado_checkout()
+        if st.button(f"{E_FLECHA} Volver al inicio", width="stretch"): limpiar_estado_checkout()
 
 def renderizar():
     if st.session_state.get("_web_pedido_creado"):
