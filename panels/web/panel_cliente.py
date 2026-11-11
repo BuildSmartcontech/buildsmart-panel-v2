@@ -2,7 +2,7 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V1.1: Implementacion real de modificaciones con IA (3 gratis)
+# V1.2: Integracion de cobro por ePayco en 4to cambio.
 # ============================================
 
 import streamlit as st
@@ -29,7 +29,7 @@ E_DINERO    = "\U0001F4B0"
 E_LLAVE     = "\U0001F511"
 E_RAYO      = "\u26A1"
 
-LIMITE_MODIFICACIONES = 3 # Cambia a 7 si es necesario
+LIMITE_MODIFICACIONES = 3
 
 TIER_LABELS = {
     1: "Premium Esencial",
@@ -45,9 +45,6 @@ ESTADOS = {
     "fallido":               {"label": "Fallido",         "icono": E_X},
 }
 
-# ==========================================
-# HELPERS
-# ==========================================
 def _get_supabase():
     try:
         from utils.supabase_rest import supabase_rest
@@ -56,25 +53,21 @@ def _get_supabase():
         return None
 
 def _fmt_fecha(iso_str):
-    if not iso_str:
-        return "?"
+    if not iso_str: return "?"
     try:
         s = str(iso_str).replace("Z", "")
         if "+" in s and "T" in s:
             base = s.rsplit("+", 1)[0]
-            if "." in base:
-                base = base.split(".")[0]
+            if "." in base: base = base.split(".")[0]
             dt = datetime.datetime.fromisoformat(base)
         else:
-            if "." in s:
-                s = s.split(".")[0]
+            if "." in s: s = s.split(".")[0]
             dt = datetime.datetime.fromisoformat(s)
         return dt.strftime("%d/%m/%Y %H:%M")
     except Exception:
         return str(iso_str)[:19]
 
 def _cargar_leads(sb, pedido_id):
-    """Carga los leads capturados por la web del cliente."""
     try:
         rows = sb.table("crm_leads").select("*").eq("pedido_web_id", pedido_id).execute().data or []
         rows.sort(key=lambda x: x.get("created_at", ""), reverse=True)
@@ -83,35 +76,27 @@ def _cargar_leads(sb, pedido_id):
         return []
 
 def _solicitar_modificacion(sb, pedido, instruccion):
-    """Llama a la IA para modificar el HTML y guarda el contador."""
     pedido_id = pedido.get("id")
     web_id = pedido.get("web_id")
-    usuario_id = pedido.get("email", "usuario_web") # Usamos email como ID de carpeta
+    usuario_id = pedido.get("email", "usuario_web") 
     usadas = int(pedido.get("modificaciones_usadas", 0))
 
     try:
-        # 1. Importar herramientas de edición
         from utils.web_editor_v2 import editar_y_guardar_v2
         from utils.web_publisher import publicar_web
         
-        # 2. Contexto para la IA
         contexto = f"Negocio: {pedido.get('datos_negocio', {}).get('nombre_negocio', '')}\n"
         contexto += f"Sector: {pedido.get('datos_negocio', {}).get('sector', '')}"
 
-        # 3. Llamar a la IA para modificar la web
         resultado = editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto)
 
         if resultado.get("exito"):
-            # 4. Actualizar contador en Base de Datos
             sb.update(
                 "pedidos_web",
                 {"modificaciones_usadas": usadas + 1, "updated_at": datetime.datetime.now().isoformat()},
                 "id", pedido_id
             )
-            
-            # 5. Republicar en Netlify
             publicar_web(usuario_id, web_id)
-            
             return True, "¡Tu web se ha modificado y republicado con exito!"
         else:
             return False, f"Error de la IA: {resultado.get('error')}"
@@ -119,10 +104,6 @@ def _solicitar_modificacion(sb, pedido, instruccion):
     except Exception as e:
         return False, f"Error del sistema: {str(e)}"
 
-
-# ==========================================
-# RENDERIZADO
-# ==========================================
 def _renderizar_login():
     st.markdown(f"# {E_LLAVE} Acceso al panel")
     st.markdown("Para acceder a tu panel, usa el link que te enviamos por email.")
@@ -169,7 +150,6 @@ def _renderizar_panel(pedido, sb):
 
     st.divider()
 
-    # --- SECCION WEB Y MODIFICACIONES ---
     st.markdown(f"### {E_GLOBO} Tu web")
     if web_url:
         st.success(f"{E_OK} Tu web esta publicada y activa")
@@ -198,7 +178,23 @@ def _renderizar_panel(pedido, sb):
         else:
             st.warning(f"Has agotado tus {LIMITE_MODIFICACIONES} modificaciones gratis.")
             st.markdown("Cada modificacion adicional cuesta **USD 5**.")
-            if st.button(f"{E_DINERO} Comprar modificacion extra"):
+            
+            # --- NUEVA LOGICA DE COBRO EPAYCO ---
+            from panels.web.pagos import obtener_proveedor, proveedor_actual
+            prov_nombre = proveedor_actual()
+            proveedor = obtener_proveedor(prov_nombre, {})
+            pedido_pago_id = f"mod_extra_{pedido_id}_{int(datetime.datetime.now().timestamp())}"
+            
+            res_pago = proveedor.crear_pago(
+                pedido_id=pedido_pago_id,
+                monto=5.0,
+                descripcion=f"Modificacion extra Web Gancho - {nombre}",
+                metadata={"email": email}
+            )
+            
+            if res_pago.get("exito") and res_pago.get("url_pago"):
+                st.markdown(f'<a href="{res_pago["url_pago"]}" target="_blank"><button style="background-color:#14B8A6; color:black; padding:10px 20px; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">Pagar $5 USD con ePayco</button></a>', unsafe_allow_html=True)
+            else:
                 st.info("Contacta a soporte para adquirir mas modificaciones.")
 
     else:
@@ -210,13 +206,11 @@ def _renderizar_panel(pedido, sb):
 
     st.divider()
 
-    # --- SECCION LEADS ---
     if tier_num >= 2:
         _renderizar_leads(sb, pedido_id, tier_num)
     else:
         st.info(f"{E_AVISO} **No tenes CRM incluido en tu plan.**")
 
-    # --- DETALLES Y RENOVACION ---
     with st.expander(f"{E_DOC} Detalles del pedido"):
         st.text(f"ID: {pedido_id}")
         st.text(f"Plan: {tier_label} - USD {precio:.0f}")
