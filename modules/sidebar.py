@@ -1,13 +1,38 @@
 # modules/sidebar.py
 # ============================================
+# SIDEBAR - V2.1 (VERIFICACIÓN DE IA EN LA NUBE)
+# ============================================
 
 import streamlit as st
 import datetime
+import os
 from config_app import MODO, ES_DUENO, SISTEMA_CREDITOS_ACTIVO, MOSTRAR_CREDITOS, VERSION
+
+
+def _verificar_ia_activa():
+    """Verifica si al menos una llave de IA está configurada en el entorno o secrets."""
+    llaves_ia = ["OPENROUTER_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY"]
+    
+    for llave in llaves_ia:
+        # Buscar en variables de entorno (Streamlit Cloud las monta aquí)
+        if os.getenv(llave):
+            return True
+        # Buscar en st.secrets (por si acaso)
+        try:
+            if llave in st.secrets:
+                return True
+        except Exception:
+            pass
+            
+    return False
 
 
 def renderizar_sidebar(BACKEND_ACTIVO, modulos, negocios):
     """Renderiza el sidebar compartido."""
+
+    # Determinamos si el backend real (IA en la nube) está activo
+    ia_activa = _verificar_ia_activa()
+    backend_real_activo = BACKEND_ACTIVO or ia_activa
 
     with st.sidebar:
         if ES_DUENO:
@@ -27,11 +52,11 @@ def renderizar_sidebar(BACKEND_ACTIVO, modulos, negocios):
         # Quitamos los segundos para evitar re-renders innecesarios en la nube
         st.caption(f"🔄 {datetime.datetime.now().strftime('%H:%M')}")
 
-        # Backend
-        if BACKEND_ACTIVO:
-            st.info("🧠 Backend: Activo")
+        # Backend (Mostramos el estado real de la IA)
+        if backend_real_activo:
+            st.info("🧠 Backend IA: Activo")
         else:
-            st.warning("⚠️ Backend: Inactivo")
+            st.warning("⚠️ Backend IA: Inactivo")
 
         st.divider()
 
@@ -39,7 +64,7 @@ def renderizar_sidebar(BACKEND_ACTIVO, modulos, negocios):
         st.markdown("**🧩 Modulos:**")
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown(f"🧠 Backend: {'✅' if BACKEND_ACTIVO else '❌'}")
+            st.markdown(f"🧠 Backend: {'✅' if backend_real_activo else '❌'}")
             st.markdown(f"🌐 Web: {'✅' if modulos.get('web') else '❌'}")
             st.markdown(f"📧 Email: {'✅' if modulos.get('email') else '❌'}")
         with col2:
