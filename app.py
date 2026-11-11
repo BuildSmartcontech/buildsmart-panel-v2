@@ -1,12 +1,11 @@
 # app.py - SAMU IA Operations Center
 # ============================================
-# V2.1: Previene el loop infinito en la landing y el ERP.
+# V2.2: Fix Loop Infinito respetando session_state en la web.
 # ============================================
 
 import streamlit as st
 import traceback
 
-# 1. Inicialización temprana de session_state (Evita el loop)
 if "_session_initialized" not in st.session_state:
     st.session_state._session_initialized = True
     st.session_state._rerun_count = 0
@@ -57,7 +56,12 @@ def detectar_rol():
         print(f"[app] Error detectando staff: {e}")
         return None
 
+# --- ROUTING CORREGIDO ---
 subruta_web = detectar_subruta_web()
+
+# Si la URL no tiene parametros, revisamos si el session_state guardo una subruta (como checkout)
+if subruta_web is None:
+    subruta_web = st.session_state.get("_web_subruta", "landing")
 
 if subruta_web in ("admin", "app"):
     print(f"[app] Acceso al ERP - Ruta: {subruta_web}")
@@ -75,9 +79,6 @@ if subruta_web in ("admin", "app"):
         st.error(f"Error crítico cargando el panel: {e}")
         print(traceback.format_exc())
 else:
-    if subruta_web is None:
-        subruta_web = "landing"
-        
     print(f"[app] Modulo WEB GANCHO - subruta: {subruta_web}")
     st.session_state["_web_subruta"] = subruta_web
     try:

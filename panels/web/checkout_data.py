@@ -2,7 +2,7 @@
 # ============================================
 # DATOS Y PERSISTENCIA DEL CHECKOUT
 # ============================================
-# V1.0: Extraido de checkout.py (split 400 lineas)
+# V1.1: Guarda logo y fotos (Base64) en la base de datos.
 # ============================================
 
 import datetime
@@ -13,9 +13,7 @@ from panels.web.checkout_validators import (
     normalizar_instagram,
 )
 
-
 TIER_NUM = {"tier1": 1, "tier2": 2, "tier3": 3}
-
 
 def _get_supabase():
     try:
@@ -24,9 +22,7 @@ def _get_supabase():
     except Exception:
         return None
 
-
 def datos_pago_desde_config():
-    """Lee los datos de pago desde config_global."""
     try:
         from utils.config_global import obtener
         return {
@@ -40,9 +36,7 @@ def datos_pago_desde_config():
         print(f"[checkout_data] Error leyendo config: {e}")
         return {}
 
-
 def guardar_pedido(datos_form, tier):
-    """Crea el pedido en pedidos_web + genera magic token."""
     sb = _get_supabase()
     if not sb:
         return None, "Supabase no disponible"
@@ -51,12 +45,15 @@ def guardar_pedido(datos_form, tier):
         pais = datos_form.get("pais", PAISES_DEFAULT)
         prefijo = obtener_prefijo(pais)
 
+        # --- DATOS DEL NEGOCIO (INCLUYENDO FOTOS) ---
         datos_negocio = {
             "nombre_negocio": datos_form["nombre_negocio"].strip()[:200],
             "sector":         datos_form["sector"].strip()[:100],
             "descripcion":    datos_form["descripcion"].strip()[:1500],
             "ciudad":         datos_form["ciudad"].strip()[:100],
             "pais":           pais,
+            "logo_b64":       datos_form.get("logo_b64"),
+            "fotos_b64":      datos_form.get("fotos_b64", [])
         }
 
         if datos_form.get("whatsapp_negocio", "").strip():
@@ -115,9 +112,7 @@ def guardar_pedido(datos_form, tier):
     except Exception as e:
         return None, str(e)
 
-
 def enviar_email_confirmacion(pedido, tier):
-    """Envia email al cliente con link al panel."""
     try:
         from utils.email_sender import email_sender
     except ImportError:
@@ -171,9 +166,7 @@ El equipo de SAMU IA
     except Exception as e:
         return False, str(e)[:200]
 
-
 def crear_pedido_y_avanzar(datos_form, tier):
-    """Crea el pedido + envia email + actualiza session_state."""
     with st.spinner("Creando tu pedido..."):
         pedido, error = guardar_pedido(datos_form, tier)
 
@@ -191,9 +184,7 @@ def crear_pedido_y_avanzar(datos_form, tier):
     st.session_state["_web_pedido_creado"] = {"pedido": pedido, "tier": tier}
     st.rerun()
 
-
 def limpiar_estado_checkout():
-    """Limpia todos los estados del checkout."""
     for k in ["_web_checkout_tier", "_web_pedido_creado",
               "_checkout_confirmando", "_checkout_faltantes",
               "_checkout_datos_pendientes", "_checkout_tier_actual"]:
