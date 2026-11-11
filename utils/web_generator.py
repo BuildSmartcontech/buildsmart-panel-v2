@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V15.1 (INYECCION POR TEXTO)
+# GENERADOR DE WEBS - V16.0 (INYECCION ESTRUCTURAL)
 # ============================================
 
 import os
@@ -47,9 +47,6 @@ Devuelve UNICAMENTE un JSON valido:
   "sobre_nosotros": "Parrafo de 40 palabras.",
   "keywords_imagenes": ["keyword_1", "keyword_2", "keyword_3"]
 }}
-
-## REGLA CRITICA PARA LAS KEYWORDS:
-Actua como un Fotografo Publicitario. 3 keywords en INGLES muy visuales.
 """
     sistema = "Eres un copywriter experto. Devuelves solo JSON."
     
@@ -71,10 +68,6 @@ def generar_html_programador(datos_negocio, copy, modelo_ia):
     
     prompt = f"""
 {DIRECTOR_DE_ARTE_PROMPT}
-
-=========================================================
-GENERA LA PAGINA WEB COMPLETA
-=========================================================
 
 ## COPY EXACTO
 - Headline Hero: {copy.get('headline')}
@@ -109,19 +102,24 @@ GENERA LA PAGINA WEB COMPLETA
     except Exception: pass
     return None
 
-def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy):
+def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
     soup = BeautifulSoup(html, 'html.parser')
 
     # 1. LOGO
     if logo_b64:
         print("[INYECTOR] Inyectando logo...")
-        logo_text = soup.find(string=re.compile(nombre_negocio, re.I))
-        if logo_text:
-            parent = logo_text.parent
-            parent.clear()
-            logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
-            logo_img['style'] = "height:45px; width:auto; object-fit:contain;"
-            parent.append(logo_img)
+        nav = soup.find('nav') or soup.find('header')
+        if nav:
+            logo_el = nav.find('a') or nav.find('div', class_=re.compile('logo|brand', re.I))
+            if logo_el:
+                logo_el.clear()
+                logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
+                logo_img['style'] = "height:45px; width:auto; object-fit:contain;"
+                logo_el.append(logo_img)
+            else:
+                logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
+                logo_img['style'] = "height:45px; width:auto; object-fit:contain; margin-right:20px;"
+                nav.insert(0, logo_img)
 
     # 2. HERO IMAGE
     hero_url = imagenes.get("hero")
@@ -135,29 +133,33 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy):
                 img_tag['style'] = "width:100%; max-height:500px; object-fit:cover; border-radius:20px; margin-top:30px; display:block;"
                 parent.append(img_tag)
 
-    # 3. IMAGENES EN SERVICIOS
+    # 3. IMAGENES EN SERVICIOS (Búsqueda Estructural)
     servicios_urls = imagenes.get("servicios", [])
-    servicios_copy = copy.get("servicios", [])
-    
-    for i, url in enumerate(servicios_urls):
-        if i >= len(servicios_copy): break
-        titulo_servicio = servicios_copy[i].get('titulo', '')
+    if servicios_urls:
+        print(f"[INYECTOR] Buscando tarjetas para inyectar {len(servicios_urls)} imagenes...")
+        tarjetas = soup.find_all('div', recursive=True)
+        tarjetas_validas = []
         
-        title_el = soup.find(string=re.compile(titulo_servicio, re.I))
-        if title_el:
-            card_container = title_el.parent.parent
-            
-            if not card_container.find('img'):
-                print(f"[INYECTOR] Inyectando imagen en servicio: {titulo_servicio}")
-                img_tag = soup.new_tag('img', src=url, alt=titulo_servicio)
-                img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:12px; margin-bottom:20px; display:block;"
-                card_container.insert(0, img_tag)
+        for div in tarjetas:
+            if (div.find('h3') or div.find('h4')) and not div.find('img'):
+                if len(div.get_text(strip=True)) < 300:
+                    tarjetas_validas.append(div)
 
-    # 4. ESTILOS DE BOTONES
+        for i, url in enumerate(servicios_urls):
+            if i >= len(tarjetas_validas): break
+            tarjeta = tarjetas_validas[i]
+            print(f"[INYECTOR] Inyectando imagen en tarjeta {i+1}...")
+            
+            img_tag = soup.new_tag('img', src=url, alt=f"Servicio {i+1}")
+            img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:12px; margin-bottom:20px; display:block;"
+            tarjeta.insert(0, img_tag)
+            
+            tarjeta['style'] = "background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 30px; display: flex; flex-direction: column; height: 100%;"
+
+    # 4. BOTONES
     for a_tag in soup.find_all('a'):
         texto = a_tag.text.lower()
-        if "comienza" in texto or "saber" in texto or "contacto" in texto:
-            print("[INYECTOR] Aplicando estilo de boton...")
+        if "comienza" in texto or "saber" in texto or "contacto" in texto or "servicio" in texto:
             a_tag['class'] = a_tag.get('class', []) + ['btn']
             a_tag['style'] = "display:inline-block; padding:16px 36px; background:#14B8A6; color:#0B0C14; font-weight:700; border-radius:999px; text-decoration:none;"
 
@@ -184,7 +186,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy):
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V15.1")
+    print("GENERANDO WEB - V16.0 (Inyeccion Estructural)")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
@@ -221,7 +223,7 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
             continue
 
         html = limpiar_html(html_raw)
-        html = inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy)
+        html = inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio)
 
         if validar_completo(html)["valido"]:
             return {"exito": True, "html": html, "error": None}
