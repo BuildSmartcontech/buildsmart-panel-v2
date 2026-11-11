@@ -1,8 +1,8 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V14.0 (INYECCION AGRESIVA)
+# GENERADOR DE WEBS - V15.0 (INYECCION POR TEXTO)
 # ============================================
-# V14.0: Logs de diagnostico y reemplazo forzado de texto por logo.
+# V15.0: Busca titulos de servicios y textos de botones para forzar imagenes y CSS.
 # ============================================
 
 import os
@@ -35,6 +35,7 @@ Analiza el siguiente negocio:
 - Nombre: {datos_negocio.get('nombre')}
 - Sector: {datos_negocio.get('sector')}
 - Descripcion: {datos_negocio.get('descripcion')}
+- Publico: {datos_negocio.get('publico_objetivo')}
 
 Redacta el Copy exacto para su pagina web premium.
 Devuelve UNICAMENTE un JSON valido:
@@ -53,7 +54,6 @@ Devuelve UNICAMENTE un JSON valido:
 ## REGLA CRITICA PARA LAS KEYWORDS:
 Actua como un Fotografo Publicitario. 3 keywords en INGLES muy visuales.
 NO uses marcas.
-Ej: "artisan bread baking", "software developers working", "modern dental clinic".
 """
     sistema = "Eres un copywriter experto. Devuelves solo JSON."
     
@@ -113,57 +113,61 @@ GENERA LA PAGINA WEB COMPLETA
     except Exception: pass
     return None
 
-def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
+def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy):
     soup = BeautifulSoup(html, 'html.parser')
 
-    # --- 1. INYECCION DEL LOGO (A LA FUERZA) ---
+    # 1. LOGO (Busca el texto del nombre en el nav)
     if logo_b64:
-        print(f"[INYECTOR] Intentando inyectar logo (Tamaño: {len(logo_b64)} chars)")
-        # Buscamos cualquier etiqueta que contenga el nombre del negocio (ej. "SAMU IA")
-        # Podria ser un <a>, un <div>, un <span>, un <h1>...
-        logo_element = soup.find(string=re.compile(nombre_negocio, re.I))
-        
-        if logo_element:
-            # Si encontramos el texto, lo reemplazamos por una imagen
-            parent = logo_element.parent
+        print("[INYECTOR] Inyectando logo...")
+        logo_text = soup.find(string=re.compile(nombre_negocio, re.I))
+        if logo_text:
+            parent = logo_text.parent
             parent.clear()
             logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
             logo_img['style'] = "height:45px; width:auto; object-fit:contain;"
             parent.append(logo_img)
-            print("[INYECTOR] Logo inyectado con exito reemplazando el texto.")
-        else:
-            # Si la IA no puso el nombre en texto, lo inyectamos al inicio del <nav>
-            nav = soup.find('nav') or soup.find('header')
-            if nav:
-                logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
-                logo_img['style'] = "height:45px; width:auto; object-fit:contain; margin-right:20px;"
-                nav.insert(0, logo_img)
-                print("[INYECTOR] Logo inyectado al inicio del NAV.")
-    else:
-        print("[INYECTOR] ALERTA: No se recibio logo_b64. El logo no aparecera.")
 
-    # --- 2. INYECCION DE HERO ---
+    # 2. HERO IMAGE (Buscamos el h1 principal)
     hero_url = imagenes.get("hero")
     if hero_url:
-        hero_section = soup.find(class_=re.compile('hero', re.I)) or soup.find('h1')
-        if hero_section:
-            parent = hero_section if hero_section.name != 'h1' else hero_section.parent
-            if parent and not parent.find('img'):
+        print("[INYECTOR] Inyectando imagen Hero...")
+        h1 = soup.find('h1')
+        if h1:
+            parent = h1.parent
+            if not parent.find('img'):
                 img_tag = soup.new_tag('img', src=hero_url, alt="Hero Image")
-                img_tag['style'] = "width:100%; max-height:400px; object-fit:cover; border-radius:20px; margin-top:30px; display:block;"
+                img_tag['style'] = "width:100%; max-height:500px; object-fit:cover; border-radius:20px; margin-top:30px; display:block;"
                 parent.append(img_tag)
 
-    # --- 3. INYECCION DE SERVICIOS ---
+    # 3. IMAGENES EN SERVICIOS (Buscamos por el texto del titulo de cada servicio)
     servicios_urls = imagenes.get("servicios", [])
-    if servicios_urls:
-        cards = soup.find_all(class_=re.compile('card|service|grid-item', re.I))
-        for i, card in enumerate(cards[:len(servicios_urls)]):
-            if not card.find('img'):
-                img_tag = soup.new_tag('img', src=servicios_urls[i], alt=f"Servicio {i+1}")
-                img_tag['style'] = "width:100%; height:200px; object-fit:cover; border-radius:12px; margin-bottom:20px; display:block;"
-                card.insert(0, img_tag)
+    servicios_copy = copy.get("servicios", [])
+    
+    for i, url in enumerate(servicios_urls):
+        if i >= len(servicios_copy): break
+        titulo_servicio = servicios_copy[i].get('titulo', '')
+        
+        # Buscamos el h3 o h2 que contenga el titulo del servicio
+        title_el = soup.find(string=re.compile(titulo_servicio, re.I))
+        if title_el:
+            # Subimos 2 niveles para encontrar el contenedor de la tarjeta
+            card_container = title_el.parent.parent
+            
+            if not card_container.find('img'):
+                print(f"[INYECTOR] Inyectando imagen en servicio: {titulo_servicio}")
+                img_tag = soup.new_tag('img', src=url, alt=titulo_servicio)
+                img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:12px; margin-bottom:20px; display:block;"
+                card_container.insert(0, img_tag)
 
-    # --- 4. INYECCION DE FORMULARIO ---
+    # 4. ESTILOS DE BOTONES (Busca enlaces y les mete la clase .btn)
+    for a_tag in soup.find_all('a'):
+        texto = a_tag.text.lower()
+        if "comienza" in texto or "saber" in texto or "contacto" in texto:
+            print("[INYECTOR] Aplicando estilo de boton...")
+            a_tag['class'] = a_tag.get('class', []) + ['btn']
+            a_tag['style'] = "display:inline-block; padding:16px 36px; background:#14B8A6; color:#0B0C14; font-weight:700; border-radius:999px; text-decoration:none;"
+
+    # 5. FORMULARIO
     form_section = soup.find(id='contacto') or soup.find(class_=re.compile('contact', re.I))
     if form_section:
         if "{{FORMULARIO}}" in html or not form_section.find('form'):
@@ -186,13 +190,12 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("INICIANDO GENERACION DE WEB V14.0")
+    print("GENERANDO WEB - V15.0 (Inyeccion por Texto)")
     print("=" * 60)
-    
-    # DIAGNOSTICO: Verificamos si el logo llego desde el pedido
+
     logo_b64 = datos_negocio.get("logo_b64")
-    print(f"[DIAGNOSTICO] Logo en datos_negocio: {'SI (Presente)' if logo_b64 else 'NO (Ausente)'}")
-    
+    print(f"[DIAGNOSTICO] Logo en datos_negocio: {'SI' if logo_b64 else 'NO'}")
+
     copy_raw = generar_copy_estrategico(datos_negocio, modelo_ia)
     if not copy_raw: return {"exito": False, "html": None, "error": "Fallo el copy."}
     try:
@@ -224,7 +227,7 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
             continue
 
         html = limpiar_html(html_raw)
-        html = inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio)
+        html = inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, copy)
 
         if validar_completo(html)["valido"]:
             return {"exito": True, "html": html, "error": None}
