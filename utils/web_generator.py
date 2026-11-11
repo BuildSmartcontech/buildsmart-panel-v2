@@ -1,8 +1,8 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V13.0 (UNIVERSAL VISUAL)
+# GENERADOR DE WEBS - V14.0 (INYECCION AGRESIVA)
 # ============================================
-# V13.0: Prompt visual generico. Funciona para cualquier sector.
+# V14.0: Logs de diagnostico y reemplazo forzado de texto por logo.
 # ============================================
 
 import os
@@ -35,7 +35,6 @@ Analiza el siguiente negocio:
 - Nombre: {datos_negocio.get('nombre')}
 - Sector: {datos_negocio.get('sector')}
 - Descripcion: {datos_negocio.get('descripcion')}
-- Publico: {datos_negocio.get('publico_objetivo')}
 
 Redacta el Copy exacto para su pagina web premium.
 Devuelve UNICAMENTE un JSON valido:
@@ -47,23 +46,16 @@ Devuelve UNICAMENTE un JSON valido:
     {{"titulo": "Servicio 2", "descripcion": "Texto persuasivo (20 palabras)"}},
     {{"titulo": "Servicio 3", "descripcion": "Texto persuasivo (20 palabras)"}}
   ],
-  "sobre_nosotros": "Parrafo de 40 palabras sobre la vision del negocio.",
-  "keywords_imagenes": ["keyword_visual_1", "keyword_visual_2", "keyword_visual_3"]
+  "sobre_nosotros": "Parrafo de 40 palabras.",
+  "keywords_imagenes": ["keyword_1", "keyword_2", "keyword_3"]
 }}
 
-## REGLA CRITICA PARA LAS KEYWORDS DE IMAGENES:
-Debes actuar como un Fotografo Publicitario. Piensa: "Si voy a hacer un reportaje fotografico de este negocio, ¿que 3 fotos tomarias?".
-Las 3 keywords deben estar en INGLES y ser muy visuales (sustantivos + adjetivos).
-NO uses conceptos abstractos (ej. "exito", "sinergia").
-NO uses marcas (ej. "WhatsApp", "Google").
-NO uses jerga tecnica (ej. "SaaS", "API").
-
-Ejemplos:
-- Negocio de Panaderia: ["artisan bread baking", "bakery interior warm lights", "baker hands kneading dough"]
-- Negocio de Software/AI: ["software developers working", "modern tech office desks", "digital dashboard screens"]
-- Negocio de Construccion: ["modern architecture site", "construction engineers reviewing blueprints", "heavy machinery construction"]
+## REGLA CRITICA PARA LAS KEYWORDS:
+Actua como un Fotografo Publicitario. 3 keywords en INGLES muy visuales.
+NO uses marcas.
+Ej: "artisan bread baking", "software developers working", "modern dental clinic".
 """
-    sistema = "Eres un copywriter y director de arte experto. Devuelves solo JSON."
+    sistema = "Eres un copywriter experto. Devuelves solo JSON."
     
     try:
         respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia)
@@ -88,7 +80,7 @@ def generar_html_programador(datos_negocio, copy, modelo_ia):
 GENERA LA PAGINA WEB COMPLETA
 =========================================================
 
-## COPY EXACTO (NO INVENTES TEXTO, USA ESTE)
+## COPY EXACTO
 - Headline Hero: {copy.get('headline')}
 - Subheadline Hero: {copy.get('subheadline')}
 - Servicios:
@@ -124,20 +116,33 @@ GENERA LA PAGINA WEB COMPLETA
 def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
     soup = BeautifulSoup(html, 'html.parser')
 
-    # 1. LOGO
+    # --- 1. INYECCION DEL LOGO (A LA FUERZA) ---
     if logo_b64:
-        nav = soup.find('nav') or soup.find('header')
-        if nav:
-            logo_element = nav.find('a', string=re.compile(nombre_negocio, re.I)) or nav.find('div', class_=re.compile('logo|brand', re.I))
+        print(f"[INYECTOR] Intentando inyectar logo (Tamaño: {len(logo_b64)} chars)")
+        # Buscamos cualquier etiqueta que contenga el nombre del negocio (ej. "SAMU IA")
+        # Podria ser un <a>, un <div>, un <span>, un <h1>...
+        logo_element = soup.find(string=re.compile(nombre_negocio, re.I))
+        
+        if logo_element:
+            # Si encontramos el texto, lo reemplazamos por una imagen
+            parent = logo_element.parent
+            parent.clear()
             logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
             logo_img['style'] = "height:45px; width:auto; object-fit:contain;"
-            if logo_element:
-                logo_element.clear()
-                logo_element.append(logo_img)
-            else:
+            parent.append(logo_img)
+            print("[INYECTOR] Logo inyectado con exito reemplazando el texto.")
+        else:
+            # Si la IA no puso el nombre en texto, lo inyectamos al inicio del <nav>
+            nav = soup.find('nav') or soup.find('header')
+            if nav:
+                logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
+                logo_img['style'] = "height:45px; width:auto; object-fit:contain; margin-right:20px;"
                 nav.insert(0, logo_img)
+                print("[INYECTOR] Logo inyectado al inicio del NAV.")
+    else:
+        print("[INYECTOR] ALERTA: No se recibio logo_b64. El logo no aparecera.")
 
-    # 2. HERO
+    # --- 2. INYECCION DE HERO ---
     hero_url = imagenes.get("hero")
     if hero_url:
         hero_section = soup.find(class_=re.compile('hero', re.I)) or soup.find('h1')
@@ -148,7 +153,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
                 img_tag['style'] = "width:100%; max-height:400px; object-fit:cover; border-radius:20px; margin-top:30px; display:block;"
                 parent.append(img_tag)
 
-    # 3. SERVICIOS (Forzamos tamaño)
+    # --- 3. INYECCION DE SERVICIOS ---
     servicios_urls = imagenes.get("servicios", [])
     if servicios_urls:
         cards = soup.find_all(class_=re.compile('card|service|grid-item', re.I))
@@ -158,7 +163,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
                 img_tag['style'] = "width:100%; height:200px; object-fit:cover; border-radius:12px; margin-bottom:20px; display:block;"
                 card.insert(0, img_tag)
 
-    # 4. FORMULARIO
+    # --- 4. INYECCION DE FORMULARIO ---
     form_section = soup.find(id='contacto') or soup.find(class_=re.compile('contact', re.I))
     if form_section:
         if "{{FORMULARIO}}" in html or not form_section.find('form'):
@@ -180,6 +185,14 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
     return str(soup)
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
+    print("=" * 60)
+    print("INICIANDO GENERACION DE WEB V14.0")
+    print("=" * 60)
+    
+    # DIAGNOSTICO: Verificamos si el logo llego desde el pedido
+    logo_b64 = datos_negocio.get("logo_b64")
+    print(f"[DIAGNOSTICO] Logo en datos_negocio: {'SI (Presente)' if logo_b64 else 'NO (Ausente)'}")
+    
     copy_raw = generar_copy_estrategico(datos_negocio, modelo_ia)
     if not copy_raw: return {"exito": False, "html": None, "error": "Fallo el copy."}
     try:
@@ -190,7 +203,6 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
         return {"exito": False, "html": None, "error": "JSON invalido."}
 
     imagenes = {"hero": None, "servicios": []}
-    logo_b64 = datos_negocio.get("logo_b64")
     fotos_b64 = datos_negocio.get("fotos_b64", [])
     nombre_negocio = datos_negocio.get("nombre", "Mi Negocio")
     
@@ -198,7 +210,6 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
         imagenes["hero"] = fotos_b64[0] if len(fotos_b64) > 0 else None
         imagenes["servicios"] = fotos_b64[1:4]
     else:
-        # Usamos las keywords que el Estratega Visual genero
         keywords = copy.get("keywords_imagenes", ["business"])
         negocio_info = {"nombre": nombre_negocio, "sector": " ".join(keywords), "descripcion": datos_negocio.get("descripcion")}
         poll = obtener_urls_imagenes_negocio(negocio_info, cantidad=4)
