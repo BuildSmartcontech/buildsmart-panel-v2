@@ -2,7 +2,7 @@
 # ============================================
 # DATOS Y PERSISTENCIA DEL CHECKOUT
 # ============================================
-# V1.1: Guarda logo y fotos (Base64) en la base de datos.
+# V1.2: Integración dinámica con Proveedor de Pagos (ePayco / Manual)
 # ============================================
 
 import datetime
@@ -12,6 +12,7 @@ from panels.web.checkout_validators import (
     normalizar_whatsapp,
     normalizar_instagram,
 )
+from panels.web.pagos import obtener_proveedor, proveedor_actual
 
 TIER_NUM = {"tier1": 1, "tier2": 2, "tier3": 3}
 
@@ -45,7 +46,6 @@ def guardar_pedido(datos_form, tier):
         pais = datos_form.get("pais", PAISES_DEFAULT)
         prefijo = obtener_prefijo(pais)
 
-        # --- DATOS DEL NEGOCIO (INCLUYENDO FOTOS) ---
         datos_negocio = {
             "nombre_negocio": datos_form["nombre_negocio"].strip()[:200],
             "sector":         datos_form["sector"].strip()[:100],
@@ -79,18 +79,25 @@ def guardar_pedido(datos_form, tier):
                 else:
                     datos_negocio[k] = str(v).strip()[:200]
 
+        # 1. Determinamos el proveedor de pago
+        prov_nombre = proveedor_actual()
+        datos_pago = datos_pago_desde_config()
+        proveedor = obtener_proveedor(prov_nombre, datos_pago)
+
+        # 2. Creamos el payload inicial (sin pasarela aún)
         payload = {
             "email":          datos_form["email"].strip()[:200],
             "nombre_cliente": datos_form["nombre"].strip()[:200],
             "telefono":       (datos_form.get("telefono") or "").strip()[:50] or None,
             "tier":           TIER_NUM.get(tier["id"], 1),
             "precio_usd":     float(tier["precio"]),
-            "estado":         "pendiente_pago_manual",
+            "estado":         "pendiente_pago", # Estado inicial
             "datos_negocio":  datos_negocio,
             "created_at":     datetime.datetime.now().isoformat(),
             "updated_at":     datetime.datetime.now().isoformat(),
         }
 
+        # 3. Guardamos en Supabase para obtener el ID
         r = sb.insert("pedidos_web", payload)
         if r.error:
             return None, str(r.error)
@@ -98,13 +105,36 @@ def guardar_pedido(datos_form, tier):
         pedido = r.data[0] if r.data else None
         if not pedido:
             return None, "No se pudo crear el pedido"
+        pedido_id = pedido.get("id")
 
+        # 4. Llamamos al proveedor de pago con el ID generado
+        res_pago = proveedor.crear_pago(
+            pedido_id=pedido_id,
+            monto=tier["precio"],
+            descripcion=f"Web Gancho - {tier['nombre']}",
+            metadata={"email": payload["email"]}
+        )
+
+        if not res_pago.get("exito"):
+            print(f"[checkout_data] Error pasarela: {res_pago.get('error')}")
+            # Opcional: Actualizar el pedido a "error_pago"
+            sb.update("pedidos_web", {"estado": "error_pago"}, "id", pedido_id)
+            return None, res_pago.get("error")
+
+        # 5. Actualizamos el pedido con los datos del pago
+        pago_estado = res_pago.get("estado", "pendiente_pago")
+        sb.update("pedidos_web", {"estado": pago_estado, "url_pago": res_pago.get("url_pago")}, "id", pedido_id)
+        pedido["estado"] = pago_estado
+        pedido["url_pago"] = res_pago.get("url_pago")
+        pedido["instrucciones_pago"] = res_pago.get("instrucciones")
+
+        # 6. Generamos Magic Link
         try:
             from utils.magic_link import asignar_token_al_pedido
-            ok_token, token, err = asignar_token_al_pedido(sb, pedido.get("id"))
+            ok_token, token, err = asignar_token_al_pedido(sb, pedido_id)
             if ok_token:
                 pedido["magic_token"] = token
-                print(f"[checkout_data] Token generado: {pedido.get('id')}")
+                print(f"[checkout_data] Token generado: {pedido_id}")
         except Exception as e:
             print(f"[checkout_data] Error magic_link: {e}")
 
@@ -125,6 +155,7 @@ def enviar_email_confirmacion(pedido, tier):
     nombre = pedido.get("nombre_cliente", "Cliente")
     token = pedido.get("magic_token", "")
     pedido_id = pedido.get("id", "?")
+    url_pago = pedido.get("url_pago", "")
 
     panel_url = ""
     if token:
@@ -136,6 +167,12 @@ def enviar_email_confirmacion(pedido, tier):
 
     asunto = f"Confirmamos tu pedido - {tier['nombre']}"
 
+    instrucciones_extra = ""
+    if url_pago:
+        instrucciones_extra = f"\n\nFINALIZA TU PAGO AQUI:\n{url_pago}\n"
+    else:
+        instrucciones_extra = f"\n\n{presupuesto_instrucciones_manual(pedido)}"
+
     contenido = f"""Hola {nombre},
 
 Recibimos tu pedido de web. Gracias por confiar en SAMU IA.
@@ -143,12 +180,11 @@ Recibimos tu pedido de web. Gracias por confiar en SAMU IA.
 Resumen del pedido:
 - Plan: {tier['nombre']} - {tier['precio_label']}
 - ID del pedido: {pedido_id}
-
+{instrucciones_extra}
 PROXIMOS PASOS:
-1. Realiza el pago con los datos que se muestran en la pantalla
-2. Envia el comprobante por email
-3. Confirmaremos el pago en menos de 24 horas
-4. Recibiras otro email cuando tu web este lista
+1. Realiza el pago
+2. Confirmaremos el pago en menos de 24 horas
+3. Recibiras otro email cuando tu web este lista
 
 TU PANEL DE CLIENTE:
 {panel_url if panel_url else "(El link estara disponible en proximo email)"}
@@ -165,6 +201,9 @@ El equipo de SAMU IA
         return "OK" in resultado, resultado
     except Exception as e:
         return False, str(e)[:200]
+
+def presupuesto_instrucciones_manual(pedido):
+    return pedido.get("instrucciones_pago", "Por favor revisa los datos de pago en tu panel de cliente.")
 
 def crear_pedido_y_avanzar(datos_form, tier):
     with st.spinner("Creando tu pedido..."):
