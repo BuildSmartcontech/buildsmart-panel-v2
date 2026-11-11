@@ -1,8 +1,6 @@
 # utils/image_fetcher.py
 # ============================================
-# BUSCADOR DE IMÁGENES - V9.0 (HÍBRIDA PREMIUM)
-# ============================================
-# V9.0: Forza dimensiones uniformes para tarjetas y mejora busqueda Unsplash.
+# BUSCADOR DE IMÁGENES - V9.2 (UNIVERSAL)
 # ============================================
 
 from __future__ import annotations
@@ -29,17 +27,8 @@ UNSPLASH_ACCESS_KEY = (os.getenv("UNSPLASH_ACCESS_KEY") or "").strip()
 POLLINATIONS_URL = "https://image.pollinations.ai/prompt"
 POLLINATIONS_MODEL = "flux"
 
-try:
-    from utils.sector_detector import detectar_sector_completo, SECTORES_LOCALES
-    DETECTOR_DISPONIBLE = True
-except ImportError:
-    DETECTOR_DISPONIBLE = False
-    detectar_sector_completo = None
-    SECTORES_LOCALES = {"default": {"keywords_imagenes": ["business"]}}
-
 DIMENSIONES = {
     "hero": (1200, 675),
-    "producto": (900, 700), # Estandarizado para que las tarjetas midan igual
     "servicio": (900, 700),
     "default": (900, 700)
 }
@@ -56,23 +45,6 @@ class ImageResult:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
-
-def _sin_acentos(texto: str) -> str:
-    if not texto: return ""
-    return "".join(ch for ch in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(ch))
-
-def obtener_keywords_inteligentes(nombre, descripcion, sector):
-    keywords = []
-    if DETECTOR_DISPONIBLE and detectar_sector_completo:
-        try:
-            resultado = detectar_sector_completo(nombre or "", descripcion or "", sector or "")
-            kw = resultado.get("keywords_imagenes") or []
-            keywords.extend([str(x).strip() for x in kw if str(x).strip()])
-        except Exception: pass
-    
-    if not keywords:
-        keywords = ["professional business", "modern office", "team meeting"]
-    return keywords[:5]
 
 def buscar_imagenes(query: str, cantidad: int = 1, orientacion: str = "landscape") -> Dict[str, Any]:
     if not UNSPLASH_ACCESS_KEY:
@@ -115,10 +87,13 @@ def _svg_placeholder(titulo: str, width: int = 900, height: int = 700) -> str:
     return "data:image/svg+xml;charset=utf-8," + urllib.parse.quote(svg, safe="")
 
 def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 4) -> List[Dict[str, Any]]:
-    keywords = obtener_keywords_inteligentes(negocio_info.get("nombre", ""), negocio_info.get("descripcion", ""), negocio_info.get("sector", ""))
+    # Aqui ya no hay logica de "Tech" o "Panaderia". Usamos lo que mando el Estratega.
+    sector_completo = negocio_info.get("sector", "business")
+    keywords = sector_completo.split() if sector_completo else ["business"]
+    
     resultados = []
 
-    # 1. HERO (Pollinations para impacto visual)
+    # 1. HERO
     try:
         prompt_hero = f"wide angle shot of {keywords[0] if keywords else 'business'}, authentic professional environment"
         url_hero = generar_url_pollinations(prompt_hero, width=1200, height=675, seed=137)
@@ -126,9 +101,12 @@ def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 
     except Exception:
         resultados.append(ImageResult(**{"url_regular": _svg_placeholder("Hero"), "variante": "hero"}))
 
-    # 2. SERVICIOS (Unsplash para alta calidad y uniformidad)
+    # 2. SERVICIOS
     for i in range(1, cantidad):
+        # Tomamos las keywords que genero el Estratega
         kw = keywords[i % len(keywords)] if keywords else "business team"
+        
+        # Si las keywords tienen sentido, Unsplash devuelve fotos perfectas
         res = buscar_imagenes(kw, cantidad=1, orientacion="landscape")
         
         if res.get("exito") and res.get("imagenes"):
@@ -136,7 +114,6 @@ def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 
             img["variante"] = "servicio"
             resultados.append(img)
         else:
-            # Fallback si Unsplash falla
             resultados.append(ImageResult(url_regular=_svg_placeholder(kw), url_small=_svg_placeholder(kw), url_thumb=_svg_placeholder(kw), autor="Fallback", fuente="fallback", variante="servicio").to_dict())
 
     return resultados
