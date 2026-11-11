@@ -2,16 +2,13 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V1.2: Integracion de cobro por ePayco en 4to cambio.
+# V2.0: Vista previa, contador, paquetes de pago ePayco y retorno automático.
 # ============================================
 
 import streamlit as st
 import datetime
 from panels.web import landing_data as D
 
-# ==========================================
-# EMOJIS ASCII-SAFE
-# ==========================================
 E_OK        = "\u2705"
 E_X         = "\u274C"
 E_AVISO     = "\u26A0\uFE0F"
@@ -29,13 +26,9 @@ E_DINERO    = "\U0001F4B0"
 E_LLAVE     = "\U0001F511"
 E_RAYO      = "\u26A1"
 
-LIMITE_MODIFICACIONES = 3
+LIMITE_MODIFICACIONES_BASE = 3
 
-TIER_LABELS = {
-    1: "Premium Esencial",
-    2: "Premium + CRM",
-    3: "Premium Plus",
-}
+TIER_LABELS = {1: "Premium Esencial", 2: "Premium + CRM", 3: "Premium Plus"}
 
 ESTADOS = {
     "pendiente_pago_manual": {"label": "Pendiente pago", "icono": E_RELOJ},
@@ -80,10 +73,17 @@ def _solicitar_modificacion(sb, pedido, instruccion):
     web_id = pedido.get("web_id")
     usuario_id = pedido.get("email", "usuario_web") 
     usadas = int(pedido.get("modificaciones_usadas", 0))
+    extras = int(pedido.get("modificaciones_extra", 0))
+    
+    # Calculamos el límite dinámico
+    limite_total = LIMITE_MODIFICACIONES_BASE + extras
+    restantes = max(0, limite_total - usadas)
+
+    if restantes <= 0:
+        return False, "Sin cambios disponibles.", None
 
     try:
         from utils.web_editor_v2 import editar_y_guardar_v2
-        from utils.web_publisher import publicar_web
         
         contexto = f"Negocio: {pedido.get('datos_negocio', {}).get('nombre_negocio', '')}\n"
         contexto += f"Sector: {pedido.get('datos_negocio', {}).get('sector', '')}"
@@ -96,25 +96,29 @@ def _solicitar_modificacion(sb, pedido, instruccion):
                 {"modificaciones_usadas": usadas + 1, "updated_at": datetime.datetime.now().isoformat()},
                 "id", pedido_id
             )
-            publicar_web(usuario_id, web_id)
-            return True, "¡Tu web se ha modificado y republicado con exito!"
+            return True, "¡Tu web se ha modificado! Revisa la vista previa abajo y publica cuando estés listo.", resultado.get("html_nuevo")
         else:
-            return False, f"Error de la IA: {resultado.get('error')}"
+            return False, f"Error de la IA: {resultado.get('error')}", None
             
     except Exception as e:
-        return False, f"Error del sistema: {str(e)}"
+        return False, f"Error del sistema: {str(e)}", None
 
-def _renderizar_login():
-    st.markdown(f"# {E_LLAVE} Acceso al panel")
-    st.markdown("Para acceder a tu panel, usa el link que te enviamos por email.")
-    st.divider()
-    st.markdown("### Ingresá tu email")
-    email = st.text_input("Tu email", placeholder="tu@email.com", key="panel_email")
-    if st.button(f"{E_OK} Enviar link de acceso", use_container_width=True, type="primary"):
-        if not email or "@" not in email:
-            st.error(f"{E_AVISO} Email invalido")
-        else:
-            st.info(f"{E_AVISO} Funcion proximamente. Escribinos a hola@samu-ia.com")
+def _procesar_retorno_pago(sb, pedido_id, paquete):
+    """Si ePayco nos devuelve con pago=exitoso, sumamos los cambios."""
+    try:
+        # Obtenemos los extras actuales
+        res = sb.table("pedidos_web").select("modificaciones_extra").eq("id", pedido_id).execute()
+        if not res.data:
+            return False
+        
+        extras_actuales = int(res.data[0].get("modificaciones_extra", 0))
+        nuevos_extras = extras_actuales + int(paquete)
+        
+        sb.update("pedidos_web", {"modificaciones_extra": nuevos_extras}, "id", pedido_id)
+        return True
+    except Exception as e:
+        print(f"[PANEL] Error procesando pago: {e}")
+        return False
 
 def _renderizar_panel(pedido, sb):
     pedido_id = pedido.get("id", "?")
@@ -128,10 +132,28 @@ def _renderizar_panel(pedido, sb):
     datos_negocio = pedido.get("datos_negocio") or {}
     web_url = pedido.get("web_url", "")
     web_id = pedido.get("web_id", "")
+    token = pedido.get("magic_token", "")
     
-    modificaciones_usadas = int(pedido.get("modificaciones_usadas", 0))
-    modificaciones_restantes = max(0, LIMITE_MODIFICACIONES - modificaciones_usadas)
+    usadas = int(pedido.get("modificaciones_usadas", 0))
+    extras = int(pedido.get("modificaciones_extra", 0))
+    limite_total = LIMITE_MODIFICACIONES_BASE + extras
+    restantes = max(0, limite_total - usadas)
 
+    # --- DETECCIÓN DE RETORNO DE EPAYCO ---
+    try:
+        params = st.query_params
+        if params.get("pago") == "exitoso":
+            paquete = int(params.get("paquete", 1))
+            if _procesar_retorno_pago(sb, pedido_id, paquete):
+                st.success(f"{E_OK} ¡Pago recibido! Se han añadido {paquete} cambios extra a tu cuenta.")
+                # Limpiamos la URL para que no se procese dos veces
+                st.query_params.clear()
+                st.query_params.update({"web": "panel", "token": token})
+                st.rerun()
+    except Exception:
+        pass
+
+    # --- HEADER ---
     st.markdown(f"# {E_CORONA} Tu panel - SAMU IA")
     col_h1, col_h2 = st.columns([2, 1])
     with col_h1:
@@ -150,6 +172,7 @@ def _renderizar_panel(pedido, sb):
 
     st.divider()
 
+    # --- SECCIÓN WEB ---
     st.markdown(f"### {E_GLOBO} Tu web")
     if web_url:
         st.success(f"{E_OK} Tu web esta publicada y activa")
@@ -158,44 +181,73 @@ def _renderizar_panel(pedido, sb):
         st.write("")
         st.markdown(f"#### {E_RAYO} Modificar mi web")
         
-        if modificaciones_restantes > 0:
-            st.info(f"Tienes **{modificaciones_restantes}** modificaciones gratis restantes (de {LIMITE_MODIFICACIONES}).")
+        if restantes > 0:
+            st.info(f"Tienes **{restantes}** modificaciones disponibles (de un total de {limite_total}).")
             
             with st.form("form_modificacion"):
                 instruccion = st.text_area("¿Que quieres cambiar?", placeholder="Ej: Cambia el titulo a 'Bienvenidos' y pon el fondo de color gris oscuro.", height=100)
                 btn_mod = st.form_submit_button(f"{E_COHETE} Aplicar cambio", type="primary", use_container_width=True)
                 
                 if btn_mod and instruccion.strip():
-                    with st.spinner("La IA esta aplicando los cambios... (esto puede tardar 1 minuto)"):
-                        exito, msg = _solicitar_modificacion(sb, pedido, instruccion)
+                    with st.spinner("La IA esta aplicando los cambios..."):
+                        exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion)
                     if exito:
+                        st.session_state["preview_html"] = html_nuevo
                         st.success(msg)
                         st.rerun()
                     else:
                         st.error(msg)
                 elif btn_mod:
                     st.warning("Escribe lo que quieres cambiar.")
-        else:
-            st.warning(f"Has agotado tus {LIMITE_MODIFICACIONES} modificaciones gratis.")
-            st.markdown("Cada modificacion adicional cuesta **USD 5**.")
             
-            # --- NUEVA LOGICA DE COBRO EPAYCO ---
+            if "preview_html" in st.session_state and st.session_state["preview_html"]:
+                st.divider()
+                st.markdown("### 👁️ Vista Previa de tus cambios")
+                st.caption("Así se verá tu web. Si todo está bien, publícalo en vivo.")
+                st.components.v1.html(st.session_state["preview_html"], height=600, scrolling=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(f"{E_COHETE} Publicar cambios en vivo", type="primary", use_container_width=True):
+                        with st.spinner("Publicando en Netlify..."):
+                            from utils.web_publisher import publicar_web
+                            res_pub = publicar_web(email, web_id)
+                            if res_pub.get("exito"):
+                                st.success("¡Cambios publicados en tu web!")
+                                del st.session_state["preview_html"]
+                                st.rerun()
+                            else:
+                                st.error(f"Error publicando: {res_pub.get('error')}")
+                with col2:
+                    if st.button("Descartar vista previa", use_container_width=True):
+                        del st.session_state["preview_html"]
+                        st.rerun()
+
+        else:
+            st.warning(f"Has agotado tus {limite_total} modificaciones disponibles.")
+            st.markdown("Puedes comprar más cambios para seguir editando antes de publicar.")
+            
             from panels.web.pagos import obtener_proveedor, proveedor_actual
             prov_nombre = proveedor_actual()
             proveedor = obtener_proveedor(prov_nombre, {})
-            pedido_pago_id = f"mod_extra_{pedido_id}_{int(datetime.datetime.now().timestamp())}"
             
-            res_pago = proveedor.crear_pago(
-                pedido_id=pedido_pago_id,
-                monto=5.0,
-                descripcion=f"Modificacion extra Web Gancho - {nombre}",
-                metadata={"email": email}
-            )
-            
-            if res_pago.get("exito") and res_pago.get("url_pago"):
-                st.markdown(f'<a href="{res_pago["url_pago"]}" target="_blank"><button style="background-color:#14B8A6; color:black; padding:10px 20px; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">Pagar $5 USD con ePayco</button></a>', unsafe_allow_html=True)
-            else:
-                st.info("Contacta a soporte para adquirir mas modificaciones.")
+            col_p1, col_p2 = st.columns(2)
+            with col_p1:
+                if st.button(f"{E_DINERO} Comprar 1 cambio ($5)", use_container_width=True):
+                    id_pago = f"mod_1_{pedido_id}_{int(datetime.datetime.now().timestamp())}"
+                    res_pago = proveedor.crear_pago(id_pago, 5.0, f"1 Cambio extra - {nombre}", metadata={"token": token})
+                    if res_pago.get("exito") and res_pago.get("url_pago"):
+                        st.markdown(f'<meta http-equiv="refresh" content="0; url={res_pago["url_pago"]}">', unsafe_allow_html=True)
+                    else:
+                        st.error("Error generando link de pago.")
+            with col_p2:
+                if st.button(f"{E_DINERO} Comprar 3 cambios ($12)", use_container_width=True):
+                    id_pago = f"mod_3_{pedido_id}_{int(datetime.datetime.now().timestamp())}"
+                    res_pago = proveedor.crear_pago(id_pago, 12.0, f"3 Cambios extra - {nombre}", metadata={"token": token})
+                    if res_pago.get("exito") and res_pago.get("url_pago"):
+                        st.markdown(f'<meta http-equiv="refresh" content="0; url={res_pago["url_pago"]}">', unsafe_allow_html=True)
+                    else:
+                        st.error("Error generando link de pago.")
 
     else:
         st.warning(f"{E_RELOJ} Tu web aun no esta lista.")
@@ -206,21 +258,17 @@ def _renderizar_panel(pedido, sb):
 
     st.divider()
 
+    # --- SECCIÓN LEADS ---
     if tier_num >= 2:
         _renderizar_leads(sb, pedido_id, tier_num)
-    else:
-        st.info(f"{E_AVISO} **No tenes CRM incluido en tu plan.**")
 
+    # --- DETALLES ---
     with st.expander(f"{E_DOC} Detalles del pedido"):
         st.text(f"ID: {pedido_id}")
         st.text(f"Plan: {tier_label} - USD {precio:.0f}")
         st.text(f"Fecha: {_fmt_fecha(pedido.get('created_at'))}")
         st.text(f"Nombre: {datos_negocio.get('nombre_negocio', '?')}")
         st.text(f"Sector: {datos_negocio.get('sector', '?')}")
-
-    st.divider()
-    st.markdown(f"### {E_MALETIN} Renovacion")
-    st.info(f"**Tu hosting es gratis por 1 año.**\nDespues de eso: USD 59/año. Te avisaremos 30 dias antes.")
 
 def _renderizar_leads(sb, pedido_id, tier_num):
     st.markdown(f"### {E_USUARIO} Tus leads (CRM)")
@@ -242,20 +290,12 @@ def _renderizar_lead(sb, lead):
     lead_id = lead.get("id", "?")
     nombre = lead.get("nombre", "Sin nombre")
     email = lead.get("email", "-")
-    telefono = lead.get("telefono", "")
-    mensaje = lead.get("mensaje", "")
-    estado = lead.get("estado", "nuevo")
     fecha = _fmt_fecha(lead.get("created_at"))
 
     with st.expander(f"{E_USUARIO} [{fecha}] {nombre} - {email}"):
-        col_a, col_b = st.columns([2, 1])
-        with col_a:
-            if email and email != "-": st.markdown(f"{E_EMAIL} {email}")
-            if telefono: st.markdown(f"{E_TELEFONO} {telefono}")
-            if mensaje: st.text(mensaje[:200])
-        with col_b:
-            st.markdown(f"**Estado:** {estado}")
-
+        if lead.get("telefono"): st.markdown(f"{E_TELEFONO} {lead.get('telefono')}")
+        if lead.get("mensaje"): st.text(lead.get("mensaje")[:200])
+        
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("Contactado", key=f"cont_{lead_id}", use_container_width=True):
@@ -283,7 +323,8 @@ def renderizar():
         token = ""
 
     if not token:
-        _renderizar_login()
+        st.markdown(f"# {E_LLAVE} Acceso al panel")
+        st.info("Para acceder, usa el link que enviamos a tu correo.")
         return
 
     from utils.magic_link import validar_token
