@@ -1,8 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V3.1 (MODO ESTRICTO)
-# ============================================
-# V3.1: Temperatura reducida a 0.1 para forzar precision en CSS y JSON.
+# EDITOR DE WEBS - V3.2 (CONTEXTO DE TÍTULOS)
 # ============================================
 
 import os
@@ -10,6 +8,7 @@ import sys
 import re
 import json
 import time
+from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -29,13 +28,29 @@ TIEMPO_ESPERA = 2
 
 def extraer_estructura_html(html):
     if not html: return "HTML vacio"
+    
+    soup = BeautifulSoup(html, 'html.parser')
     partes = []
+    
+    # Extraemos los textos de los títulos para que la IA sepa exactamente qué hay
+    titulos = []
+    for tag in ['h1', 'h2', 'h3']:
+        for el in soup.find_all(tag):
+            texto = el.get_text(strip=True)
+            if texto:
+                titulos.append(f"<{tag}>: \"{texto}\"")
+    
+    if titulos:
+        partes.append("TITULOS ACTUALES:\n" + "\n".join(titulos))
+        
+    # Extraemos clases CSS
     clases = set()
-    for match in re.finditer(r'class\s*=\s*["\']([^"\']+)["\']', html, re.IGNORECASE):
-        for c in match.group(1).split():
+    for el in soup.find_all(class_=True):
+        for c in el.get('class', []):
             clases.add(c)
     if clases:
-        partes.append("CLASES CSS EXISTENTES: " + ", ".join(sorted(list(clases))[:30]))
+        partes.append("CLASES CSS: " + ", ".join(sorted(list(clases))[:20]))
+        
     return "\n\n".join(partes)
 
 def parsear_json_cambios(texto):
@@ -53,10 +68,6 @@ def parsear_json_cambios(texto):
         return None
 
 def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_actual=None):
-    print("=" * 60)
-    print("EDITANDO WEB (MODO ESTRICTO) - V3.1")
-    print("=" * 60)
-    
     if gateway is None:
         return {"exito": False, "error": "Gateway no disponible"}
 
@@ -75,13 +86,12 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
     for intento in range(1, MAX_INTENTOS + 1):
         try:
             prompt = generar_prompt_edicion_estructurada(estructura, instruccion, contexto_negocio)
-            sistema = "Eres un experto en CSS. Devuelves SOLO JSON."
+            sistema = "Eres un experto en CSS y HTML. Devuelves SOLO JSON."
             
-            # --- AQUI ESTA LA MAGIA: TEMPERATURE = 0.1 (MODO ESTRICTO) ---
             respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1)
 
             data = parsear_json_cambios(respuesta)
-            if not data or "reglas_css" not in data:
+            if not data:
                 time.sleep(TIEMPO_ESPERA)
                 continue
 

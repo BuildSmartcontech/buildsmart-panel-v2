@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V8.1 (DOBLE ORDEN BLINDADA)
+# PROMPTS DE CALIDAD V8.3 (CONTEXTO DE TÍTULOS)
 # ============================================
 
 import sys
@@ -20,40 +20,40 @@ def generar_prompt_web(*args, **kwargs):
     pass
 
 def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, contexto_negocio=""):
-    prompt = f"""Eres un experto en CSS, HTML y diseño web. El usuario escribe con faltas de ortografía y no sabe términos técnicos.
+    prompt = f"""Eres un experto en CSS, HTML y edición de contenido.
 
 ## CONTEXTO DEL NEGOCIO
 {contexto_negocio if contexto_negocio else "Negocio generico"}
 
-## ESTRUCTURA ACTUAL DEL HTML
+## ESTRUCTURA ACTUAL DE LA WEB
 {estructura_resumen}
 
-## INSTRUCCIÓN DEL USUARIO (puede tener errores)
+## INSTRUCCIÓN DEL USUARIO
 "{instruccion}"
 
 ## TU TAREA
 Analiza lo que el usuario quiere y devuelve un JSON con las modificaciones.
 
-¡ATENCIÓN! Si el usuario pide AGREGAR INFORMACIÓN o NUEVAS SECCIONES (ej: "incluye info de la Amazonía"), DEBES generar obligatoriamente el código HTML en `secciones_html`. 
-Si además pide un cambio de color o diseño, TAMBIÉN debes llenar `reglas_css`. ¡Haz las dos cosas si te las pide!
+¡ATENCIÓN AL CONTEXTO! Revisa los "TITULOS ACTUALES" para saber qué texto hay en la página.
+Si el usuario dice "Cambia el título principal", mira cuál es el más grande (usualmente el del Hero, ej. h1 o h2) y usa el texto_actual para que el sistema sepa cuál borrar.
 
 ## FORMATO DE RESPUESTA (SOLO JSON):
 {{
+  "reemplazos_texto": [
+    {{ "selector": "h2", "texto_actual": "Descubre Colombia", "texto_nuevo": "Los mejores tours de Colombia" }}
+  ],
   "reglas_css": [
-    "h1, h2, a {{ color: #FFFF00 !important; }}"
+    "h2 {{ color: #FFFF00 !important; }}"
   ],
-  "secciones_html": [
-    "<section style='padding: 60px 20px; background-color: #0B0C14; color: white; text-align: center;'><h2>La Amazonía</h2><p>Descubre la selva tropical más grande del mundo, su biodiversidad y sus ríos majestuosos.</p></section>"
-  ],
-  "explicacion": "Cambié el color del texto a amarillo y agregué la sección de la Amazonía."
+  "secciones_html": [],
+  "explicacion": "Cambié el título principal del Hero."
 }}
 
 ## REGLAS CRÍTICAS
 1. Devuelve SOLO JSON válido.
-2. Usa `!important` en todas las reglas CSS.
-3. Si el usuario pide agregar texto/secciones, ES OBLIGATORIO que generes el bloque HTML completo en `secciones_html`. Usa estilos inline para que combine con el diseño.
-4. Si SOLO pide cambios visuales (ej: "pon el fondo azul"), deja `secciones_html` como `[]`.
-5. Si SOLO pide agregar texto (ej: "agrega un párrafo sobre nosotros"), deja `reglas_css` como `[]`.
+2. Para reemplazar texto, usa `reemplazos_texto`. Incluye `texto_actual` (una parte del texto viejo) y `texto_nuevo`. Esto es CRUCIAL para no modificar el título equivocado.
+3. Si agregas una sección nueva, usa `secciones_html`.
+4. Si solo pides colores, deja `reemplazos_texto` y `secciones_html` como `[]`.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt
