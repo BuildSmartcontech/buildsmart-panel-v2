@@ -1,6 +1,6 @@
 # utils/image_fetcher.py
 # ============================================
-# BUSCADOR DE IMÁGENES - V9.4 (UNSPLASH PRIORITARIO)
+# BUSCADOR DE IMÁGENES - V9.5 (PICSUM FALLBACK)
 # ============================================
 
 from __future__ import annotations
@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 
 UNSPLASH_API_URL = "https://api.unsplash.com"
 UNSPLASH_ACCESS_KEY = (os.getenv("UNSPLASH_ACCESS_KEY") or "").strip()
-POLLINATIONS_URL = "https://image.pollinations.ai/prompt"
-POLLINATIONS_MODEL = "flux"
 
 @dataclass
 class ImageResult:
@@ -63,14 +61,6 @@ def buscar_imagenes(query: str, cantidad: int = 1, orientacion: str = "landscape
         pass
     return {"exito": False, "imagenes": []}
 
-def generar_url_pollinations(prompt: str, width=1200, height=675, seed=None):
-    if not prompt: prompt = "professional business"
-    prompt_mejorado = f"{prompt}, photorealistic, 8k, cinematic lighting, professional photography"
-    prompt_encoded = urllib.parse.quote(prompt_mejorado)
-    url = f"{POLLINATIONS_URL}/{prompt_encoded}?width={width}&height={height}&model={POLLINATIONS_MODEL}&nologo=true"
-    if seed: url += f"&seed={seed}"
-    return url
-
 def _svg_placeholder(titulo: str, width: int = 900, height: int = 700) -> str:
     titulo = html_escape(str(titulo or "Imagen")[:80], quote=True)
     svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}"><rect width="100%" height="100%" fill="#0B0C14"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="30" fill="#14B8A6">{titulo}</text></svg>'
@@ -82,10 +72,9 @@ def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 
     
     resultados = []
 
-    # 1. HERO (Ahora usamos Unsplash como prioridad, Pollinations como fallback)
+    # 1. HERO (Unsplash prioritario, Picsum como fallback infalible)
     try:
         kw_hero = keywords[0] if keywords else "business"
-        # Buscamos la imagen hero en Unsplash
         res_hero = buscar_imagenes(kw_hero + " wide shot", cantidad=1, orientacion="landscape")
         
         if res_hero.get("exito") and res_hero.get("imagenes"):
@@ -93,14 +82,13 @@ def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 
             img_hero["variante"] = "hero"
             resultados.append(img_hero)
         else:
-            # Fallback a Pollinations si Unsplash falla o no hay API Key
-            prompt_hero = f"wide angle shot of {kw_hero}, authentic professional environment"
-            url_hero = generar_url_pollinations(prompt_hero, width=1200, height=675, seed=137)
-            resultados.append(ImageResult(url_regular=url_hero, url_small=url_hero, url_thumb=url_hero, autor="Flux", fuente="pollinations", variante="hero").to_dict())
+            # PICSUM FALLBACK: Garantiza una imagen real siempre
+            url_hero = f"https://picsum.photos/seed/hero_{int(time.time())}/1200/675"
+            resultados.append(ImageResult(url_regular=url_hero, url_small=url_hero, url_thumb=url_hero, autor="Picsum", fuente="picsum", variante="hero").to_dict())
     except Exception:
         resultados.append(ImageResult(**{"url_regular": _svg_placeholder("Hero"), "variante": "hero"}))
 
-    # 2. SERVICIOS (Siempre Unsplash, si falla Pollinations)
+    # 2. SERVICIOS (Unsplash prioritario, Picsum como fallback)
     for i in range(1, cantidad):
         kw = keywords[i % len(keywords)] if keywords else "business"
         
@@ -111,8 +99,8 @@ def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 
             img["variante"] = "servicio"
             resultados.append(img)
         else:
-            prompt_serv = f"{kw}, professional photo, detailed"
-            url_serv = generar_url_pollinations(prompt_serv, width=900, height=700, seed=i*42)
-            resultados.append(ImageResult(url_regular=url_serv, url_small=url_serv, url_thumb=url_serv, autor="Flux", fuente="pollinations", variante="servicio").to_dict())
+            # PICSUM FALLBACK
+            url_serv = f"https://picsum.photos/seed/serv_{i}_{int(time.time())}/900/700"
+            resultados.append(ImageResult(url_regular=url_serv, url_small=url_serv, url_thumb=url_serv, autor="Picsum", fuente="picsum", variante="servicio").to_dict())
 
     return resultados

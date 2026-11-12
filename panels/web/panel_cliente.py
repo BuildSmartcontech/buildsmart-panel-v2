@@ -2,7 +2,7 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V3.4: UI limpia, sin Netlify, textos claros y vista previa estable.
+# V3.5: Recuperacion forzada de vista previa desde Base de Datos tras Reboot.
 # ============================================
 
 import streamlit as st
@@ -204,7 +204,7 @@ def _renderizar_panel(pedido, sb):
     if not web_id and not web_url:
         st.warning(f"{E_RELOJ} Tu web aun no esta creada.")
         if estado == "pagado":
-            st.markdown("Haz clic en el botón de abajo para que nuestra IA construya tu página web con los datos que nos diste.")
+            st.markdown("Haz clic en el botón de abajo para que nuestra IA construya tu página web.")
             if st.button(f"{E_COHETE} Generar mi web ahora", type="primary", use_container_width=True):
                 with st.spinner("La IA está construyendo tu página..."):
                     exito, msg, html_generado = _generar_web_inicial(sb, pedido)
@@ -219,14 +219,19 @@ def _renderizar_panel(pedido, sb):
 
     # --- CASO 2: LA WEB YA EXISTE ---
     else:
-        if "preview_html" not in st.session_state:
+        # RECUPERACIÓN FORZADA: Si el reboot borró la memoria, lo leemos de la base de datos / storage
+        if "preview_html" not in st.session_state or not st.session_state["preview_html"]:
             try:
                 from utils.web_storage import leer_web
+                print(f"[PANEL] Intentando recuperar HTML de BD para {web_id}...")
                 res_leer = leer_web(email, web_id)
                 if res_leer.get("exito"):
                     st.session_state["preview_html"] = res_leer.get("html")
-            except Exception:
-                pass
+                    print(f"[PANEL] HTML recuperado exitosamente.")
+                else:
+                    print(f"[PANEL] No se pudo recuperar HTML: {res_leer.get('error')}")
+            except Exception as e:
+                print(f"[PANEL] Error recuperando HTML: {e}")
 
         if web_url:
             st.success(f"{E_OK} Tu web esta publicada y activa")
