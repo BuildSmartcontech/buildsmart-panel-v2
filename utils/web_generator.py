@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V18.3 (IMPORTS CORREGIDOS)
+# GENERADOR DE WEBS - V18.5 (PROMPT BLINDADO)
 # ============================================
 
 import os
@@ -10,15 +10,9 @@ import time
 import json
 from bs4 import BeautifulSoup
 
-# Aseguramos la ruta raíz
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# IMPORTACIONES ABSOLUTAS (Sin Try/Except para evitar errores ocultos)
-from utils.web_prompts_data import (
-    DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, 
-    REGLAS_SALIDA, REGLAS_ORTOGRAFIA, REGLAS_FOOTER_LEGAL, 
-    construir_instrucciones_dinamicas
-)
+from utils.web_prompts_data import DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM, REGLAS_FORMULARIO, REGLAS_SALIDA, REGLAS_ORTOGRAFIA, REGLAS_FOOTER_LEGAL, construir_instrucciones_dinamicas
 from utils.web_validator import validar_completo, limpiar_html
 from utils.image_fetcher import obtener_urls_imagenes_negocio
 from utils.openrouter_manager import consultar_openrouter
@@ -27,28 +21,34 @@ MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
 
 def generar_copy_estrategico(datos_negocio, modelo_ia):
+    sector = datos_negocio.get('sector', 'General')
+    desc = datos_negocio.get('descripcion', '')
+    
     prompt = f"""
-Eres un Director de Marketing Digital experto en ventas B2B.
 Analiza el siguiente negocio:
 - Nombre: {datos_negocio.get('nombre')}
-- Sector: {datos_negocio.get('sector')}
-- Descripcion: {datos_negocio.get('descripcion')}
+- Sector: {sector}
+- Descripcion: {desc}
 
-Redacta el Copy exacto para su pagina web premium.
+Redacta el Copy exacto para su pagina web premium. 
+¡ATENCIÓN! Los servicios DEBEN estar directamente relacionados con el sector '{sector}' y la descripción.
+¡CRÍTICO! Genera las 'keywords_imagenes' EXCLUSIVAMENTE EN INGLÉS, ya que se usarán para buscar fotos profesionales en Unsplash. (Ejemplo: si el sector es inmobiliaria, usa ["luxury modern house", "real estate agent", "city skyline"]).
+
 Devuelve UNICAMENTE un JSON valido:
 {{
   "headline": "Titulo impactante (max 10 palabras)",
   "subheadline": "Subtitulo persuasivo (max 25 palabras)",
   "servicios": [
-    {{"titulo": "Servicio 1", "descripcion": "Texto persuasivo (maximo 25 palabras, asegurando que la idea termine completa con punto final y con ortografia perfecta)"}},
-    {{"titulo": "Servicio 2", "descripcion": "Texto persuasivo (maximo 25 palabras, asegurando que la idea termine completa con punto final y con ortografia perfecta)"}},
-    {{"titulo": "Servicio 3", "descripcion": "Texto persuasivo (maximo 25 palabras, asegurando que la idea termine completa con punto final y con ortografia perfecta)"}}
+    {{"titulo": "Servicio 1", "descripcion": "Texto persuasivo (max 25 palabras, idea completa)"}},
+    {{"titulo": "Servicio 2", "descripcion": "Texto persuasivo (max 25 palabras, idea completa)"}},
+    {{"titulo": "Servicio 3", "descripcion": "Texto persuasivo (max 25 palabras, idea completa)"}}
   ],
   "sobre_nosotros": "Parrafo de 40 palabras.",
-  "keywords_imagenes": ["keyword_1", "keyword_2", "keyword_3"]
+  "keywords_imagenes": ["keyword_1_in_english", "keyword_2_in_english", "keyword_3_in_english"]
 }}
 """
-    sistema = "Eres un copywriter experto. Devuelves solo JSON."
+    # EL CAMBIO CLAVE DEL ASESOR (Punto 2)
+    sistema = "Eres un redactor publicitario experto en el negocio específico del cliente. No hables de diseño web ni marketing digital a menos que el cliente sea una agencia."
     
     try:
         respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia)
@@ -169,32 +169,27 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
 
     form_section = soup.find(id='contacto') or soup.find(class_=re.compile('contact', re.I))
     if form_section:
-        if "{{FORMULARIO}}" in html or not form_section.find('form'):
+        if not form_section.find('form'):
             form_html = """
-            <form action="/submit_lead" method="POST" style="display:flex; flex-direction:column; gap:15px; max-width:500px; margin:0 auto;">
-                <input type="text" name="nombre" placeholder="Nombre completo" required style="padding:15px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:white;">
-                <input type="email" name="email" placeholder="Correo electronico" required style="padding:15px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:white;">
-                <textarea name="mensaje" placeholder="En que podemos ayudarte?" required style="padding:15px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:white; min-height:120px;"></textarea>
-                <button type="submit" class="btn" style="padding:15px; border-radius:8px; border:none; background:#14B8A6; color:black; font-weight:bold; cursor:pointer;">Enviar Mensaje</button>
+            <form action="/submit_lead" method="POST" style="display:flex; flex-direction:column; gap:15px; max-width:500px; margin:40px auto; position: relative; z-index: 10;">
+                <input type="text" name="nombre" placeholder="Nombre completo" required style="padding:15px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:white; width:100%;">
+                <input type="email" name="email" placeholder="Correo electronico" required style="padding:15px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:white; width:100%;">
+                <textarea name="mensaje" placeholder="En que podemos ayudarte?" required style="padding:15px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:white; min-height:120px; width:100%;"></textarea>
+                <button type="submit" class="btn" style="padding:15px; border-radius:8px; border:none; background:#14B8A6; color:black; font-weight:bold; cursor:pointer; width:100%;">Enviar Mensaje</button>
             </form>
             """
             form_soup = BeautifulSoup(form_html, 'html.parser')
-            if "{{FORMULARIO}}" in html:
-                html = html.replace("{{FORMULARIO}}", str(form_soup))
-                soup = BeautifulSoup(html, 'html.parser')
-            else:
-                form_section.append(form_soup)
+            form_section.append(form_soup)
 
     return str(soup)
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V18.3")
+    print("GENERANDO WEB - V18.5")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
-    print(f"[DIAGNOSTICO] Logo en datos_negocio: {'SI' if logo_b64 else 'NO'}")
-
+    
     copy_raw = generar_copy_estrategico(datos_negocio, modelo_ia)
     if not copy_raw: return {"exito": False, "html": None, "error": "Fallo el copy."}
     try:
@@ -214,7 +209,7 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
     
     faltan_servicios = 3 - len(imagenes["servicios"])
     if faltan_servicios > 0 or not imagenes["hero"]:
-        print(f"[DIAGNOSTICO] Faltan imágenes. Buscando {faltan_servicios} en la IA...")
+        # Ahora las keywords vienen en inglés desde la IA
         keywords = copy.get("keywords_imagenes", ["business"])
         negocio_info = {"nombre": nombre_negocio, "sector": " ".join(keywords), "descripcion": datos_negocio.get("descripcion")}
         poll = obtener_urls_imagenes_negocio(negocio_info, cantidad=4)

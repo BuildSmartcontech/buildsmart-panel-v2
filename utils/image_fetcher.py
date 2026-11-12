@@ -1,11 +1,10 @@
 # utils/image_fetcher.py
 # ============================================
-# BUSCADOR DE IMÁGENES - V9.2 (UNIVERSAL)
+# BUSCADOR DE IMÁGENES - V9.4 (UNSPLASH PRIORITARIO)
 # ============================================
 
 from __future__ import annotations
-import os, sys, re, json, time, hashlib, unicodedata, urllib.parse, logging, threading
-from collections import deque
+import os, sys, re, json, time, hashlib, unicodedata, urllib.parse, logging
 from dataclasses import asdict, dataclass
 from html import escape as html_escape
 from pathlib import Path
@@ -18,20 +17,11 @@ sys.path.insert(0, str(BASE_DIR))
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    logger.addHandler(handler)
 
 UNSPLASH_API_URL = "https://api.unsplash.com"
 UNSPLASH_ACCESS_KEY = (os.getenv("UNSPLASH_ACCESS_KEY") or "").strip()
 POLLINATIONS_URL = "https://image.pollinations.ai/prompt"
 POLLINATIONS_MODEL = "flux"
-
-DIMENSIONES = {
-    "hero": (1200, 675),
-    "servicio": (900, 700),
-    "default": (900, 700)
-}
 
 @dataclass
 class ImageResult:
@@ -87,26 +77,33 @@ def _svg_placeholder(titulo: str, width: int = 900, height: int = 700) -> str:
     return "data:image/svg+xml;charset=utf-8," + urllib.parse.quote(svg, safe="")
 
 def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 4) -> List[Dict[str, Any]]:
-    # Aqui ya no hay logica de "Tech" o "Panaderia". Usamos lo que mando el Estratega.
     sector_completo = negocio_info.get("sector", "business")
     keywords = sector_completo.split() if sector_completo else ["business"]
     
     resultados = []
 
-    # 1. HERO
+    # 1. HERO (Ahora usamos Unsplash como prioridad, Pollinations como fallback)
     try:
-        prompt_hero = f"wide angle shot of {keywords[0] if keywords else 'business'}, authentic professional environment"
-        url_hero = generar_url_pollinations(prompt_hero, width=1200, height=675, seed=137)
-        resultados.append(ImageResult(url_regular=url_hero, url_small=url_hero, url_thumb=url_hero, autor="Flux", fuente="pollinations", variante="hero").to_dict())
+        kw_hero = keywords[0] if keywords else "business"
+        # Buscamos la imagen hero en Unsplash
+        res_hero = buscar_imagenes(kw_hero + " wide shot", cantidad=1, orientacion="landscape")
+        
+        if res_hero.get("exito") and res_hero.get("imagenes"):
+            img_hero = res_hero["imagenes"][0]
+            img_hero["variante"] = "hero"
+            resultados.append(img_hero)
+        else:
+            # Fallback a Pollinations si Unsplash falla o no hay API Key
+            prompt_hero = f"wide angle shot of {kw_hero}, authentic professional environment"
+            url_hero = generar_url_pollinations(prompt_hero, width=1200, height=675, seed=137)
+            resultados.append(ImageResult(url_regular=url_hero, url_small=url_hero, url_thumb=url_hero, autor="Flux", fuente="pollinations", variante="hero").to_dict())
     except Exception:
         resultados.append(ImageResult(**{"url_regular": _svg_placeholder("Hero"), "variante": "hero"}))
 
-    # 2. SERVICIOS
+    # 2. SERVICIOS (Siempre Unsplash, si falla Pollinations)
     for i in range(1, cantidad):
-        # Tomamos las keywords que genero el Estratega
-        kw = keywords[i % len(keywords)] if keywords else "business team"
+        kw = keywords[i % len(keywords)] if keywords else "business"
         
-        # Si las keywords tienen sentido, Unsplash devuelve fotos perfectas
         res = buscar_imagenes(kw, cantidad=1, orientacion="landscape")
         
         if res.get("exito") and res.get("imagenes"):
@@ -114,6 +111,8 @@ def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 
             img["variante"] = "servicio"
             resultados.append(img)
         else:
-            resultados.append(ImageResult(url_regular=_svg_placeholder(kw), url_small=_svg_placeholder(kw), url_thumb=_svg_placeholder(kw), autor="Fallback", fuente="fallback", variante="servicio").to_dict())
+            prompt_serv = f"{kw}, professional photo, detailed"
+            url_serv = generar_url_pollinations(prompt_serv, width=900, height=700, seed=i*42)
+            resultados.append(ImageResult(url_regular=url_serv, url_small=url_serv, url_thumb=url_serv, autor="Flux", fuente="pollinations", variante="servicio").to_dict())
 
     return resultados
