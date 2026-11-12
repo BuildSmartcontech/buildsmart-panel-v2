@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V8.5 (ESTRUCTURA Y COMODINES)
+# PROMPTS DE CALIDAD V8.6 (BORRADO Y COMODINES)
 # ============================================
 
 import sys
@@ -33,27 +33,32 @@ def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, context
 
 ## TU TAREA
 Analiza lo que el usuario quiere y devuelve un JSON con las modificaciones.
+Si el usuario pide borrar o eliminar algo, usa `eliminar_secciones`.
+Si pide agregar, usa `secciones_html`.
+Si pide cambiar texto, usa `reemplazos_texto`.
+Si pide colores, usa `reglas_css`.
 
 ## FORMATO DE RESPUESTA (SOLO JSON):
 {{
-  "reemplazos_texto": [
-    {{ "selector": "h2", "texto_actual": "Descubre Colombia", "texto_nuevo": "Los mejores tours" }}
-  ],
-  "reglas_css": [
-    "h2 {{ color: #FFFF00 !important; }}"
-  ],
+  "reemplazos_texto": [],
+  "reglas_css": [],
   "secciones_html": [
     "<section class='services-grid' style='padding: 60px 20px;'><div class='card'><h2>Amazonía</h2><img src='{{NUEVA_IMAGEN}}' alt='Selva amazónica'><p>Explora la selva...</p></div></section>"
   ],
-  "explicacion": "Agregué la sección de la Amazonía con imagen."
+  "eliminar_secciones": [
+    {{ "selector": "section", "texto_que_contiene": "Amazonía Colombiana" }}
+  ],
+  "explicacion": "Borré la sección vieja y agregué la nueva con tarjetas."
 }}
 
 ## REGLAS CRÍTICAS PARA SECCIONES NUEVAS (secciones_html)
-1. Si el usuario pide AGREGAR UNA SECCIÓN, DEBES usar las clases CSS premium de la página: `<section class="services-grid">` y `<div class="card">`.
-2. Si el usuario pide IMÁGENES, **PROHIBIDO INVENTAR URLs**. Escribe EXACTAMENTE el comodín `src="{{NUEVA_IMAGEN}}"` para cada imagen que necesites. El sistema en Python la reemplazará por una foto real.
-3. El texto de las imágenes debe ir en el atributo `alt`.
-4. **REGLA DE ESTRUCTURA:** La nueva sección se insertará automáticamente ANTES del `<footer>` y de la sección de Contacto. NO incluyas un `<footer>` en tu código HTML generado.
-5. Si solo pides colores, deja `reemplazos_texto` y `secciones_html` como `[]`.
+1. DEBES usar las clases CSS premium: `<section class="services-grid">` y `<div class="card">`.
+2. Si necesitas imágenes, **PROHIBIDO INVENTAR URLs**. Escribe EXACTAMENTE el comodín `src="{{NUEVA_IMAGEN}}"`. El sistema lo reemplazará.
+3. El texto de las imágenes debe ir en el atributo `alt` (en español).
+
+## REGLAS PARA ELIMINAR (eliminar_secciones)
+1. Si el usuario pide borrar una sección, busca la etiqueta (ej. "section", "div") y el texto que la identifica.
+2. Ejemplo: Para borrar la sección de Amazonía vieja, usa `selector: "section"` y `texto_que_contiene: "Amazonía Colombiana"`.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt
