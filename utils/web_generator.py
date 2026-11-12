@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V18.9 (ANTI-ALUCINACION DE IMAGENES)
+# GENERADOR DE WEBS - V19.0 (ANTI-ALUCINACION TOTAL)
 # ============================================
 
 import os
@@ -158,7 +158,6 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
             img_tag['style'] = "width:100%; max-width:1000px; height:auto; max-height:600px; object-fit:cover; border-radius:24px; margin:40px auto 0; display:block; box-shadow: 0 20px 40px rgba(0,0,0,0.4);"
             container.append(img_tag)
 
-    # --- EL FIX DE LAS IMÁGENES DE SERVICIOS ---
     if servicios_urls:
         print(f"[INYECTOR] Buscando tarjetas para inyectar {len(servicios_urls)} imagenes...")
         tarjetas = []
@@ -177,7 +176,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
             for img in tarjeta.find_all('img'):
                 img.decompose()
                 
-            # 2. Ponemos nuestra imagen real
+            # 2. Ponemos nuestra imagen real (Picsum o Unsplash)
             alt_serv = servicios_copy[i].get('alt_imagen', f"Servicio {i+1}") if i < len(servicios_copy) else f"Servicio {i+1}"
             img_tag = soup.new_tag('img', src=url, alt=alt_serv)
             img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:16px; margin-bottom:24px; display:block;"
@@ -203,7 +202,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V18.9")
+    print("GENERANDO WEB - V19.0")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")

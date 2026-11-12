@@ -16,8 +16,6 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE_DIR))
 load_dotenv()
 
-logger = logging.getLogger(__name__)
-
 UNSPLASH_API_URL = "https://api.unsplash.com"
 UNSPLASH_ACCESS_KEY = (os.getenv("UNSPLASH_ACCESS_KEY") or "").strip()
 
@@ -72,7 +70,7 @@ def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 
     
     resultados = []
 
-    # 1. HERO (Unsplash prioritario, Picsum como fallback infalible)
+    # 1. HERO
     try:
         kw_hero = keywords[0] if keywords else "business"
         res_hero = buscar_imagenes(kw_hero + " wide shot", cantidad=1, orientacion="landscape")
@@ -88,7 +86,7 @@ def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 
     except Exception:
         resultados.append(ImageResult(**{"url_regular": _svg_placeholder("Hero"), "variante": "hero"}))
 
-    # 2. SERVICIOS (Unsplash prioritario, Picsum como fallback)
+    # 2. SERVICIOS
     for i in range(1, cantidad):
         kw = keywords[i % len(keywords)] if keywords else "business"
         
