@@ -1,6 +1,6 @@
 # utils/image_fetcher.py
 # ============================================
-# BUSCADOR DE IMÁGENES - V9.5 (PICSUM FALLBACK)
+# BUSCADOR DE IMÁGENES - V9.6 (FALLBACK GARANTIZADO)
 # ============================================
 
 from __future__ import annotations
@@ -18,6 +18,14 @@ load_dotenv()
 
 UNSPLASH_API_URL = "https://api.unsplash.com"
 UNSPLASH_ACCESS_KEY = (os.getenv("UNSPLASH_ACCESS_KEY") or "").strip()
+
+# IMÁGENES DE RESPALDO GARANTIZADAS (Por si la API falla o se bloquea)
+FALLBACK_IMAGES = [
+    "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1506744626753-143d4e0ce6b2?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1504280506221-7344a3b3c1a1?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=1000&auto=format&fit=crop"
+]
 
 @dataclass
 class ImageResult:
@@ -80,9 +88,9 @@ def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 
             img_hero["variante"] = "hero"
             resultados.append(img_hero)
         else:
-            # PICSUM FALLBACK: Garantiza una imagen real siempre
-            url_hero = f"https://picsum.photos/seed/hero_{int(time.time())}/1200/675"
-            resultados.append(ImageResult(url_regular=url_hero, url_small=url_hero, url_thumb=url_hero, autor="Picsum", fuente="picsum", variante="hero").to_dict())
+            # FALLBACK GARANTIZADO
+            url_hero = FALLBACK_IMAGES[0]
+            resultados.append(ImageResult(url_regular=url_hero, url_small=url_hero, url_thumb=url_hero, autor="Fallback", fuente="fallback", variante="hero").to_dict())
     except Exception:
         resultados.append(ImageResult(**{"url_regular": _svg_placeholder("Hero"), "variante": "hero"}))
 
@@ -97,8 +105,8 @@ def obtener_urls_imagenes_negocio(negocio_info: Dict[str, Any], cantidad: int = 
             img["variante"] = "servicio"
             resultados.append(img)
         else:
-            # PICSUM FALLBACK
-            url_serv = f"https://picsum.photos/seed/serv_{i}_{int(time.time())}/900/700"
-            resultados.append(ImageResult(url_regular=url_serv, url_small=url_serv, url_thumb=url_serv, autor="Picsum", fuente="picsum", variante="servicio").to_dict())
+            # FALLBACK GARANTIZADO
+            url_serv = FALLBACK_IMAGES[i % len(FALLBACK_IMAGES)]
+            resultados.append(ImageResult(url_regular=url_serv, url_small=url_serv, url_thumb=url_serv, autor="Fallback", fuente="fallback", variante="servicio").to_dict())
 
     return resultados
