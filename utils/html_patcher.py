@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V2.1 (CSS + HTML)
+# APLICADOR DE CAMBIOS AL HTML - V2.2 (HTML BLINDADO)
 # ============================================
 
 import re
@@ -31,13 +31,16 @@ def aplicar_cambios(html, cambios):
     # 2. INYECTAR HTML NUEVO (Si hay)
     if secciones_html:
         bloque_html = "\n<!-- SECCIONES AGREGADAS -->\n" + "\n".join(secciones_html) + "\n"
+        
         # Buscamos el footer para inyectar justo antes
         if "<footer" in html_nuevo.lower():
-            # Insertar antes de la etiqueta <footer>
             html_nuevo = re.sub(r'(<footer)', bloque_html + r'\1', html_nuevo, count=1, flags=re.IGNORECASE)
-        else:
-            # Si no hay footer, insertar antes de cerrar el body
+        # Si no hay footer, insertar antes de cerrar el body
+        elif "</body>" in html_nuevo.lower():
             html_nuevo = html_nuevo.replace("</body>", bloque_html + "</body>")
+        # Si no hay body (caso extremo), al final del string
+        else:
+            html_nuevo += bloque_html
 
     return {
         "exito": True,

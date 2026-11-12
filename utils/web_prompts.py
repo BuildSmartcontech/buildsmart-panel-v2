@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V8.0 (CSS + HTML HÍBRIDO)
+# PROMPTS DE CALIDAD V8.1 (DOBLE ORDEN BLINDADA)
 # ============================================
 
 import sys
@@ -17,13 +17,9 @@ from utils.web_prompts_data import (
 )
 
 def generar_prompt_web(*args, **kwargs):
-    # (Se mantiene igual que en la versión anterior)
     pass
 
 def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, contexto_negocio=""):
-    """
-    Nuevo Prompt V8.0: Permite CSS para estilos y HTML para agregar texto/secciones.
-    """
     prompt = f"""Eres un experto en CSS, HTML y diseño web. El usuario escribe con faltas de ortografía y no sabe términos técnicos.
 
 ## CONTEXTO DEL NEGOCIO
@@ -38,43 +34,38 @@ def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, context
 ## TU TAREA
 Analiza lo que el usuario quiere y devuelve un JSON con las modificaciones.
 
-Si el usuario pide cambiar colores, centrar cosas o arreglar el diseño visual, usa la lista `reglas_css`.
-Si el usuario pide agregar nueva información, textos, o secciones nuevas, usa la lista `secciones_html`.
+¡ATENCIÓN! Si el usuario pide AGREGAR INFORMACIÓN o NUEVAS SECCIONES (ej: "incluye info de la Amazonía"), DEBES generar obligatoriamente el código HTML en `secciones_html`. 
+Si además pide un cambio de color o diseño, TAMBIÉN debes llenar `reglas_css`. ¡Haz las dos cosas si te las pide!
 
 ## FORMATO DE RESPUESTA (SOLO JSON):
 {{
   "reglas_css": [
-    "form {{ background-color: #0B0C14 !important; }}",
-    "h1 {{ color: #FFD700 !important; }}"
+    "h1, h2, a {{ color: #FFFF00 !important; }}"
   ],
   "secciones_html": [
-    "<section id='nueva-seccion' style='padding: 60px 20px; background-color: #111; color: white;'><h2>Nueva Sección</h2><p>Texto nuevo aquí...</p></section>"
+    "<section style='padding: 60px 20px; background-color: #0B0C14; color: white; text-align: center;'><h2>La Amazonía</h2><p>Descubre la selva tropical más grande del mundo, su biodiversidad y sus ríos majestuosos.</p></section>"
   ],
-  "explicacion": "Cambié el fondo y agregué la sección de la Amazonía."
+  "explicacion": "Cambié el color del texto a amarillo y agregué la sección de la Amazonía."
 }}
 
 ## REGLAS CRÍTICAS
 1. Devuelve SOLO JSON válido.
 2. Usa `!important` en todas las reglas CSS.
-3. Si el usuario pide agregar texto/secciones, genera el bloque HTML completo en `secciones_html`. Usa estilos inline o clases oscuras para que combine con el diseño premium.
-4. Si solo pide cambios visuales, deja `secciones_html` como una lista vacía `[]`.
-5. Si solo pide agregar texto, deja `reglas_css` como una lista vacía `[]`.
+3. Si el usuario pide agregar texto/secciones, ES OBLIGATORIO que generes el bloque HTML completo en `secciones_html`. Usa estilos inline para que combine con el diseño.
+4. Si SOLO pide cambios visuales (ej: "pon el fondo azul"), deja `secciones_html` como `[]`.
+5. Si SOLO pide agregar texto (ej: "agrega un párrafo sobre nosotros"), deja `reglas_css` como `[]`.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt
 
 def generar_prompt_edicion(html_actual, instruccion):
-    # (Se mantiene igual)
     pass
 
 def generar_prompt_resumen(html):
-    # (Se mantiene igual)
     pass
 
 def generar_prompt_seo(nombre_negocio, sector, descripcion):
-    # (Se mantiene igual)
     pass
 
 def validar_html_generado(html):
-    # (Se mantiene igual)
     pass
