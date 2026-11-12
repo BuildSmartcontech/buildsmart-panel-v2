@@ -2,7 +2,7 @@
 # ============================================
 # ACCIONES DE PEDIDOS WEB - Panel Dueno
 # ============================================
-# V2.2: Envia email automatico cuando la web se publica en Netlify.
+# V2.3: Correo con link directo al panel (magic_token).
 # ============================================
 
 import datetime
@@ -17,9 +17,18 @@ def _enviar_email_web_lista(pedido, url_publica):
 
         email = pedido.get("email", "")
         nombre = pedido.get("nombre_cliente", "Cliente")
+        token = pedido.get("magic_token", "")
         
         if not email:
             return
+
+        url_panel = ""
+        if token:
+            try:
+                from utils.magic_link import construir_url_panel
+                url_panel = construir_url_panel(token)
+            except Exception:
+                pass
 
         asunto = f"Tu web esta lista - SAMU IA - Hola {nombre}"
         
@@ -27,10 +36,11 @@ def _enviar_email_web_lista(pedido, url_publica):
 
 ¡Buenas noticias! Tu pagina web ya esta publicada y lista para recibir visitas.
 
-Puedes verla y compartirla aqui:
+Para ver y compartir tu web, haz clic aqui:
 {url_publica}
 
-Recuerda que tienes acceso a tu panel de cliente para hacer cambios usando el enlace que te enviamos anteriormente.
+IMPORTANTE - Para modificar tu web o ver tus leads, debes entrar a tu panel de cliente en este enlace:
+{url_panel if url_panel else "Revisa el primer correo que te enviamos con tu link de acceso."}
 
 Cualquier consulta, responde a este email.
 

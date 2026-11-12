@@ -2,12 +2,13 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V2.3: El cliente tiene control total. Genera la web, la previsualiza, la modifica y la publica.
+# V3.1: Flujo unificado total. Código completo sin omisiones.
 # ============================================
 
 import streamlit as st
 import datetime
 import base64
+import streamlit.components.v1 as components
 from panels.web import landing_data as D
 
 E_OK        = "\u2705"
@@ -28,7 +29,6 @@ E_LLAVE     = "\U0001F511"
 E_RAYO      = "\u26A1"
 
 LIMITE_MODIFICACIONES_BASE = 3
-
 TIER_LABELS = {1: "Premium Esencial", 2: "Premium + CRM", 3: "Premium Plus"}
 
 ESTADOS = {
@@ -71,17 +71,11 @@ def _cargar_leads(sb, pedido_id):
 
 def _renderizar_vista_previa(html_content: str):
     if not html_content:
+        st.warning("No hay contenido HTML para previsualizar.")
         return
-    b64_html = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
-    src = f"data:text/html;charset=utf-8;base64,{b64_html}"
-    try:
-        st.iframe(src=src, height=600)
-    except AttributeError:
-        import streamlit.components.v1 as components
-        components.iframe(src=src, height=600, scrolling=True)
+    components.html(html_content, height=600, scrolling=True)
 
 def _generar_web_inicial(sb, pedido):
-    """El cliente hace clic para crear su primera web desde cero."""
     datos_negocio = pedido.get("datos_negocio", {})
     if not datos_negocio:
         return False, "Faltan los datos del negocio.", None
@@ -90,14 +84,11 @@ def _generar_web_inicial(sb, pedido):
         from utils.web_generator import generar_web
         from utils.web_storage import guardar_web, generar_uuid
         
-        # 1. Generar HTML con IA
         resultado_gen = generar_web(datos_negocio=datos_negocio)
         if not resultado_gen.get("exito"):
             return False, f"Error de IA: {resultado_gen.get('error')}", None
             
         html = resultado_gen["html"]
-        
-        # 2. Guardar en base de datos y obtener ID
         web_id = generar_uuid()
         usuario_id = pedido.get("email", "usuario_default")
         
@@ -105,7 +96,6 @@ def _generar_web_inicial(sb, pedido):
         if not guardado.get("exito"):
             return False, f"Error guardando web: {guardado.get('error')}", None
             
-        # 3. Actualizar Supabase (guardamos el web_id, pero NO la publicamos aún)
         sb.update(
             "pedidos_web",
             {"web_id": web_id, "estado": "pagado", "updated_at": datetime.datetime.now().isoformat()},
@@ -209,74 +199,72 @@ def _renderizar_panel(pedido, sb):
 
     c1, c2, c3 = st.columns(3)
     with c1: st.metric("Estado", f"{info_estado['icono']} {info_estado['label']}")
-    with c2: st.metric("Web", "Activa" if web_url else ("Creada" if web_id else "Sin crear"))
+    with c2: st.metric("Web", "Publicada" if web_url else ("Creada" if web_id else "Sin crear"))
     with c3: st.metric("Leads", len(_cargar_leads(sb, pedido_id)) if tier_num >= 2 else "-")
 
     st.divider()
 
     st.markdown(f"### {E_GLOBO} Tu web")
 
-    # --- CASO 1: LA WEB YA ESTÁ PUBLICADA ---
-    if web_url:
-        st.success(f"{E_OK} Tu web esta publicada y activa")
-        st.markdown(f"**URL publica:** [{web_url}]({web_url})")
-        
+    # --- CASO 1: LA WEB AÚN NO SE HA CREADO ---
+    if not web_id and not web_url:
+        st.warning(f"{E_RELOJ} Tu web aun no esta creada.")
+        if estado == "pagado":
+            st.markdown("Haz clic en el botón de abajo para que nuestra IA construya tu página web con los datos que nos diste.")
+            if st.button(f"{E_COHETE} Generar mi web ahora", type="primary", use_container_width=True):
+                with st.spinner("La IA está construyendo tu página. Esto puede tomar 1 minuto..."):
+                    exito, msg, html_generado = _generar_web_inicial(sb, pedido)
+                if exito:
+                    st.session_state["preview_html"] = html_generado
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
+        else:
+            st.markdown("**Que sigue:**\nEsperando confirmación de pago.")
+
+    # --- CASO 2: LA WEB YA EXISTE (Creada o Publicada) ---
+    else:
+        if "preview_html" not in st.session_state:
+            try:
+                from utils.web_storage import leer_web
+                res_leer = leer_web(email, web_id)
+                if res_leer.get("exito"):
+                    st.session_state["preview_html"] = res_leer.get("html")
+            except Exception:
+                pass
+
+        if web_url:
+            st.success(f"{E_OK} Tu web esta publicada y activa")
+            st.markdown(f"**URL publica:** [{web_url}]({web_url})")
+
         st.write("")
         st.markdown(f"#### {E_RAYO} Modificar mi web")
         
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
-            
             with st.form("form_modificacion"):
-                instruccion = st.text_area("¿Que quieres cambiar?", placeholder="Ej: Cambia el titulo a 'Bienvenidos'.", height=100, label_visibility="collapsed")
+                instruccion = st.text_area("¿Que quieres cambiar?", placeholder="Ej: Cambia el titulo a 'Bienvenidos' y pon el fondo gris oscuro.", height=100)
                 btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa (No gasta Netlify)", type="primary", use_container_width=True)
                 
-                if btn_mod and instruccion.strip():
-                    with st.spinner("La IA esta aplicando los cambios..."):
-                        exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion)
-                    if exito:
-                        st.session_state["preview_html"] = html_nuevo
-                        st.success(msg)
-                        st.rerun()
+                if btn_mod:
+                    if not instruccion.strip():
+                        st.warning("Escribe lo que quieres cambiar antes de generar la vista previa.")
                     else:
-                        st.error(msg)
-                elif btn_mod:
-                    st.warning("Escribe lo que quieres cambiar.")
-            
-            if "preview_html" in st.session_state and st.session_state["preview_html"]:
-                st.divider()
-                st.markdown("**2️⃣ Revisa cómo quedó tu web:**")
-                _renderizar_vista_previa(st.session_state["preview_html"])
-                
-                st.write("")
-                st.markdown("**3️⃣ Publicar en la nube:**")
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button(f"{E_COHETE} Publicar cambios en vivo", type="primary", use_container_width=True):
-                        with st.spinner("Publicando en Netlify..."):
-                            from utils.web_publisher import publicar_web
-                            res_pub = publicar_web(email, web_id)
-                            if res_pub.get("exito"):
-                                st.success("¡Cambios publicados en tu web!")
-                                del st.session_state["preview_html"]
-                                st.rerun()
-                            else:
-                                st.error(f"Error publicando: {res_pub.get('error')}")
-                with col2:
-                    if st.button("Descartar vista previa", use_container_width=True):
-                        del st.session_state["preview_html"]
-                        st.rerun()
-            else:
-                st.info("💡 Arriba puedes pedir un cambio. La vista previa aparecerá aquí.")
-
+                        with st.spinner("La IA esta aplicando los cambios..."):
+                            exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion)
+                        if exito:
+                            st.session_state["preview_html"] = html_nuevo
+                            st.success(msg)
+                            st.rerun()
+                        else:
+                            st.error(msg)
         else:
             st.warning(f"Has agotado tus {limite_total} modificaciones disponibles.")
             st.markdown("Puedes comprar más cambios para seguir editando.")
-            
             from panels.web.pagos import obtener_proveedor, proveedor_actual
             prov_nombre = proveedor_actual()
             proveedor = obtener_proveedor(prov_nombre, {})
-            
             col_p1, col_p2 = st.columns(2)
             with col_p1:
                 if st.button(f"{E_DINERO} Comprar 1 cambio ($5)", use_container_width=True):
@@ -291,59 +279,24 @@ def _renderizar_panel(pedido, sb):
                     if res_pago.get("exito") and res_pago.get("url_pago"):
                         st.markdown(f'<meta http-equiv="refresh" content="0; url={res_pago["url_pago"]}">', unsafe_allow_html=True)
 
-    # --- CASO 2: LA WEB FUE GENERADA PERO NO PUBLICADA AÚN ---
-    elif web_id:
-        st.info(f"{E_OK} ¡Tu web está generada! Revísala y publícala.")
-        
-        # Intentamos cargar el HTML para mostrarlo
-        try:
-            from utils.web_storage import leer_web
-            res_leer = leer_web(email, web_id)
-            html_actual = res_leer.get("html") if res_leer.get("exito") else None
-        except Exception:
-            html_actual = None
-
-        if html_actual:
-            st.markdown("**1️⃣ Revisa tu web:**")
-            _renderizar_vista_previa(html_actual)
+        if "preview_html" in st.session_state and st.session_state["preview_html"]:
+            st.divider()
+            st.markdown("**Revisa cómo quedó tu web:**")
+            _renderizar_vista_previa(st.session_state["preview_html"])
             
             st.write("")
-            st.markdown("**2️⃣ Si te gusta, publícala o pide cambios:**")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button(f"{E_COHETE} Publicar en Netlify ahora", type="primary", use_container_width=True):
-                    with st.spinner("Publicando en Netlify..."):
-                        from utils.web_publisher import publicar_web
-                        res_pub = publicar_web(email, web_id)
-                        if res_pub.get("exito"):
-                            url_publica = res_pub.get("url_publica", "")
-                            sb.update("pedidos_web", {"web_url": url_publica, "estado": "entregado"}, "id", pedido_id)
-                            st.success("¡Tu web está en vivo!")
-                            st.rerun()
-                        else:
-                            st.error(f"Error publicando: {res_pub.get('error')}")
-            with col2:
-                st.info("Si quieres hacer cambios antes de publicar, usa el chat de abajo en la próxima actualización.")
-                # Nota: Para no hacer el código infinito, si quieres modificar antes de publicar,
-                # lo ideal es que se publique primero y luego se modifique. 
-                # O que el chat funcione aquí mismo. Por ahora, para cumplir con tu regla:
-                # Lo dejamos publicar directo para que no se enrede.
-
-    # --- CASO 3: LA WEB AÚN NO SE HA CREADO ---
-    else:
-        st.warning(f"{E_RELOJ} Tu web aun no esta creada.")
-        if estado == "pagado":
-            st.markdown("Haz clic en el botón de abajo para que nuestra IA construya tu página web con los datos que nos diste.")
-            if st.button(f"{E_COHETE} Generar mi web ahora", type="primary", use_container_width=True):
-                with st.spinner("La IA está construyendo tu página. Esto puede tomar 1 minuto..."):
-                    exito, msg, html_generado = _generar_web_inicial(sb, pedido)
-                if exito:
-                    st.success(msg)
-                    st.rerun()
-                else:
-                    st.error(msg)
-        elif estado == "pendiente_pago_manual":
-            st.markdown("**Que sigue:**\n1. Realiza el pago\n2. Envia el comprobante\n3. Generaremos tu web")
+            st.markdown("**Si todo está bien, publícala:**")
+            if st.button(f"{E_COHETE} Publicar en Netlify ahora", type="primary", use_container_width=True):
+                with st.spinner("Publicando en Netlify..."):
+                    from utils.web_publisher import publicar_web
+                    res_pub = publicar_web(email, web_id)
+                    if res_pub.get("exito"):
+                        url_publica = res_pub.get("url_publica", "")
+                        sb.update("pedidos_web", {"web_url": url_publica, "estado": "entregado"}, "id", pedido_id)
+                        st.success("¡Tu web está en vivo!")
+                        st.rerun()
+                    else:
+                        st.error(f"Error publicando: {res_pub.get('error')}")
 
     st.divider()
 
