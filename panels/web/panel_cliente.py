@@ -2,7 +2,7 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V4.0: UX "Todo Mascado". Guía al usuario con ejemplos claros.
+# V4.1: Ejemplos dinamicos por sector y registro de pagos en eventos_app.
 # ============================================
 
 import streamlit as st
@@ -26,7 +26,6 @@ E_MALETIN   = "\U0001F4BC"
 E_DINERO    = "\U0001F4B0"
 E_LLAVE     = "\U0001F511"
 E_RAYO      = "\u26A1"
-E_BOMBILLA  = "\U0001F4A1"
 
 LIMITE_MODIFICACIONES_BASE = 3
 TIER_LABELS = {1: "Premium Esencial", 2: "Premium + CRM", 3: "Premium Plus"}
@@ -69,8 +68,7 @@ def _cargar_leads(sb, pedido_id):
         return []
 
 def _renderizar_vista_previa(html_content: str):
-    if not html_content:
-        return
+    if not html_content: return
     components.html(html_content, height=600, scrolling=True)
 
 def _generar_web_inicial(sb, pedido):
@@ -94,12 +92,7 @@ def _generar_web_inicial(sb, pedido):
         if not guardado.get("exito"):
             return False, f"Error guardando web: {guardado.get('error')}", None
             
-        sb.update(
-            "pedidos_web",
-            {"web_id": web_id, "estado": "pagado", "updated_at": datetime.datetime.now().isoformat()},
-            "id", pedido.get("id")
-        )
-        
+        sb.update("pedidos_web", {"web_id": web_id, "estado": "pagado", "updated_at": datetime.datetime.now().isoformat()}, "id", pedido.get("id"))
         return True, "¡Web generada! Revisa la vista previa abajo.", html
 
     except Exception as e:
@@ -146,6 +139,20 @@ def _procesar_retorno_pago(sb, pedido_id, paquete):
         extras_actuales = int(res.data[0].get("modificaciones_extra", 0))
         nuevos_extras = extras_actuales + int(paquete)
         sb.update("pedidos_web", {"modificaciones_extra": nuevos_extras}, "id", pedido_id)
+        
+        # --- REGISTRO DE PAGO EN EVENTOS_APP ---
+        try:
+            monto = 5 if int(paquete) == 1 else 12
+            evento = {
+                "tipo": "pago_modificacion",
+                "usuario_id": pedido_id,
+                "detalle": {"paquete": paquete, "monto_usd": monto},
+                "created_at": datetime.datetime.now().isoformat()
+            }
+            sb.insert("eventos_app", evento)
+        except Exception as e:
+            print(f"[PANEL] Error registrando evento de pago: {e}")
+            
         return True
     except Exception as e:
         return False
@@ -160,6 +167,7 @@ def _renderizar_panel(pedido, sb):
     estado = str(pedido.get("estado", "")).lower()
     info_estado = ESTADOS.get(estado, {"label": estado, "icono": E_AVISO})
     datos_negocio = pedido.get("datos_negocio") or {}
+    sector = datos_negocio.get("sector", "general").lower()
     web_url = pedido.get("web_url", "")
     web_id = pedido.get("web_id", "")
     token = pedido.get("magic_token", "")
@@ -232,22 +240,25 @@ def _renderizar_panel(pedido, sb):
 
         st.write("")
         st.markdown(f"#### {E_RAYO} Hacer un cambio en tu web")
-        st.caption("Modifica colores, textos o agrega secciones fácilmente.")
         
-        # --- BLOQUE DE UX: TODO MASCADO ---
+        # --- EJEMPLOS DINÁMICOS SEGÚN EL SECTOR ---
+        ejemplos_por_sector = {
+            "turismo": "Cambia el título y ponle 'Los mejores tours de Colombia'.\nAgrega una sección sobre la Amazonía.",
+            "inmobiliaria": "Cambia el título a 'Encuentra tu hogar ideal'.\nPon el fondo de la página en blanco y negro.",
+            "restaurante": "Cambia el título a 'El mejor sabor de la ciudad'.\nAgrega una sección con el menú del día.",
+            "general": "Cambia el título principal de tu web.\nPon el fondo de la página en color oscuro.\nAgrega una nueva sección con información de tu negocio."
+        }
+        ejemplos = ejemplos_por_sector.get(sector, ejemplos_por_sector["general"])
+
         with st.expander("💡 ¿No sabes qué escribir? Haz clic aquí para ver ejemplos", expanded=False):
-            st.info("""
-            Para que la IA te entienda perfectamente, pídele las cosas de forma sencilla. Aquí tienes algunos ejemplos de lo que puedes escribir:
+            st.info(f"""
+            Para que la IA te entienda perfectamente, pídele las cosas de forma sencilla. Aquí tienes algunos ejemplos:
             
-            * 🎨 **Para cambiar colores:** *"Pon el fondo de la página en color negro y los textos en blanco."*
-            * ✍️ **Para cambiar un texto:** *"Cambia el título principal y ponle 'Los mejores tours de Colombia'."*
-            * ➕ **Para agregar información:** *"Agrega una nueva sección hablando sobre la región de la Amazonía."*
-            * 🖼️ **Para centrar algo:** *"Centra el logo de la marca en el menú superior."*
-            * 🔘 **Para cambiar un botón:** *"Pon el botón de WhatsApp de color verde."*
+            {ejemplos}
             
             *Truco: Puedes pedir una cosa a la vez para obtener resultados más rápidos.*
             """)
-        # ----------------------------------
+        # ------------------------------------------
         
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
@@ -337,12 +348,10 @@ def _renderizar_leads(sb, pedido_id, tier_num):
     if not leads:
         st.info(f"{E_LIBRO} Aun no hay leads. Cuando alguien llene tu formulario, apareceran aqui.")
         return
-
     c1, c2, c3 = st.columns(3)
     with c1: st.metric("Total", len(leads))
     with c2: st.metric("Nuevos", sum(1 for l in leads if l.get("estado") == "nuevo"))
     with c3: st.metric("Contactados", sum(1 for l in leads if l.get("estado") == "contactado"))
-    
     st.divider()
     for lead in leads[:20]:
         _renderizar_lead(sb, lead)
@@ -356,7 +365,6 @@ def _renderizar_lead(sb, lead):
     with st.expander(f"{E_USUARIO} [{fecha}] {nombre} - {email}"):
         if lead.get("telefono"): st.markdown(f"{E_TELEFONO} {lead.get('telefono')}")
         if lead.get("mensaje"): st.text(lead.get("mensaje")[:200])
-        
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("Contactado", key=f"cont_{lead_id}", use_container_width=True):

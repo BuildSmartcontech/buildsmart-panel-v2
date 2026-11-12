@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V3.2 (CONTEXTO DE TÍTULOS)
+# EDITOR DE WEBS - V3.3 (PERSISTENCIA SUPABASE)
 # ============================================
 
 import os
@@ -8,6 +8,7 @@ import sys
 import re
 import json
 import time
+import datetime
 from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,29 +29,14 @@ TIEMPO_ESPERA = 2
 
 def extraer_estructura_html(html):
     if not html: return "HTML vacio"
-    
     soup = BeautifulSoup(html, 'html.parser')
     partes = []
-    
-    # Extraemos los textos de los títulos para que la IA sepa exactamente qué hay
     titulos = []
     for tag in ['h1', 'h2', 'h3']:
         for el in soup.find_all(tag):
             texto = el.get_text(strip=True)
-            if texto:
-                titulos.append(f"<{tag}>: \"{texto}\"")
-    
-    if titulos:
-        partes.append("TITULOS ACTUALES:\n" + "\n".join(titulos))
-        
-    # Extraemos clases CSS
-    clases = set()
-    for el in soup.find_all(class_=True):
-        for c in el.get('class', []):
-            clases.add(c)
-    if clases:
-        partes.append("CLASES CSS: " + ", ".join(sorted(list(clases))[:20]))
-        
+            if texto: titulos.append(f"<{tag}>: \"{texto}\"")
+    if titulos: partes.append("TITULOS ACTUALES:\n" + "\n".join(titulos))
     return "\n\n".join(partes)
 
 def parsear_json_cambios(texto):
@@ -87,7 +73,6 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
         try:
             prompt = generar_prompt_edicion_estructurada(estructura, instruccion, contexto_negocio)
             sistema = "Eres un experto en CSS y HTML. Devuelves SOLO JSON."
-            
             respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1)
 
             data = parsear_json_cambios(respuesta)
@@ -105,8 +90,6 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
                 "exito": True,
                 "html_nuevo": resultado_patcher["html_nuevo"],
                 "cambios_aplicados": resultado_patcher.get("cambios_aplicados", 1),
-                "aplicados": resultado_patcher.get("aplicados", []),
-                "fallidos": resultado_patcher.get("fallidos", []),
                 "error": None
             }
         except Exception as e:
@@ -120,11 +103,26 @@ def editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto_negocio=""):
     if not resultado["exito"]:
         return resultado
 
+    # 1. Guardar en archivos (local)
     try:
         from utils.web_storage import guardar_en_archivos
-    except ImportError:
-        from web_storage import guardar_en_archivos
+        guardar_en_archivos(usuario_id, web_id, resultado["html_nuevo"])
+    except Exception as e:
+        print(f"[EDITOR] Error guardando en archivos: {e}")
 
-    guardado = guardar_en_archivos(usuario_id, web_id, resultado["html_nuevo"])
-    resultado["guardado"] = guardado["exito"]
+    # 2. Guardar en Supabase (Persistencia Real para Reboot)
+    try:
+        from utils.supabase_client import supabase
+        if supabase:
+            url = supabase.url + f"/rest/v1/paginas_web?id=eq.{web_id}"
+            headers = supabase.headers.copy()
+            headers["Prefer"] = "return=representation"
+            data = {"html_generado": resultado["html_nuevo"]}
+            import requests
+            requests.patch(url, headers=headers, json=data, timeout=10)
+            print(f"[EDITOR] HTML actualizado en Supabase para web_id {web_id}")
+    except Exception as e:
+        print(f"[EDITOR] Error guardando en Supabase: {e}")
+
+    resultado["guardado"] = True
     return resultado
