@@ -2,7 +2,7 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V3.1: Flujo unificado total. Código completo sin omisiones.
+# V3.2: Quitado "Netlify" de la UI. Recuperacion de vista previa robusta.
 # ============================================
 
 import streamlit as st
@@ -30,7 +30,6 @@ E_RAYO      = "\u26A1"
 
 LIMITE_MODIFICACIONES_BASE = 3
 TIER_LABELS = {1: "Premium Esencial", 2: "Premium + CRM", 3: "Premium Plus"}
-
 ESTADOS = {
     "pendiente_pago_manual": {"label": "Pendiente pago", "icono": E_RELOJ},
     "pagado":                {"label": "Pagado",          "icono": E_OK},
@@ -102,7 +101,7 @@ def _generar_web_inicial(sb, pedido):
             "id", pedido.get("id")
         )
         
-        return True, "¡Web generada! Revisa la vista previa abajo y pide cambios si lo deseas.", html
+        return True, "¡Web generada! Revisa la vista previa abajo.", html
 
     except Exception as e:
         return False, f"Error del sistema: {str(e)}", None
@@ -134,7 +133,7 @@ def _solicitar_modificacion(sb, pedido, instruccion):
                 {"modificaciones_usadas": usadas + 1, "updated_at": datetime.datetime.now().isoformat()},
                 "id", pedido_id
             )
-            return True, "¡Tu web se ha modificado! Revisa la vista previa abajo.", resultado.get("html_nuevo")
+            return True, "¡Tu web se ha modificado! Revisa la vista previa.", resultado.get("html_nuevo")
         else:
             return False, f"Error de la IA: {resultado.get('error')}", None
             
@@ -145,10 +144,8 @@ def _procesar_retorno_pago(sb, pedido_id, paquete):
     try:
         res = sb.table("pedidos_web").select("modificaciones_extra").eq("id", pedido_id).execute()
         if not res.data: return False
-        
         extras_actuales = int(res.data[0].get("modificaciones_extra", 0))
         nuevos_extras = extras_actuales + int(paquete)
-        
         sb.update("pedidos_web", {"modificaciones_extra": nuevos_extras}, "id", pedido_id)
         return True
     except Exception as e:
@@ -210,9 +207,9 @@ def _renderizar_panel(pedido, sb):
     if not web_id and not web_url:
         st.warning(f"{E_RELOJ} Tu web aun no esta creada.")
         if estado == "pagado":
-            st.markdown("Haz clic en el botón de abajo para que nuestra IA construya tu página web con los datos que nos diste.")
+            st.markdown("Haz clic en el botón de abajo para que nuestra IA construya tu página web.")
             if st.button(f"{E_COHETE} Generar mi web ahora", type="primary", use_container_width=True):
-                with st.spinner("La IA está construyendo tu página. Esto puede tomar 1 minuto..."):
+                with st.spinner("La IA está construyendo tu página..."):
                     exito, msg, html_generado = _generar_web_inicial(sb, pedido)
                 if exito:
                     st.session_state["preview_html"] = html_generado
@@ -225,6 +222,7 @@ def _renderizar_panel(pedido, sb):
 
     # --- CASO 2: LA WEB YA EXISTE (Creada o Publicada) ---
     else:
+        # Recuperamos la vista previa si la sesión se reinició
         if "preview_html" not in st.session_state:
             try:
                 from utils.web_storage import leer_web
@@ -244,12 +242,12 @@ def _renderizar_panel(pedido, sb):
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             with st.form("form_modificacion"):
-                instruccion = st.text_area("¿Que quieres cambiar?", placeholder="Ej: Cambia el titulo a 'Bienvenidos' y pon el fondo gris oscuro.", height=100)
-                btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa (No gasta Netlify)", type="primary", use_container_width=True)
+                instruccion = st.text_area("¿Que quieres cambiar?", placeholder="Ej: Centra el logo en el menú superior.", height=100)
+                btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa", type="primary", use_container_width=True)
                 
                 if btn_mod:
                     if not instruccion.strip():
-                        st.warning("Escribe lo que quieres cambiar antes de generar la vista previa.")
+                        st.warning("Escribe lo que quieres cambiar.")
                     else:
                         with st.spinner("La IA esta aplicando los cambios..."):
                             exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion)
@@ -286,8 +284,8 @@ def _renderizar_panel(pedido, sb):
             
             st.write("")
             st.markdown("**Si todo está bien, publícala:**")
-            if st.button(f"{E_COHETE} Publicar en Netlify ahora", type="primary", use_container_width=True):
-                with st.spinner("Publicando en Netlify..."):
+            if st.button(f"{E_COHETE} Publicar en Vivo", type="primary", use_container_width=True):
+                with st.spinner("Publicando..."):
                     from utils.web_publisher import publicar_web
                     res_pub = publicar_web(email, web_id)
                     if res_pub.get("exito"):
