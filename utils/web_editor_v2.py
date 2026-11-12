@@ -1,6 +1,8 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS ESTRUCTURADO - V3.0 (CSS INJECTION)
+# EDITOR DE WEBS - V3.1 (MODO ESTRICTO)
+# ============================================
+# V3.1: Temperatura reducida a 0.1 para forzar precision en CSS y JSON.
 # ============================================
 
 import os
@@ -28,15 +30,12 @@ TIEMPO_ESPERA = 2
 def extraer_estructura_html(html):
     if not html: return "HTML vacio"
     partes = []
-    
-    # Extraemos las clases para que la IA sepa qué hay
     clases = set()
     for match in re.finditer(r'class\s*=\s*["\']([^"\']+)["\']', html, re.IGNORECASE):
         for c in match.group(1).split():
             clases.add(c)
     if clases:
         partes.append("CLASES CSS EXISTENTES: " + ", ".join(sorted(list(clases))[:30]))
-        
     return "\n\n".join(partes)
 
 def parsear_json_cambios(texto):
@@ -55,7 +54,7 @@ def parsear_json_cambios(texto):
 
 def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_actual=None):
     print("=" * 60)
-    print("EDITANDO WEB (CSS INJECTION) - V3.0")
+    print("EDITANDO WEB (MODO ESTRICTO) - V3.1")
     print("=" * 60)
     
     if gateway is None:
@@ -77,7 +76,9 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
         try:
             prompt = generar_prompt_edicion_estructurada(estructura, instruccion, contexto_negocio)
             sistema = "Eres un experto en CSS. Devuelves SOLO JSON."
-            respuesta, fuente = gateway.chat_inteligente(prompt, sistema)
+            
+            # --- AQUI ESTA LA MAGIA: TEMPERATURE = 0.1 (MODO ESTRICTO) ---
+            respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1)
 
             data = parsear_json_cambios(respuesta)
             if not data or "reglas_css" not in data:
