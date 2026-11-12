@@ -2,11 +2,12 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V3.6: Recuperacion forzada de vista previa y manejo de errores si falla.
+# V3.7: Recuperacion de vista previa descargando desde Netlify (A prueba de balas).
 # ============================================
 
 import streamlit as st
 import datetime
+import requests
 import streamlit.components.v1 as components
 from panels.web import landing_data as D
 
@@ -201,7 +202,6 @@ def _renderizar_panel(pedido, sb):
 
     st.markdown(f"### {E_GLOBO} Tu web")
 
-    # --- CASO 1: LA WEB AÚN NO SE HA CREADO ---
     if not web_id and not web_url:
         st.warning(f"{E_RELOJ} Tu web aun no esta creada.")
         if estado == "pagado":
@@ -217,14 +217,11 @@ def _renderizar_panel(pedido, sb):
                     st.error(msg)
         else:
             st.markdown("**Que sigue:**\nEsperando confirmación de pago.")
-
-    # --- CASO 2: LA WEB YA EXISTE ---
     else:
-        # RECUPERACIÓN FORZADA: Si el reboot borró la memoria, lo leemos del storage
         if "preview_html" not in st.session_state or not st.session_state["preview_html"]:
+            # 1. Intentamos leer del disco (local)
             try:
                 from utils.web_storage import leer_web
-                # Intentamos leer del disco (local) o Base de Datos
                 res_leer = leer_web(email, web_id)
                 if res_leer.get("exito"):
                     st.session_state["preview_html"] = res_leer.get("html")
@@ -237,7 +234,7 @@ def _renderizar_panel(pedido, sb):
 
         st.write("")
         st.markdown(f"#### {E_RAYO} Hacer un cambio pequeño")
-        st.caption("Este cuadro es para cambios rápidos: 'cambia el título', 'centra el logo', 'cambia el fondo a azul'.")
+        st.caption("Este cuadro es para cambios rápidos.")
         
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
@@ -277,7 +274,6 @@ def _renderizar_panel(pedido, sb):
                     if res_pago.get("exito") and res_pago.get("url_pago"):
                         st.markdown(f'<meta http-equiv="refresh" content="0; url={res_pago["url_pago"]}">', unsafe_allow_html=True)
 
-        # --- AQUI ESTA EL FIX DE LA VISTA PREVIA ---
         if "preview_html" in st.session_state and st.session_state["preview_html"]:
             st.divider()
             st.markdown("**Revisa cómo quedó tu web:**")
@@ -297,19 +293,22 @@ def _renderizar_panel(pedido, sb):
                     else:
                         st.error(f"Error publicando: {res_pub.get('error')}")
         else:
-            # Si la web existe pero la memoria se borró y no se pudo recuperar
-            st.info("💡 La sesión se ha reiniciado. Si no ves tu vista previa, haz clic abajo para recuperarla.")
-            if st.button("🔄 Recuperar Vista Previa"):
-                try:
-                    from utils.web_storage import leer_web
-                    res_leer = leer_web(email, web_id)
-                    if res_leer.get("exito"):
-                        st.session_state["preview_html"] = res_leer.get("html")
-                        st.rerun()
-                    else:
-                        st.error(f"No se pudo recuperar el HTML: {res_leer.get('error')}")
-                except Exception as e:
-                    st.error(f"Error recuperando: {e}")
+            st.info("💡 La sesión se ha reiniciado. Si tu web ya estaba publicada, haz clic abajo para recuperarla directamente de internet.")
+            if st.button("🔄 Recuperar Vista Previa desde Internet"):
+                if web_url:
+                    try:
+                        # DESCARGAMOS EL HTML DIRECTO DE NETLIFY
+                        r = requests.get(web_url, timeout=10)
+                        if r.status_code == 200:
+                            st.session_state["preview_html"] = r.text
+                            st.success("¡Vista previa recuperada con éxito!")
+                            st.rerun()
+                        else:
+                            st.error("No se pudo descargar la web. Verifica que esté publicada.")
+                    except Exception as e:
+                        st.error(f"Error de conexión: {e}")
+                else:
+                    st.error("Tu web aún no ha sido publicada en internet. Por seguridad, los borradores se pierden al reiniciar el servidor. Debes generar una nueva.")
 
     st.divider()
 
