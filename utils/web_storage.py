@@ -2,7 +2,7 @@
 # ============================================
 # ALMACENAMIENTO DE WEBS (SUPABASE + ARCHIVOS)
 # ============================================
-# V1.1: Usa UUID real para usuario_id, no el email.
+# V1.2: leer_web ahora consulta Supabase si el archivo local no existe.
 # ============================================
 
 import os
@@ -46,8 +46,6 @@ def guardar_en_supabase(usuario_id, web_id, datos):
     if supabase is None:
         return {"exito": False, "error": "Supabase no disponible"}
     try:
-        # --- AQUI ESTABA EL ERROR ---
-        # Si usuario_id no es un UUID valido, generamos uno para que Supabase no falle
         try:
             uuid.UUID(str(usuario_id))
             final_usuario_id = str(usuario_id)
@@ -118,33 +116,61 @@ def guardar_web(usuario_id, web_id, html, datos_extra=None):
         datos_extra = {}
     print("\n1. Guardando en archivos...")
     resultado_archivos = guardar_en_archivos(usuario_id, web_id, html)
-    if not resultado_archivos["exito"]:
-        return {"exito": False, "ruta_archivo": None, "ruta_carpeta": None, "supabase_ok": False, "error": "Error guardando archivo: " + str(resultado_archivos["error"])}
+    
     print("\n2. Guardando en Supabase...")
     fecha_expiracion = datetime.datetime.now() + datetime.timedelta(days=DIAS_EXPIRACION)
     datos_supabase = datos_extra.copy()
     datos_supabase["html"] = html
     datos_supabase["fecha_expiracion"] = fecha_expiracion.isoformat()
     resultado_supabase = guardar_en_supabase(usuario_id, web_id, datos_supabase)
+    
+    # Retornamos exito si al menos guardó en Supabase (que es lo importante en la nube)
+    exito_total = resultado_archivos["exito"] or resultado_supabase["exito"]
+    
     return {
-        "exito": resultado_archivos["exito"],
-        "ruta_archivo": resultado_archivos["ruta"],
-        "ruta_carpeta": resultado_archivos["carpeta"],
+        "exito": exito_total,
+        "ruta_archivo": resultado_archivos.get("ruta"),
+        "ruta_carpeta": resultado_archivos.get("carpeta"),
         "supabase_ok": resultado_supabase["exito"],
         "supabase_error": resultado_supabase.get("error"),
         "error": None
     }
 
 def leer_web(usuario_id, web_id):
+    """Lee el HTML desde el disco local o, si falla, desde Supabase."""
+    # 1. INTENTO LOCAL (Funciona en desarrollo)
     try:
         ruta = os.path.join(CARPETA_WEBS, str(usuario_id), str(web_id), "index.html")
-        if not os.path.exists(ruta):
-            return {"exito": False, "html": None, "error": "Archivo no encontrado: " + ruta}
-        with open(ruta, "r", encoding="utf-8") as f:
-            html = f.read()
-        return {"exito": True, "html": html, "error": None}
+        if os.path.exists(ruta):
+            with open(ruta, "r", encoding="utf-8") as f:
+                html = f.read()
+            return {"exito": True, "html": html, "error": None}
     except Exception as e:
-        return {"exito": False, "html": None, "error": str(e)}
+        print(f"[STORAGE] Error leyendo archivo local: {e}")
+
+    # 2. INTENTO SUPABASE (A prueba de balas en Streamlit Cloud)
+    if supabase is None:
+        return {"exito": False, "html": None, "error": "No encontrado en disco. Supabase no disponible."}
+
+    try:
+        print(f"[STORAGE] Archivo local no encontrado. Buscando web_id {web_id} en Supabase...")
+        # Consultamos la tabla paginas_web
+        url = supabase.url + f"/rest/v1/paginas_web?id=eq.{web_id}&select=html_generado"
+        headers = supabase.headers.copy()
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if data and len(data) > 0:
+                html = data[0].get("html_generado")
+                if html:
+                    print("[STORAGE] HTML recuperado exitosamente de Supabase.")
+                    return {"exito": True, "html": html, "error": None}
+        
+        return {"exito": False, "html": None, "error": f"No se encontró el HTML en Supabase para web_id {web_id}"}
+    except Exception as e:
+        print(f"[STORAGE] Excepcion buscando en Supabase: {e}")
+        return {"exito": False, "html": None, "error": f"Error en Supabase: {str(e)}"}
 
 def listar_webs(usuario_id):
     try:
