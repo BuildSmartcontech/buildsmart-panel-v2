@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V8.3 (CONTEXTO DE TÍTULOS)
+# PROMPTS DE CALIDAD V8.5 (ESTRUCTURA Y COMODINES)
 # ============================================
 
 import sys
@@ -34,26 +34,26 @@ def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, context
 ## TU TAREA
 Analiza lo que el usuario quiere y devuelve un JSON con las modificaciones.
 
-¡ATENCIÓN AL CONTEXTO! Revisa los "TITULOS ACTUALES" para saber qué texto hay en la página.
-Si el usuario dice "Cambia el título principal", mira cuál es el más grande (usualmente el del Hero, ej. h1 o h2) y usa el texto_actual para que el sistema sepa cuál borrar.
-
 ## FORMATO DE RESPUESTA (SOLO JSON):
 {{
   "reemplazos_texto": [
-    {{ "selector": "h2", "texto_actual": "Descubre Colombia", "texto_nuevo": "Los mejores tours de Colombia" }}
+    {{ "selector": "h2", "texto_actual": "Descubre Colombia", "texto_nuevo": "Los mejores tours" }}
   ],
   "reglas_css": [
     "h2 {{ color: #FFFF00 !important; }}"
   ],
-  "secciones_html": [],
-  "explicacion": "Cambié el título principal del Hero."
+  "secciones_html": [
+    "<section class='services-grid' style='padding: 60px 20px;'><div class='card'><h2>Amazonía</h2><img src='{{NUEVA_IMAGEN}}' alt='Selva amazónica'><p>Explora la selva...</p></div></section>"
+  ],
+  "explicacion": "Agregué la sección de la Amazonía con imagen."
 }}
 
-## REGLAS CRÍTICAS
-1. Devuelve SOLO JSON válido.
-2. Para reemplazar texto, usa `reemplazos_texto`. Incluye `texto_actual` (una parte del texto viejo) y `texto_nuevo`. Esto es CRUCIAL para no modificar el título equivocado.
-3. Si agregas una sección nueva, usa `secciones_html`.
-4. Si solo pides colores, deja `reemplazos_texto` y `secciones_html` como `[]`.
+## REGLAS CRÍTICAS PARA SECCIONES NUEVAS (secciones_html)
+1. Si el usuario pide AGREGAR UNA SECCIÓN, DEBES usar las clases CSS premium de la página: `<section class="services-grid">` y `<div class="card">`.
+2. Si el usuario pide IMÁGENES, **PROHIBIDO INVENTAR URLs**. Escribe EXACTAMENTE el comodín `src="{{NUEVA_IMAGEN}}"` para cada imagen que necesites. El sistema en Python la reemplazará por una foto real.
+3. El texto de las imágenes debe ir en el atributo `alt`.
+4. **REGLA DE ESTRUCTURA:** La nueva sección se insertará automáticamente ANTES del `<footer>` y de la sección de Contacto. NO incluyas un `<footer>` en tu código HTML generado.
+5. Si solo pides colores, deja `reemplazos_texto` y `secciones_html` como `[]`.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt
