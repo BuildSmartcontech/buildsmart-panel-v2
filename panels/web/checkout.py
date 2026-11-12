@@ -2,7 +2,7 @@
 # ============================================
 # CHECKOUT UI - Web Gancho SAMU IA
 # ============================================
-# V6.0: Checkout completo con integración de ePayco y arreglo de loop.
+# V6.1: Corrección de compatibilidad en botones (use_container_width).
 # ============================================
 
 import streamlit as st
@@ -177,7 +177,7 @@ def _renderizar_formulario(tier):
     st.divider()
     st.caption("* Campos obligatorios")
 
-    if st.button(f"{E_OK} Confirmar compra - {tier['precio_label']}", width="stretch", type="primary", key="ck_btn_confirmar", disabled=not acepta_terminos):
+    if st.button(f"{E_OK} Confirmar compra - {tier['precio_label']}", use_container_width=True, type="primary", key="ck_btn_confirmar", disabled=not acepta_terminos):
         if sector_sel == "Otro (especificar abajo)":
             sector_final = sector_otro.strip()
         else:
@@ -220,12 +220,12 @@ def _renderizar_formulario(tier):
         st.info("Podes continuar sin estos datos o volver a completarlos. La IA completara lo que falte con contenido generico.")
         col_c1, col_c2 = st.columns(2)
         with col_c1:
-            if st.button(f"{E_OK} Continuar sin estos campos", type="primary", width="stretch", key="btn_continuar_sin_opc"):
+            if st.button(f"{E_OK} Continuar sin estos campos", type="primary", use_container_width=True, key="btn_continuar_sin_opc"):
                 datos = st.session_state.get("_checkout_datos_pendientes", {})
                 tier_actual = st.session_state.get("_checkout_tier_actual", tier)
                 crear_pedido_y_avanzar(datos, tier_actual)
         with col_c2:
-            if st.button(f"{E_FLECHA} Volver y completar", width="stretch", key="btn_volver_completar"):
+            if st.button(f"{E_FLECHA} Volver y completar", use_container_width=True, key="btn_volver_completar"):
                 st.session_state.pop("_checkout_confirmando", None)
                 st.session_state.pop("_checkout_faltantes", None)
                 st.rerun()
@@ -279,9 +279,9 @@ def _renderizar_instrucciones():
     st.success(f"{E_CORONA} Recibimos tu pedido. Guarda este ID: `{pedido.get('id', '?')}`")
     col1, col2 = st.columns(2)
     with col1:
-        if st.button(f"{E_DOC} Hacer otro pedido", width="stretch"): limpiar_estado_checkout()
+        if st.button(f"{E_DOC} Hacer otro pedido", use_container_width=True): limpiar_estado_checkout()
     with col2:
-        if st.button(f"{E_FLECHA} Volver al inicio", width="stretch"): limpiar_estado_checkout()
+        if st.button(f"{E_FLECHA} Volver al inicio", use_container_width=True): limpiar_estado_checkout()
 
 def renderizar():
     if st.session_state.get("_web_pedido_creado"):
