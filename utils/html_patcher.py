@@ -1,20 +1,11 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V2.8 (LIMPIEZA Y ANCLAJE INTELIGENTE)
+# APLICADOR DE CAMBIOS AL HTML - V2.9 (BORRADO BRUTAL)
 # ============================================
 
 import re
 from bs4 import BeautifulSoup
 from utils.image_fetcher import obtener_urls_imagenes_negocio
-
-def limpiar_html_residual(html_code: str) -> str:
-    """Corta cualquier basura que haya quedado después del cierre del footer."""
-    if "</footer>" in html_code:
-        partes = html_code.split("</footer>")
-        # Conservamos hasta el cierre del footer y cerramos bien el body y html
-        html_limpio = partes[0] + "</footer>\n</body>\n</html>"
-        return html_limpio
-    return html_code
 
 def _reparar_imagenes_rotas(html_completo):
     soup = BeautifulSoup(html_completo, 'html.parser')
@@ -41,22 +32,26 @@ def aplicar_cambios(html, cambios):
     eliminar_secciones = cambios.get("eliminar_secciones", [])
     explicacion = cambios.get("explicacion", "Cambios aplicados")
 
-    if not reglas_css and not secciones_html and not reemplazos_texto and not eliminar_secciones:
-        return {"exito": False, "html_nuevo": html, "error": "La IA no generó cambios."}
-
-    # 0. LIMPIEZA PREVIA DE BASURA
-    html = limpiar_html_residual(html)
     soup = BeautifulSoup(html, 'html.parser')
 
-    # 1. ELIMINAR SECCIONES VIEJAS
+    # 1. ELIMINAR SECCIONES VIEJAS (Búsqueda por texto brutal)
     if eliminar_secciones:
         for elim in eliminar_secciones:
-            selector = elim.get("selector", "section")
             texto = elim.get("texto_que_contiene", "")
             if texto:
-                for tag in soup.find_all(selector):
-                    if texto in tag.get_text():
-                        tag.decompose()
+                # Buscamos cualquier etiqueta que contenga ese texto exacto
+                for string_node in soup.find_all(string=re.compile(re.escape(texto), re.IGNORECASE)):
+                    # Buscamos el "abuelo" para destruir todo el bloque, no solo el texto
+                    parent = string_node.parent
+                    # Subimos máximo 3 niveles para no borrar todo el body
+                    levels_up = 0
+                    while parent and parent.name not in ['body', 'html', 'main'] and levels_up < 3:
+                        parent = parent.parent
+                        levels_up += 1
+                    if parent and parent.name not in ['body', 'html', 'main']:
+                        parent.decompose()
+                    elif string_node.parent:
+                        string_node.parent.decompose()
 
     # 2. REEMPLAZAR TEXTOS
     if reemplazos_texto:
@@ -86,9 +81,8 @@ def aplicar_cambios(html, cambios):
         for html_seccion in secciones_html:
             seccion_soup = BeautifulSoup(html_seccion, 'html.parser')
             
-            # Buscamos el ancla correcta: Ubicación, Contacto o Footer
-            # Así las tarjetas nuevas quedan antes de Ubicación, no debajo de Horarios
-            anclaje = soup.find(id='ubicacion') or soup.find(id='contacto') or soup.find('footer')
+            # Buscamos el mejor lugar para inyectar: ANTES de Ubicación o Horarios (para que quede arriba)
+            anclaje = soup.find(id='ubicacion') or soup.find(id='horarios') or soup.find(id='contacto') or soup.find('footer')
             
             if anclaje:
                 anclaje.insert_before(seccion_soup)

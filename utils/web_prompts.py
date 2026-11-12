@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V8.7 (LIMPIEZA Y ORDEN)
+# PROMPTS DE CALIDAD V8.8 (BORRADO POR TEXTO)
 # ============================================
 
 import sys
@@ -31,22 +31,10 @@ def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, context
 ## INSTRUCCIÓN DEL USUARIO
 "{instruccion}"
 
-## REGLAS ESTRICTAS DE EDICIÓN Y LIMPIEZA:
-1. Si el usuario pide ELIMINAR o BORRAR una sección, texto o bloque, bórralo por completo del código HTML sin dejar rastros ni etiquetas vacías. Usa `eliminar_secciones`.
-2. Mantén siempre este orden lógico en la página: 
-   - Barra de navegación (<nav>)
-   - Portada principal (Hero)
-   - Servicios / Destinos / Productos (Tarjetas)
-   - Quiénes somos
-   - Ubicación y Horarios
-   - Formulario de Contacto y WhatsApp
-   - Pie de página (<footer>)
-3. Nunca dejes texto ni etiquetas HTML fuera de la etiqueta </body>.
-4. Si el usuario pide AGREGAR una nueva sección (ej: "agrega Amazonía"), usa las clases `<section class="services-grid">` y `<div class="card">`.
-5. Si necesitas imágenes, **PROHIBIDO INVENTAR URLs**. Usa EXACTAMENTE el comodín `src="{{NUEVA_IMAGEN}}"`. El sistema la reemplazará.
-
-## TU TAREA
-Devuelve un JSON con las modificaciones.
+## REGLAS ESTRICTAS:
+1. Si el usuario pide ELIMINAR o BORRAR una sección, usa `eliminar_secciones`. Escribe el título EXACTO de la sección que quieres borrar (ej: "Amazonía Colombiana") en `texto_que_contiene`. El sistema en Python se encargará de buscar y destruir ese bloque.
+2. Si el usuario pide AGREGAR, usa las clases `<section class="services-grid">` y `<div class="card">`. Usa el comodín `src="{{NUEVA_IMAGEN}}"` para fotos.
+3. Si pide cambiar colores, usa `reglas_css`.
 
 ## FORMATO DE RESPUESTA (SOLO JSON):
 {{
@@ -56,7 +44,7 @@ Devuelve un JSON con las modificaciones.
     "<section class='services-grid' style='padding: 60px 20px;'><div class='card'><h2>Amazonía</h2><img src='{{NUEVA_IMAGEN}}' alt='Selva amazónica'><p>Explora la selva...</p></div></section>"
   ],
   "eliminar_secciones": [
-    {{ "selector": "section", "texto_que_contiene": "Amazonía Colombiana" }}
+    {{ "texto_que_contiene": "Amazonía Colombiana" }}
   ],
   "explicacion": "Borré la sección vieja y agregué la nueva con tarjetas."
 }}
