@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V18.8 (MONITOR INTEGRADO)
+# GENERADOR DE WEBS - V18.9 (ANTI-ALUCINACION DE IMAGENES)
 # ============================================
 
 import os
@@ -158,21 +158,27 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
             img_tag['style'] = "width:100%; max-width:1000px; height:auto; max-height:600px; object-fit:cover; border-radius:24px; margin:40px auto 0; display:block; box-shadow: 0 20px 40px rgba(0,0,0,0.4);"
             container.append(img_tag)
 
-    if servicios_urls and "{{SERVICIO_1}}" not in html:
+    # --- EL FIX DE LAS IMÁGENES DE SERVICIOS ---
+    if servicios_urls:
         print(f"[INYECTOR] Buscando tarjetas para inyectar {len(servicios_urls)} imagenes...")
         tarjetas = []
+        # Buscamos TODAS las tarjetas, incluso si la IA les puso una imagen falsa
         for div in soup.find_all('div'):
-            if (div.find('h3') or div.find('h4')) and not div.find('img') and len(div.get_text(strip=True)) < 350:
+            if (div.find('h3') or div.find('h4')) and len(div.get_text(strip=True)) < 350:
                 tarjetas.append(div)
 
         servicios_copy = copy.get('servicios', [])
         for i, url in enumerate(servicios_urls):
             if i >= len(tarjetas): break
             tarjeta = tarjetas[i]
-            print(f"[INYECTOR] Inyectando imagen en tarjeta {i+1}...")
+            print(f"[INYECTOR] Inyectando imagen real en tarjeta {i+1}...")
             
+            # 1. DESTRUIMOS cualquier imagen inventada por la IA
+            for img in tarjeta.find_all('img'):
+                img.decompose()
+                
+            # 2. Ponemos nuestra imagen real
             alt_serv = servicios_copy[i].get('alt_imagen', f"Servicio {i+1}") if i < len(servicios_copy) else f"Servicio {i+1}"
-            
             img_tag = soup.new_tag('img', src=url, alt=alt_serv)
             img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:16px; margin-bottom:24px; display:block;"
             tarjeta.insert(0, img_tag)
@@ -197,26 +203,23 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V18.8 (MONITOR INTEGRADO)")
+    print("GENERANDO WEB - V18.9")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
     fotos_b64 = datos_negocio.get("fotos_b64", [])
     pedido_id = datos_negocio.get("pedido_id", "sin_id")
     
-    # --- FASE 1: VISION ARTIFICIAL (CON MONITOR) ---
     descripcion_fotos = ""
     if fotos_b64 and analizar_imagen_gemini:
-        print(f"[VISION] Analizando fotos del usuario con Gemini para pedido {pedido_id}...")
+        print(f"[VISION] Analizando fotos para pedido {pedido_id}...")
         descripciones = []
         for idx, foto in enumerate(fotos_b64):
             prompt_vision = f"Describe esta imagen en 10 palabras. ¿Qué muestra? (Foto {idx+1})"
             desc_individual = analizar_imagen_gemini(foto, prompt_vision, pedido_id=pedido_id)
             descripciones.append(f"Foto {idx+1}: {desc_individual}")
         descripcion_fotos = "\n".join(descripciones)
-        print(f"[VISION] Resultado:\n{descripcion_fotos}")
 
-    # --- FASE 2: COPYWRITING (CON MONITOR) ---
     copy_raw = generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia, pedido_id=pedido_id)
     if not copy_raw: return {"exito": False, "html": None, "error": "Fallo el copy."}
     try:
