@@ -2,12 +2,11 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V3.2: Quitado "Netlify" de la UI. Recuperacion de vista previa robusta.
+# V3.4: UI limpia, sin Netlify, textos claros y vista previa estable.
 # ============================================
 
 import streamlit as st
 import datetime
-import base64
 import streamlit.components.v1 as components
 from panels.web import landing_data as D
 
@@ -70,7 +69,6 @@ def _cargar_leads(sb, pedido_id):
 
 def _renderizar_vista_previa(html_content: str):
     if not html_content:
-        st.warning("No hay contenido HTML para previsualizar.")
         return
     components.html(html_content, height=600, scrolling=True)
 
@@ -149,7 +147,6 @@ def _procesar_retorno_pago(sb, pedido_id, paquete):
         sb.update("pedidos_web", {"modificaciones_extra": nuevos_extras}, "id", pedido_id)
         return True
     except Exception as e:
-        print(f"[PANEL] Error procesando pago: {e}")
         return False
 
 def _renderizar_panel(pedido, sb):
@@ -207,7 +204,7 @@ def _renderizar_panel(pedido, sb):
     if not web_id and not web_url:
         st.warning(f"{E_RELOJ} Tu web aun no esta creada.")
         if estado == "pagado":
-            st.markdown("Haz clic en el botón de abajo para que nuestra IA construya tu página web.")
+            st.markdown("Haz clic en el botón de abajo para que nuestra IA construya tu página web con los datos que nos diste.")
             if st.button(f"{E_COHETE} Generar mi web ahora", type="primary", use_container_width=True):
                 with st.spinner("La IA está construyendo tu página..."):
                     exito, msg, html_generado = _generar_web_inicial(sb, pedido)
@@ -220,9 +217,8 @@ def _renderizar_panel(pedido, sb):
         else:
             st.markdown("**Que sigue:**\nEsperando confirmación de pago.")
 
-    # --- CASO 2: LA WEB YA EXISTE (Creada o Publicada) ---
+    # --- CASO 2: LA WEB YA EXISTE ---
     else:
-        # Recuperamos la vista previa si la sesión se reinició
         if "preview_html" not in st.session_state:
             try:
                 from utils.web_storage import leer_web
@@ -237,7 +233,8 @@ def _renderizar_panel(pedido, sb):
             st.markdown(f"**URL publica:** [{web_url}]({web_url})")
 
         st.write("")
-        st.markdown(f"#### {E_RAYO} Modificar mi web")
+        st.markdown(f"#### {E_RAYO} Hacer un cambio pequeño")
+        st.caption("Este cuadro es para cambios rápidos: 'cambia el título', 'centra el logo', 'cambia el fondo a azul'.")
         
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
