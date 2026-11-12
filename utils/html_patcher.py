@@ -1,22 +1,28 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V2.7 (REPARADOR Y BORRADOR)
+# APLICADOR DE CAMBIOS AL HTML - V2.8 (LIMPIEZA Y ANCLAJE INTELIGENTE)
 # ============================================
 
 import re
 from bs4 import BeautifulSoup
 from utils.image_fetcher import obtener_urls_imagenes_negocio
 
+def limpiar_html_residual(html_code: str) -> str:
+    """Corta cualquier basura que haya quedado después del cierre del footer."""
+    if "</footer>" in html_code:
+        partes = html_code.split("</footer>")
+        # Conservamos hasta el cierre del footer y cerramos bien el body y html
+        html_limpio = partes[0] + "</footer>\n</body>\n</html>"
+        return html_limpio
+    return html_code
+
 def _reparar_imagenes_rotas(html_completo):
     soup = BeautifulSoup(html_completo, 'html.parser')
     for img in soup.find_all('img'):
         src = img.get('src', '')
-        # Atrapamos el comodín literal o URLs vacías
         if "{{" in src or not src or (src.startswith("http") and "images.unsplash.com" not in src):
-            # Si es el logo (base64), lo dejamos pasar
             if "base64" in src:
                 continue
-                
             alt_texto = img.get('alt', 'negocio')
             imagenes = obtener_urls_imagenes_negocio({"sector": alt_texto}, cantidad=1)
             if imagenes:
@@ -32,15 +38,17 @@ def aplicar_cambios(html, cambios):
     reglas_css = cambios.get("reglas_css", [])
     secciones_html = cambios.get("secciones_html", [])
     reemplazos_texto = cambios.get("reemplazos_texto", [])
-    eliminar_secciones = cambios.get("eliminar_secciones", []) # NUEVO
+    eliminar_secciones = cambios.get("eliminar_secciones", [])
     explicacion = cambios.get("explicacion", "Cambios aplicados")
 
     if not reglas_css and not secciones_html and not reemplazos_texto and not eliminar_secciones:
         return {"exito": False, "html_nuevo": html, "error": "La IA no generó cambios."}
 
+    # 0. LIMPIEZA PREVIA DE BASURA
+    html = limpiar_html_residual(html)
     soup = BeautifulSoup(html, 'html.parser')
 
-    # 1. ELIMINAR SECCIONES VIEJAS (Si hay)
+    # 1. ELIMINAR SECCIONES VIEJAS
     if eliminar_secciones:
         for elim in eliminar_secciones:
             selector = elim.get("selector", "section")
@@ -73,11 +81,15 @@ def aplicar_cambios(html, cambios):
         if style_tag:
             style_tag.string = (style_tag.string or "") + bloque_css
 
-    # 4. INYECTAR HTML NUEVO (Ubicación Estructural)
+    # 4. INYECTAR HTML NUEVO (Ubicación Inteligente)
     if secciones_html:
         for html_seccion in secciones_html:
             seccion_soup = BeautifulSoup(html_seccion, 'html.parser')
-            anclaje = soup.find(id='contacto') or soup.find('footer')
+            
+            # Buscamos el ancla correcta: Ubicación, Contacto o Footer
+            # Así las tarjetas nuevas quedan antes de Ubicación, no debajo de Horarios
+            anclaje = soup.find(id='ubicacion') or soup.find(id='contacto') or soup.find('footer')
+            
             if anclaje:
                 anclaje.insert_before(seccion_soup)
             else:

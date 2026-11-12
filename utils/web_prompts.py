@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V8.6 (BORRADO Y COMODINES)
+# PROMPTS DE CALIDAD V8.7 (LIMPIEZA Y ORDEN)
 # ============================================
 
 import sys
@@ -31,12 +31,22 @@ def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, context
 ## INSTRUCCIÓN DEL USUARIO
 "{instruccion}"
 
+## REGLAS ESTRICTAS DE EDICIÓN Y LIMPIEZA:
+1. Si el usuario pide ELIMINAR o BORRAR una sección, texto o bloque, bórralo por completo del código HTML sin dejar rastros ni etiquetas vacías. Usa `eliminar_secciones`.
+2. Mantén siempre este orden lógico en la página: 
+   - Barra de navegación (<nav>)
+   - Portada principal (Hero)
+   - Servicios / Destinos / Productos (Tarjetas)
+   - Quiénes somos
+   - Ubicación y Horarios
+   - Formulario de Contacto y WhatsApp
+   - Pie de página (<footer>)
+3. Nunca dejes texto ni etiquetas HTML fuera de la etiqueta </body>.
+4. Si el usuario pide AGREGAR una nueva sección (ej: "agrega Amazonía"), usa las clases `<section class="services-grid">` y `<div class="card">`.
+5. Si necesitas imágenes, **PROHIBIDO INVENTAR URLs**. Usa EXACTAMENTE el comodín `src="{{NUEVA_IMAGEN}}"`. El sistema la reemplazará.
+
 ## TU TAREA
-Analiza lo que el usuario quiere y devuelve un JSON con las modificaciones.
-Si el usuario pide borrar o eliminar algo, usa `eliminar_secciones`.
-Si pide agregar, usa `secciones_html`.
-Si pide cambiar texto, usa `reemplazos_texto`.
-Si pide colores, usa `reglas_css`.
+Devuelve un JSON con las modificaciones.
 
 ## FORMATO DE RESPUESTA (SOLO JSON):
 {{
@@ -50,15 +60,6 @@ Si pide colores, usa `reglas_css`.
   ],
   "explicacion": "Borré la sección vieja y agregué la nueva con tarjetas."
 }}
-
-## REGLAS CRÍTICAS PARA SECCIONES NUEVAS (secciones_html)
-1. DEBES usar las clases CSS premium: `<section class="services-grid">` y `<div class="card">`.
-2. Si necesitas imágenes, **PROHIBIDO INVENTAR URLs**. Escribe EXACTAMENTE el comodín `src="{{NUEVA_IMAGEN}}"`. El sistema lo reemplazará.
-3. El texto de las imágenes debe ir en el atributo `alt` (en español).
-
-## REGLAS PARA ELIMINAR (eliminar_secciones)
-1. Si el usuario pide borrar una sección, busca la etiqueta (ej. "section", "div") y el texto que la identifica.
-2. Ejemplo: Para borrar la sección de Amazonía vieja, usa `selector: "section"` y `texto_que_contiene: "Amazonía Colombiana"`.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt
