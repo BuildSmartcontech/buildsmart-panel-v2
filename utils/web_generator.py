@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V18.5 (PROMPT BLINDADO)
+# GENERADOR DE WEBS - V18.6 (ALT-TEXT Y LATAM)
 # ============================================
 
 import os
@@ -32,7 +32,8 @@ Analiza el siguiente negocio:
 
 Redacta el Copy exacto para su pagina web premium. 
 ¡ATENCIÓN! Los servicios DEBEN estar directamente relacionados con el sector '{sector}' y la descripción.
-¡CRÍTICO! Genera las 'keywords_imagenes' EXCLUSIVAMENTE EN INGLÉS, ya que se usarán para buscar fotos profesionales en Unsplash. (Ejemplo: si el sector es inmobiliaria, usa ["luxury modern house", "real estate agent", "city skyline"]).
+¡CRÍTICO! Genera las 'keywords_imagenes' EXCLUSIVAMENTE EN INGLÉS para buscar fotos profesionales.
+¡CRÍTICO! Usa ESPAÑOL NEUTRO DE LATINOAMÉRICA. NO uses modismos de España.
 
 Devuelve UNICAMENTE un JSON valido:
 {{
@@ -47,18 +48,17 @@ Devuelve UNICAMENTE un JSON valido:
   "keywords_imagenes": ["keyword_1_in_english", "keyword_2_in_english", "keyword_3_in_english"]
 }}
 """
-    # EL CAMBIO CLAVE DEL ASESOR (Punto 2)
-    sistema = "Eres un redactor publicitario experto en el negocio específico del cliente. No hables de diseño web ni marketing digital a menos que el cliente sea una agencia."
+    sistema = "Eres un redactor publicitario experto. No hables de diseño web ni marketing digital a menos que el cliente sea una agencia."
     
     try:
-        respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia)
+        respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia, temperature=0.7) # Modo Creativo
         if not error and respuesta: return respuesta
     except Exception: pass
     
     try:
         from backend.gateway import gateway
         if gateway:
-            respuesta, _ = gateway.chat_inteligente(prompt, sistema)
+            respuesta, _ = gateway.chat_inteligente(prompt, sistema, temperature=0.7) # Modo Creativo
             return respuesta
     except Exception: pass
     return None
@@ -103,7 +103,7 @@ def generar_html_programador(datos_negocio, copy, modelo_ia):
     except Exception: pass
     return None
 
-def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
+def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_negocio):
     hero_url = imagenes.get("hero")
     servicios_urls = imagenes.get("servicios", [])
     
@@ -123,7 +123,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
         primer_enlace = soup.find('a')
         header = soup.find('header') or soup.find('nav')
         
-        logo_img = soup.new_tag('img', src=logo_b64, alt="Logo")
+        logo_img = soup.new_tag('img', src=logo_b64, alt=f"Logo de {nombre_negocio}")
         logo_img['style'] = "height:60px; width:auto; object-fit:contain; max-width:220px; margin-right:20px;"
         
         if header:
@@ -145,7 +145,9 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
             for img in container.find_all('img'):
                 img.decompose()
                 
-            img_tag = soup.new_tag('img', src=hero_url, alt="Hero Image")
+            # Alt text inteligente basado en el sector
+            sector = datos_negocio.get('sector', 'Negocio')
+            img_tag = soup.new_tag('img', src=hero_url, alt=f"Imagen representativa de {sector} para {nombre_negocio}")
             img_tag['style'] = "width:100%; max-width:1000px; height:auto; max-height:600px; object-fit:cover; border-radius:24px; margin:40px auto 0; display:block; box-shadow: 0 20px 40px rgba(0,0,0,0.4);"
             container.append(img_tag)
 
@@ -161,7 +163,11 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
             tarjeta = tarjetas[i]
             print(f"[INYECTOR] Inyectando imagen en tarjeta {i+1}...")
             
-            img_tag = soup.new_tag('img', src=url, alt=f"Servicio {i+1}")
+            # Buscamos el titulo del servicio para el Alt-Text
+            titulo_serv = tarjeta.find('h3') or tarjeta.find('h4')
+            alt_serv = titulo_serv.get_text(strip=True) if titulo_serv else f"Servicio {i+1} de {nombre_negocio}"
+            
+            img_tag = soup.new_tag('img', src=url, alt=alt_serv)
             img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:16px; margin-bottom:24px; display:block;"
             tarjeta.insert(0, img_tag)
             
@@ -185,7 +191,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio):
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V18.5")
+    print("GENERANDO WEB - V18.6")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
@@ -209,7 +215,6 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
     
     faltan_servicios = 3 - len(imagenes["servicios"])
     if faltan_servicios > 0 or not imagenes["hero"]:
-        # Ahora las keywords vienen en inglés desde la IA
         keywords = copy.get("keywords_imagenes", ["business"])
         negocio_info = {"nombre": nombre_negocio, "sector": " ".join(keywords), "descripcion": datos_negocio.get("descripcion")}
         poll = obtener_urls_imagenes_negocio(negocio_info, cantidad=4)
@@ -230,7 +235,7 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
             continue
 
         html = limpiar_html(html_raw)
-        html = inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio)
+        html = inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_negocio)
 
         if validar_completo(html)["valido"]:
             return {"exito": True, "html": html, "error": None}
