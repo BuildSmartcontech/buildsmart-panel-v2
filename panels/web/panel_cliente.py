@@ -2,7 +2,7 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V3.5: Recuperacion forzada de vista previa desde Base de Datos tras Reboot.
+# V3.6: Recuperacion forzada de vista previa y manejo de errores si falla.
 # ============================================
 
 import streamlit as st
@@ -69,6 +69,7 @@ def _cargar_leads(sb, pedido_id):
 
 def _renderizar_vista_previa(html_content: str):
     if not html_content:
+        st.warning("No hay contenido HTML para mostrar.")
         return
     components.html(html_content, height=600, scrolling=True)
 
@@ -219,19 +220,16 @@ def _renderizar_panel(pedido, sb):
 
     # --- CASO 2: LA WEB YA EXISTE ---
     else:
-        # RECUPERACIÓN FORZADA: Si el reboot borró la memoria, lo leemos de la base de datos / storage
+        # RECUPERACIÓN FORZADA: Si el reboot borró la memoria, lo leemos del storage
         if "preview_html" not in st.session_state or not st.session_state["preview_html"]:
             try:
                 from utils.web_storage import leer_web
-                print(f"[PANEL] Intentando recuperar HTML de BD para {web_id}...")
+                # Intentamos leer del disco (local) o Base de Datos
                 res_leer = leer_web(email, web_id)
                 if res_leer.get("exito"):
                     st.session_state["preview_html"] = res_leer.get("html")
-                    print(f"[PANEL] HTML recuperado exitosamente.")
-                else:
-                    print(f"[PANEL] No se pudo recuperar HTML: {res_leer.get('error')}")
-            except Exception as e:
-                print(f"[PANEL] Error recuperando HTML: {e}")
+            except Exception:
+                pass
 
         if web_url:
             st.success(f"{E_OK} Tu web esta publicada y activa")
@@ -249,7 +247,7 @@ def _renderizar_panel(pedido, sb):
                 
                 if btn_mod:
                     if not instruccion.strip():
-                        st.warning("Escribe lo que quieres cambiar.")
+                        st.warning("Escribe lo que quieres cambiar antes de generar la vista previa.")
                     else:
                         with st.spinner("La IA esta aplicando los cambios..."):
                             exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion)
@@ -279,6 +277,7 @@ def _renderizar_panel(pedido, sb):
                     if res_pago.get("exito") and res_pago.get("url_pago"):
                         st.markdown(f'<meta http-equiv="refresh" content="0; url={res_pago["url_pago"]}">', unsafe_allow_html=True)
 
+        # --- AQUI ESTA EL FIX DE LA VISTA PREVIA ---
         if "preview_html" in st.session_state and st.session_state["preview_html"]:
             st.divider()
             st.markdown("**Revisa cómo quedó tu web:**")
@@ -297,6 +296,20 @@ def _renderizar_panel(pedido, sb):
                         st.rerun()
                     else:
                         st.error(f"Error publicando: {res_pub.get('error')}")
+        else:
+            # Si la web existe pero la memoria se borró y no se pudo recuperar
+            st.info("💡 La sesión se ha reiniciado. Si no ves tu vista previa, haz clic abajo para recuperarla.")
+            if st.button("🔄 Recuperar Vista Previa"):
+                try:
+                    from utils.web_storage import leer_web
+                    res_leer = leer_web(email, web_id)
+                    if res_leer.get("exito"):
+                        st.session_state["preview_html"] = res_leer.get("html")
+                        st.rerun()
+                    else:
+                        st.error(f"No se pudo recuperar el HTML: {res_leer.get('error')}")
+                except Exception as e:
+                    st.error(f"Error recuperando: {e}")
 
     st.divider()
 
