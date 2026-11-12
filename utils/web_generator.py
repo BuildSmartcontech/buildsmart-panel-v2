@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V18.6 (ALT-TEXT Y LATAM)
+# GENERADOR DE WEBS - V18.7 (VISION ARTIFICIAL)
 # ============================================
 
 import os
@@ -17,22 +17,33 @@ from utils.web_validator import validar_completo, limpiar_html
 from utils.image_fetcher import obtener_urls_imagenes_negocio
 from utils.openrouter_manager import consultar_openrouter
 
+try:
+    from backend.gateway import analizar_imagen_gemini, gateway
+except ImportError:
+    analizar_imagen_gemini = None
+    gateway = None
+
 MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
 
-def generar_copy_estrategico(datos_negocio, modelo_ia):
+def generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia):
     sector = datos_negocio.get('sector', 'General')
     desc = datos_negocio.get('descripcion', '')
     
+    # Inyectamos lo que Gemini vio en las fotos
+    contexto_fotos = ""
+    if descripcion_fotos:
+        contexto_fotos = f"\n¡ATENCIÓN! El usuario subió fotos reales y la IA de visión las describió así:\n{descripcion_fotos}\nPor favor, integra estas imágenes reales en el copy (ej: menciona las fachadas, la familia, etc)."
+
     prompt = f"""
 Analiza el siguiente negocio:
 - Nombre: {datos_negocio.get('nombre')}
 - Sector: {sector}
 - Descripcion: {desc}
+{contexto_fotos}
 
 Redacta el Copy exacto para su pagina web premium. 
 ¡ATENCIÓN! Los servicios DEBEN estar directamente relacionados con el sector '{sector}' y la descripción.
-¡CRÍTICO! Genera las 'keywords_imagenes' EXCLUSIVAMENTE EN INGLÉS para buscar fotos profesionales.
 ¡CRÍTICO! Usa ESPAÑOL NEUTRO DE LATINOAMÉRICA. NO uses modismos de España.
 
 Devuelve UNICAMENTE un JSON valido:
@@ -40,9 +51,9 @@ Devuelve UNICAMENTE un JSON valido:
   "headline": "Titulo impactante (max 10 palabras)",
   "subheadline": "Subtitulo persuasivo (max 25 palabras)",
   "servicios": [
-    {{"titulo": "Servicio 1", "descripcion": "Texto persuasivo (max 25 palabras, idea completa)"}},
-    {{"titulo": "Servicio 2", "descripcion": "Texto persuasivo (max 25 palabras, idea completa)"}},
-    {{"titulo": "Servicio 3", "descripcion": "Texto persuasivo (max 25 palabras, idea completa)"}}
+    {{"titulo": "Servicio 1", "descripcion": "Texto persuasivo (max 25 palabras, idea completa)", "alt_imagen": "Descripcion en español de la foto del servicio 1"}},
+    {{"titulo": "Servicio 2", "descripcion": "Texto persuasivo (max 25 palabras, idea completa)", "alt_imagen": "Descripcion en español de la foto del servicio 2"}},
+    {{"titulo": "Servicio 3", "descripcion": "Texto persuasivo (max 25 palabras, idea completa)", "alt_imagen": "Descripcion en español de la foto del servicio 3"}}
   ],
   "sobre_nosotros": "Parrafo de 40 palabras.",
   "keywords_imagenes": ["keyword_1_in_english", "keyword_2_in_english", "keyword_3_in_english"]
@@ -51,14 +62,13 @@ Devuelve UNICAMENTE un JSON valido:
     sistema = "Eres un redactor publicitario experto. No hables de diseño web ni marketing digital a menos que el cliente sea una agencia."
     
     try:
-        respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia, temperature=0.7) # Modo Creativo
+        respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia, temperature=0.7)
         if not error and respuesta: return respuesta
     except Exception: pass
     
     try:
-        from backend.gateway import gateway
         if gateway:
-            respuesta, _ = gateway.chat_inteligente(prompt, sistema, temperature=0.7) # Modo Creativo
+            respuesta, _ = gateway.chat_inteligente(prompt, sistema, temperature=0.7)
             return respuesta
     except Exception: pass
     return None
@@ -96,14 +106,13 @@ def generar_html_programador(datos_negocio, copy, modelo_ia):
     except Exception: pass
     
     try:
-        from backend.gateway import gateway
         if gateway:
             respuesta, _ = gateway.chat_inteligente(prompt, sistema)
             return respuesta
     except Exception: pass
     return None
 
-def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_negocio):
+def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_negocio, copy):
     hero_url = imagenes.get("hero")
     servicios_urls = imagenes.get("servicios", [])
     
@@ -145,7 +154,6 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
             for img in container.find_all('img'):
                 img.decompose()
                 
-            # Alt text inteligente basado en el sector
             sector = datos_negocio.get('sector', 'Negocio')
             img_tag = soup.new_tag('img', src=hero_url, alt=f"Imagen representativa de {sector} para {nombre_negocio}")
             img_tag['style'] = "width:100%; max-width:1000px; height:auto; max-height:600px; object-fit:cover; border-radius:24px; margin:40px auto 0; display:block; box-shadow: 0 20px 40px rgba(0,0,0,0.4);"
@@ -158,14 +166,14 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
             if (div.find('h3') or div.find('h4')) and not div.find('img') and len(div.get_text(strip=True)) < 350:
                 tarjetas.append(div)
 
+        servicios_copy = copy.get('servicios', [])
         for i, url in enumerate(servicios_urls):
             if i >= len(tarjetas): break
             tarjeta = tarjetas[i]
             print(f"[INYECTOR] Inyectando imagen en tarjeta {i+1}...")
             
-            # Buscamos el titulo del servicio para el Alt-Text
-            titulo_serv = tarjeta.find('h3') or tarjeta.find('h4')
-            alt_serv = titulo_serv.get_text(strip=True) if titulo_serv else f"Servicio {i+1} de {nombre_negocio}"
+            # Usamos el Alt-Text que generó Gemini Vision
+            alt_serv = servicios_copy[i].get('alt_imagen', f"Servicio {i+1}") if i < len(servicios_copy) else f"Servicio {i+1}"
             
             img_tag = soup.new_tag('img', src=url, alt=alt_serv)
             img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:16px; margin-bottom:24px; display:block;"
@@ -191,12 +199,26 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V18.6")
+    print("GENERANDO WEB - V18.7 (VISION ACTIVADA)")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
+    fotos_b64 = datos_negocio.get("fotos_b64", [])
     
-    copy_raw = generar_copy_estrategico(datos_negocio, modelo_ia)
+    # --- FASE 1: VISION ARTIFICIAL ---
+    descripcion_fotos = ""
+    if fotos_b64 and analizar_imagen_gemini:
+        print("[VISION] Analizando fotos del usuario con Gemini...")
+        descripciones = []
+        for idx, foto in enumerate(fotos_b64):
+            prompt_vision = f"Describe esta imagen en 10 palabras. ¿Qué muestra? (Foto {idx+1})"
+            desc_individual = analizar_imagen_gemini(foto, prompt_vision)
+            descripciones.append(f"Foto {idx+1}: {desc_individual}")
+        descripcion_fotos = "\n".join(descripciones)
+        print(f"[VISION] Resultado:\n{descripcion_fotos}")
+
+    # --- FASE 2: COPYWRITING ---
+    copy_raw = generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia)
     if not copy_raw: return {"exito": False, "html": None, "error": "Fallo el copy."}
     try:
         copy_str = copy_raw.replace("```json", "").replace("```", "").strip()
@@ -206,7 +228,6 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
         return {"exito": False, "html": None, "error": "JSON invalido."}
 
     imagenes = {"hero": None, "servicios": []}
-    fotos_b64 = datos_negocio.get("fotos_b64", [])
     nombre_negocio = datos_negocio.get("nombre", "Mi Negocio")
     
     if fotos_b64:
@@ -235,7 +256,7 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
             continue
 
         html = limpiar_html(html_raw)
-        html = inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_negocio)
+        html = inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_negocio, copy)
 
         if validar_completo(html)["valido"]:
             return {"exito": True, "html": html, "error": None}
