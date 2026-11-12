@@ -2,7 +2,7 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V3.9: Recuperacion persistente desde Supabase y funcion renderizar completa.
+# V4.0: UX "Todo Mascado". Guía al usuario con ejemplos claros.
 # ============================================
 
 import streamlit as st
@@ -26,6 +26,7 @@ E_MALETIN   = "\U0001F4BC"
 E_DINERO    = "\U0001F4B0"
 E_LLAVE     = "\U0001F511"
 E_RAYO      = "\u26A1"
+E_BOMBILLA  = "\U0001F4A1"
 
 LIMITE_MODIFICACIONES_BASE = 3
 TIER_LABELS = {1: "Premium Esencial", 2: "Premium + CRM", 3: "Premium Plus"}
@@ -69,7 +70,6 @@ def _cargar_leads(sb, pedido_id):
 
 def _renderizar_vista_previa(html_content: str):
     if not html_content:
-        st.warning("No hay contenido HTML para mostrar.")
         return
     components.html(html_content, height=600, scrolling=True)
 
@@ -217,30 +217,42 @@ def _renderizar_panel(pedido, sb):
         else:
             st.markdown("**Que sigue:**\nEsperando confirmación de pago.")
     else:
-        # Recuperación automática si la memoria está vacía
         if "preview_html" not in st.session_state or not st.session_state["preview_html"]:
             try:
                 from utils.web_storage import leer_web
-                print(f"[PANEL] Recuperando HTML para web_id {web_id}...")
                 res_leer = leer_web(email, web_id)
                 if res_leer.get("exito"):
                     st.session_state["preview_html"] = res_leer.get("html")
-                    print("[PANEL] HTML recuperado exitosamente.")
-            except Exception as e:
-                print(f"[PANEL] Error recuperando HTML: {e}")
+            except Exception:
+                pass
 
         if web_url:
             st.success(f"{E_OK} Tu web esta publicada y activa")
             st.markdown(f"**URL publica:** [{web_url}]({web_url})")
 
         st.write("")
-        st.markdown(f"#### {E_RAYO} Hacer un cambio pequeño")
-        st.caption("Este cuadro es para cambios rápidos: 'cambia el título', 'centra el logo'.")
+        st.markdown(f"#### {E_RAYO} Hacer un cambio en tu web")
+        st.caption("Modifica colores, textos o agrega secciones fácilmente.")
+        
+        # --- BLOQUE DE UX: TODO MASCADO ---
+        with st.expander("💡 ¿No sabes qué escribir? Haz clic aquí para ver ejemplos", expanded=False):
+            st.info("""
+            Para que la IA te entienda perfectamente, pídele las cosas de forma sencilla. Aquí tienes algunos ejemplos de lo que puedes escribir:
+            
+            * 🎨 **Para cambiar colores:** *"Pon el fondo de la página en color negro y los textos en blanco."*
+            * ✍️ **Para cambiar un texto:** *"Cambia el título principal y ponle 'Los mejores tours de Colombia'."*
+            * ➕ **Para agregar información:** *"Agrega una nueva sección hablando sobre la región de la Amazonía."*
+            * 🖼️ **Para centrar algo:** *"Centra el logo de la marca en el menú superior."*
+            * 🔘 **Para cambiar un botón:** *"Pon el botón de WhatsApp de color verde."*
+            
+            *Truco: Puedes pedir una cosa a la vez para obtener resultados más rápidos.*
+            """)
+        # ----------------------------------
         
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             with st.form("form_modificacion"):
-                instruccion = st.text_area("¿Que quieres cambiar?", placeholder="Ej: Centra el logo en el menú superior.", height=100)
+                instruccion = st.text_area("Escribe lo que quieres cambiar aquí:", placeholder="Ej: Cambia el título principal y pon el fondo azul oscuro.", height=100)
                 btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa", type="primary", use_container_width=True)
                 
                 if btn_mod:
@@ -294,14 +306,13 @@ def _renderizar_panel(pedido, sb):
                     else:
                         st.error(f"Error publicando: {res_pub.get('error')}")
         else:
-            st.info("💡 La sesión se ha reiniciado. Si tu web ya estaba publicada, haz clic abajo para recuperarla directamente de internet.")
-            if st.button("🔄 Recuperar Vista Previa desde Internet"):
+            st.info("💡 La sesión se ha reiniciado. Si tu web ya estaba publicada, haz clic abajo para recuperarla.")
+            if st.button("🔄 Recuperar Vista Previa"):
                 try:
                     from utils.web_storage import leer_web
                     res_leer = leer_web(email, web_id)
                     if res_leer.get("exito"):
                         st.session_state["preview_html"] = res_leer.get("html")
-                        st.success("¡Vista previa recuperada con éxito!")
                         st.rerun()
                     else:
                         st.error(f"No se pudo recuperar: {res_leer.get('error')}")
