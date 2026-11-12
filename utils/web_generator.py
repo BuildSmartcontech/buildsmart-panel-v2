@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V18.7 (VISION ARTIFICIAL)
+# GENERADOR DE WEBS - V18.8 (MONITOR INTEGRADO)
 # ============================================
 
 import os
@@ -26,14 +26,13 @@ except ImportError:
 MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
 
-def generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia):
+def generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia, pedido_id="sin_id"):
     sector = datos_negocio.get('sector', 'General')
     desc = datos_negocio.get('descripcion', '')
     
-    # Inyectamos lo que Gemini vio en las fotos
     contexto_fotos = ""
     if descripcion_fotos:
-        contexto_fotos = f"\n¡ATENCIÓN! El usuario subió fotos reales y la IA de visión las describió así:\n{descripcion_fotos}\nPor favor, integra estas imágenes reales en el copy (ej: menciona las fachadas, la familia, etc)."
+        contexto_fotos = f"\n¡ATENCIÓN! El usuario subió fotos reales y la IA de visión las describió así:\n{descripcion_fotos}\nPor favor, integra estas imágenes reales en el copy."
 
     prompt = f"""
 Analiza el siguiente negocio:
@@ -62,18 +61,18 @@ Devuelve UNICAMENTE un JSON valido:
     sistema = "Eres un redactor publicitario experto. No hables de diseño web ni marketing digital a menos que el cliente sea una agencia."
     
     try:
-        respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia, temperature=0.7)
+        respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia, temperature=0.7, pedido_id=pedido_id)
         if not error and respuesta: return respuesta
     except Exception: pass
     
     try:
         if gateway:
-            respuesta, _ = gateway.chat_inteligente(prompt, sistema, temperature=0.7)
+            respuesta, _ = gateway.chat_inteligente(prompt, sistema, temperature=0.7, pedido_id=pedido_id)
             return respuesta
     except Exception: pass
     return None
 
-def generar_html_programador(datos_negocio, copy, modelo_ia):
+def generar_html_programador(datos_negocio, copy, modelo_ia, pedido_id="sin_id"):
     instrucciones_dinamicas = construir_instrucciones_dinamicas(datos_negocio)
     
     prompt = f"""
@@ -101,13 +100,13 @@ def generar_html_programador(datos_negocio, copy, modelo_ia):
     sistema = "Eres un programador Frontend Senior. Devuelves solo HTML."
     
     try:
-        respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia)
+        respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia, pedido_id=pedido_id)
         if not error and respuesta: return respuesta
     except Exception: pass
     
     try:
         if gateway:
-            respuesta, _ = gateway.chat_inteligente(prompt, sistema)
+            respuesta, _ = gateway.chat_inteligente(prompt, sistema, pedido_id=pedido_id)
             return respuesta
     except Exception: pass
     return None
@@ -172,7 +171,6 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
             tarjeta = tarjetas[i]
             print(f"[INYECTOR] Inyectando imagen en tarjeta {i+1}...")
             
-            # Usamos el Alt-Text que generó Gemini Vision
             alt_serv = servicios_copy[i].get('alt_imagen', f"Servicio {i+1}") if i < len(servicios_copy) else f"Servicio {i+1}"
             
             img_tag = soup.new_tag('img', src=url, alt=alt_serv)
@@ -199,26 +197,27 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V18.7 (VISION ACTIVADA)")
+    print("GENERANDO WEB - V18.8 (MONITOR INTEGRADO)")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
     fotos_b64 = datos_negocio.get("fotos_b64", [])
+    pedido_id = datos_negocio.get("pedido_id", "sin_id")
     
-    # --- FASE 1: VISION ARTIFICIAL ---
+    # --- FASE 1: VISION ARTIFICIAL (CON MONITOR) ---
     descripcion_fotos = ""
     if fotos_b64 and analizar_imagen_gemini:
-        print("[VISION] Analizando fotos del usuario con Gemini...")
+        print(f"[VISION] Analizando fotos del usuario con Gemini para pedido {pedido_id}...")
         descripciones = []
         for idx, foto in enumerate(fotos_b64):
             prompt_vision = f"Describe esta imagen en 10 palabras. ¿Qué muestra? (Foto {idx+1})"
-            desc_individual = analizar_imagen_gemini(foto, prompt_vision)
+            desc_individual = analizar_imagen_gemini(foto, prompt_vision, pedido_id=pedido_id)
             descripciones.append(f"Foto {idx+1}: {desc_individual}")
         descripcion_fotos = "\n".join(descripciones)
         print(f"[VISION] Resultado:\n{descripcion_fotos}")
 
-    # --- FASE 2: COPYWRITING ---
-    copy_raw = generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia)
+    # --- FASE 2: COPYWRITING (CON MONITOR) ---
+    copy_raw = generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia, pedido_id=pedido_id)
     if not copy_raw: return {"exito": False, "html": None, "error": "Fallo el copy."}
     try:
         copy_str = copy_raw.replace("```json", "").replace("```", "").strip()
@@ -250,7 +249,7 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
                     imagenes["servicios"].append(img)
 
     for intento in range(1, MAX_INTENTOS + 1):
-        html_raw = generar_html_programador(datos_negocio, copy, modelo_ia)
+        html_raw = generar_html_programador(datos_negocio, copy, modelo_ia, pedido_id=pedido_id)
         if not html_raw:
             time.sleep(TIEMPO_ESPERA)
             continue

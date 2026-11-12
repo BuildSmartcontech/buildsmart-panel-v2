@@ -1,19 +1,15 @@
 # panels/dueno/tab_uso_ia.py
 # ============================================
-# TAB USO IA - Consumo por usuario
+# TAB USO IA - HÍBRIDO (Eventos + Consumo Tokens)
 # ============================================
-# Agrupa eventos_app por usuario para mostrar:
-# - Llamadas al chat IA
-# - Webs generadas
-# - Modificaciones IA
-# - Fuente IA mas usada
+# V3.0: Mantiene el gráfico original (eventos_app) y 
+# agrega la alarma de consumo (consumo_ia).
 # ============================================
 
 import streamlit as st
 import datetime
 from collections import Counter, defaultdict
 from panels.dueno import comun as C
-
 
 def _contar_por_usuario(eventos):
     """Agrupa eventos por usuario. Retorna dict {uid: {tipo: count, ...}}."""
@@ -48,7 +44,6 @@ def _contar_por_usuario(eventos):
 
     return dict(por_usuario)
 
-
 def _fuente_top(fuentes):
     """Devuelve la fuente IA mas usada."""
     if not fuentes:
@@ -58,10 +53,57 @@ def _fuente_top(fuentes):
     except Exception:
         return "-"
 
-
 def renderizar(sb, inicio, fin):
     st.markdown(f"### {C.E_RAYO} Uso IA por usuario")
 
+    # ==========================================
+    # 1. NUEVA SECCIÓN: ALARMA DE CONSUMO Y TOKENS
+    # ==========================================
+    st.markdown("#### 💰 Monitoreo de Costos (consumo_ia)")
+    try:
+        res_consumo = sb.table("consumo_ia").select("*").execute()
+        datos_consumo = res_consumo.data if res_consumo.data else []
+
+        if datos_consumo:
+            datos_consumo_filtrados = []
+            for d in datos_consumo:
+                fecha_str = d.get("fecha", "")
+                if not fecha_str: continue
+                try:
+                    fecha_obj = datetime.datetime.fromisoformat(fecha_str.replace("Z", "+00:00"))
+                    if inicio <= fecha_obj <= fin:
+                        datos_consumo_filtrados.append(d)
+                except: pass
+
+            if datos_consumo_filtrados:
+                total_llamadas = len(datos_consumo_filtrados)
+                costo_total = sum(float(d.get("costo_estimado_usd", 0)) for d in datos_consumo_filtrados)
+                tokens_totales = sum(int(d.get("tokens_estimados", 0)) for d in datos_consumo_filtrados)
+
+                col_t1, col_t2, col_t3 = st.columns(3)
+                col_t1.metric("Llamadas Totales", f"{total_llamadas}")
+                col_t2.metric("Tokens Estimados", f"{tokens_totales:,}")
+                col_t3.metric("Costo Estimado", f"${costo_total:.4f} USD")
+
+                # Lógica de la Alarma
+                if costo_total > 1.0:
+                    st.warning("⚠️ **ALERTA:** El costo estimado de IA para este período ha superado los $1.00 USD. Revisa la rotación de llaves.")
+                else:
+                    st.success("✅ El consumo de IA está dentro de los parámetros normales.")
+            else:
+                st.info("No hay costos registrados en este rango de fechas.")
+        else:
+            st.info("Aún no hay consumo registrado en la tabla de costos.")
+    except Exception as e:
+        st.warning(f"La tabla 'consumo_ia' no está lista o no tiene datos: {e}")
+
+    st.divider()
+
+    # ==========================================
+    # 2. SECCIÓN ORIGINAL: EVENTOS Y GRÁFICOS
+    # ==========================================
+    st.markdown("#### 📊 Actividad de Usuarios (eventos_app)")
+    
     # Cargar eventos
     try:
         eventos_todos = sb.table("eventos_app").select("*").order("created_at", desc=True).limit(5000).execute().data or []
@@ -93,9 +135,7 @@ def renderizar(sb, inicio, fin):
 
     st.divider()
 
-    # ==========================================
     # GRAFICO - Actividad IA por dia
-    # ==========================================
     st.markdown(f"#### {C.E_GRAFICO} Actividad IA por dia")
 
     dias_data = defaultdict(lambda: {"chat_ia": 0, "generar_web": 0, "modificar_web": 0})
@@ -143,9 +183,7 @@ def renderizar(sb, inicio, fin):
 
     st.divider()
 
-    # ==========================================
     # TABLA POR USUARIO
-    # ==========================================
     st.markdown(f"#### {C.E_CLIENTES} Consumo por usuario")
 
     if not por_usuario:
@@ -182,9 +220,7 @@ def renderizar(sb, inicio, fin):
 
     st.divider()
 
-    # ==========================================
     # DISTRIBUCION POR FUENTE IA
-    # ==========================================
     st.markdown(f"#### {C.E_TUBO} Distribucion por fuente IA")
 
     todas_fuentes = Counter()
