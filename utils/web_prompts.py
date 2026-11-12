@@ -1,327 +1,166 @@
-# utils/web_prompts_data.py
+# utils/web_prompts.py
 # ============================================
-# CONSTANTES Y CONSTRUCTORES DE PROMPTS WEB
-# ============================================
-# V5.6: Forzado Español Neutro LATAM y Alt-Text inteligente.
+# PROMPTS DE CALIDAD V7.1 (CSS INJECTION + FIX IMPORT)
 # ============================================
 
-PALABRAS_PROHIBIDAS = [
-    "en el mundo actual", "en la era digital", "es importante destacar",
-    "cabe mencionar", "sin lugar a dudas", "en conclusion", "en resumen",
-    "en definitiva", "en primer lugar", "en segundo lugar", "por otro lado",
-    "asimismo", "de igual manera", "no obstante", "por lo tanto",
-    "en el ambito de", "en el contexto de", "en la actualidad", "hoy en dia",
-    "es fundamental", "es crucial", "es esencial", "juega un papel",
-    "desempena un papel", "un abanico de", "un sinfin de", "un mundo de",
-    "la clave del exito", "el secreto del exito", "una amplia gama",
-    "una gran variedad", "soluciones integrales", "soluciones innovadoras",
-    "soluciones personalizadas", "experiencia unica", "servicio excepcional",
-    "calidad inigualable", "compromiso total", "atencion al detalle",
-    "pasion por", "vision de futuro",
-]
+import sys
+from pathlib import Path
 
-EFECTOS_AVANZADOS_PROMPT = """
-EFECTOS VISUALES AVANZADOS (estilo React Bits, en CSS/JS vanilla):
-- Texto animado: split-text, blur-text, shiny-text, count-up
-- Fondos animados: gradientes sutiles, particulas, malla radial
-- Cards interactivas: spotlight-card, hover-magnet
-- Motion que respeta `prefers-reduced-motion`
-Implementar con CSS puro o JS vanilla. PROHIBIDO frameworks.
-"""
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
-DIRECTOR_DE_ARTE_PROMPT = """
-Eres el Director de Arte y Disenador Frontend Senior del equipo.
-Tu unico objetivo es entregar paginas web de nivel PREMIUM CORPORATIVO, MODERNAS y de ALTA GAMA.
-
-PROCESO OBLIGATORIO:
-1. Analiza el sector: Si es Tecnologia/Software, NO USES SERIF. Usa tipografia Sans-Serif moderna.
-2. Aplica SIEMPRE un diseno "Bento Grid" (tarjetas organizadas en cuadricula).
-3. Usa efectos de "Glassmorphism 2.0" (fondos semitransparentes con desenfoque y bordes de 1px).
-4. El layout debe ser editorial: asimetrico, con mucho espacio en blanco y tipografia grande como ancla visual.
-
-ESTANDARES PREMIUM OBLIGATORIOS (Si no cumples esto, fallas):
-- Tipografia: Usa SIEMPRE Google Fonts 'Inter' o 'Space Grotesk'. PROHIBIDO usar fuentes de revista (Playfair, Lora, Times).
-- Fondos: Oscuro profundo (#0B0C14) o Blanco Puro (#FFFFFF) con acentos.
-- Tarjetas: Fondo semi-transparente, borde de 1px (rgba(255,255,255,0.1)), sin sombras exageradas.
-- Botones: Estilo "Pill" (border-radius: 999px) con color de acento solido o gradiente sutil.
-- El resultado debe verse como una Startup de Silicon Valley valorada en millones.
-""" + EFECTOS_AVANZADOS_PROMPT
-
-REGLAS_CSS_PREMIUM = """
-### DISENO PREMIUM OBLIGATORIO (CRITICO - COPIA ESTAS REGLAS):
-
-**1. VARIABLES GLOBALES Y RESET:**
-:root {
-    --bg: #0B0C14;
-    --bg-light: #F7F7F4;
-    --card-bg: rgba(255, 255, 255, 0.03);
-    --border: rgba(255, 255, 255, 0.08);
-    --text: #F8FAFC;
-    --text-dark: #1a1a1a;
-    --text-muted: #94A3B8;
-    --primary: #14B8A6;
-    --primary-blue: #0F62FE;
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-    background-color: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', sans-serif;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-}
-
-**2. NAVEGACION (Fija y elegante - CON MAS ESPACIO):**
-nav {
-    padding: 24px 48px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(11, 12, 20, 0.8);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 100;
-    min-height: 90px;
-}
-nav a { color: var(--text); text-decoration: none; font-weight: 500; margin-left: 24px; font-size: 0.9rem; }
-
-**3. HERO SECTION (El impacto visual - IMAGEN CONTROLADA):**
-.hero {
-    min-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 100px 20px 60px;
-    background: radial-gradient(circle at 50% 0%, rgba(20, 184, 166, 0.15) 0%, var(--bg) 70%);
-}
-.hero h1 {
-    font-size: clamp(2.5rem, 6vw, 4.5rem);
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    background: linear-gradient(180deg, #FFFFFF 0%, #94A3B8 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 24px;
-    max-width: 900px;
-    line-height: 1.1;
-}
-.hero img {
-    width: 100%;
-    max-width: 1000px;
-    height: auto;
-    max-height: 550px;
-    object-fit: cover;
-    border-radius: 24px;
-    margin: 40px auto 0;
-    display: block;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-}
-
-**4. BENTO GRID (Servicios):**
-.services-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 24px;
-    padding: 80px 20px;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-.card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 30px;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    backdrop-filter: blur(12px);
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-.card:hover {
-    transform: translateY(-6px);
-    border-color: rgba(20, 184, 166, 0.4);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-.card img {
-    width: 100%;
-    height: 220px;
-    object-fit: cover;
-    border-radius: 16px;
-    margin-bottom: 24px;
-}
-
-**5. BOTONES (CTA):**
-.btn {
-    display: inline-block;
-    padding: 16px 36px;
-    background: var(--primary);
-    color: #0B0C14;
-    font-weight: 700;
-    font-size: 0.95rem;
-    border-radius: 999px;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    border: none;
-    cursor: pointer;
-}
-.btn:hover { background: #0E7C86; transform: scale(1.02); }
-
-**6. FORMULARIO DE CONTACTO:**
-.contacto { padding: 80px 20px; max-width: 600px; margin: 0 auto; }
-input, textarea {
-    width: 100%; padding: 18px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    color: #FFF; margin-bottom: 20px;
-    font-family: inherit;
-    font-size: 1rem;
-}
-input:focus { outline: none; border-color: var(--primary); }
-"""
-
-REGLAS_SECCION_UBICACION = """
-### SECCION UBICACION (OBLIGATORIA porque hay direccion):
-Genera una seccion <section id="ubicacion" class="ubicacion"> con:
-1. Titulo "Dónde estamos" (CON TILDE).
-2. Layout en 2 columnas (grid):
-   - Columna izquierda: datos de direccion con icono SVG de pin + ciudad + pais.
-   - Columna derecha: Un boton grande y elegante que diga "Abrir en Google Maps".
-3. El boton debe tener un enlace valido:
-   - Formato: <a href="https://www.google.com/maps/search/?api=1&query=DIRECCION,CIUDAD" target="_blank" class="btn">Abrir en Google Maps</a>
-4. NO uses iframes de mapas. Solo el boton. Esto evita errores de carga.
-5. Estilos premium: card con sombra, border-radius 16px, hover sutil.
-"""
-
-REGLAS_SECCION_HORARIOS = """
-### SECCION HORARIOS (OBLIGATORIA porque hay horarios):
-Genera una seccion <section id="horarios" class="horarios"> con:
-1. Titulo "Horarios de atención" (CON TILDE).
-2. Card premium con la lista de horarios.
-"""
-
-REGLAS_REDES_SOCIALES = """
-### REDES SOCIALES EN FOOTER:
-En el footer, agrega una fila de iconos SVG inline para las redes que existan.
-Usa SVGs oficiales simples. NO uses librerias externas.
-"""
-
-REGLAS_ORTOGRAFIA = """
-### IDIOMA Y ORTOGRAFIA (CRITICO):
-1. Usa ESPAÑOL NEUTRO DE LATINOAMERICA. Está TERMINANTEMENTE PROHIBIDO usar modismos de España (ej: vosotros, ordenador, coger, vale, tío).
-2. Usa palabras como: computadora, celular, auto, tomar.
-3. Revisa dos veces las tildes y acentuación.
-4. Títulos como "Dónde estamos", "Quiénes somos", "Horários" (si aplica) deben llevar tilde.
-5. Asegurate de que los textos de las tarjetas terminen con una idea completa y punto final.
-"""
-
-REGLAS_FOOTER_LEGAL = """
-### FOOTER LEGAL (OBLIGATORIO):
-Al final del <body>, antes de cerrar, incluye un <footer> estilizado con:
-<p>&copy; 2026 NOMBRE_DEL_NEGOCIO. Todos los derechos reservados.</p>
-<a href="/terminos" style="color: var(--text-muted); margin-right: 15px; text-decoration: none;">Términos y Condiciones</a> | 
-<a href="/privacidad" style="color: var(--text-muted); text-decoration: none;">Política de Privacidad</a>
-"""
-
-REGLAS_CODIGO = (
-    "### REGLAS DE CODIGO:\n"
-    "1. Empezar con <!DOCTYPE html> y terminar con </html>.\n"
-    "2. Incluir <html>, <head>, <body> completas.\n"
-    "3. En <head>: meta charset, meta viewport, title, y el CDN de Google Fonts para 'Inter' o 'Space Grotesk'.\n"
-    "4. CSS embebido en <style> respetando ESTRICTAMENTE el 'DISENO PREMIUM OBLIGATORIO'.\n"
-    "5. Minimo 3500 caracteres.\n\n"
+from utils.web_prompts_data import (
+    PALABRAS_PROHIBIDAS, DIRECTOR_DE_ARTE_PROMPT, REGLAS_CSS_PREMIUM,
+    REGLAS_CODIGO, REGLAS_IMAGENES, REGLAS_SALIDA,
+    construir_reglas_contenido, construir_instrucciones_dinamicas,
 )
 
-REGLAS_IMAGENES = (
-    "### IMAGENES (CRITICO):\n"
-    "USA EXACTAMENTE el marcador {{HERO_IMAGE}} para la imagen principal. Ejemplo: <img src='{{HERO_IMAGE}}' alt='Foto de [Sector del Negocio]'>.\n"
-    "USA EXACTAMENTE los marcadores {{SERVICIO_1}}, {{SERVICIO_2}}, {{SERVICIO_3}} para las tarjetas. El alt debe describir el servicio.\n"
-    "NO uses URLs reales, solo los marcadores.\n"
-)
+def generar_prompt_web(
+    nombre_negocio, sector, descripcion, publico_objetivo="",
+    diferenciadores="", tono="Profesional", colores="#0f3460, #f39c12",
+    tipo_pagina="Landing Page", diseno="Moderno", secciones=None,
+    logica="Estatica", funcionalidades=None, opciones_usuario=None,
+    direccion="", ciudad="", pais="", horarios="",
+    instagram="", facebook="", tiktok="",
+    anio_fundacion="", email_contacto="", whatsapp_negocio="",
+):
+    if secciones is None:
+        secciones = ["Hero", "Servicios", "Sobre Nosotros", "Contacto"]
+    if funcionalidades is None:
+        funcionalidades = ["SEO optimizado", "Animaciones"]
 
-REGLAS_FORMULARIO = (
-    "### FORMULARIO DE CONTACTO (CRITICO):\n"
-    "En la seccion de Contacto, DEBES incluir EXACTAMENTE este bloque:\n"
-    "<form action=\"/submit_lead\" method=\"POST\">\n"
-    "  <input type=\"text\" name=\"nombre\" placeholder=\"Nombre completo\" required>\n"
-    "  <input type=\"email\" name=\"email\" placeholder=\"Correo electronico\" required>\n"
-    "  <textarea name=\"mensaje\" placeholder=\"En que podemos ayudarte?\" required></textarea>\n"
-    "  <button type=\"submit\" class=\"btn\">Enviar Mensaje</button>\n"
-    "</form>\n"
-    "NO uses {{FORMULARIO}}. Solo el codigo HTML del form.\n"
-)
+    secciones_texto = "\n".join(["   - " + s for s in secciones])
+    funcionalidades_texto = "\n".join(["   - " + f for f in funcionalidades])
+    lista_negra = ", ".join(PALABRAS_PROHIBIDAS[:20])
 
-REGLAS_SALIDA = (
-    "### FORMATO DE SALIDA:\n"
-    "Devuelve SOLO el HTML, empezando con <!DOCTYPE html> y terminando con </html>.\n"
-    "SIN explicaciones, SIN bloques markdown.\n\n"
-    "Genera el HTML completo ahora:"
-)
+    reglas_contenido = construir_reglas_contenido(sector, lista_negra)
 
-def construir_instrucciones_dinamicas(datos_negocio):
-    instrucciones = []
-    secciones_extra = []
+    datos_negocio_completos = {
+        "direccion": direccion, "ciudad": ciudad, "pais": pais,
+        "horarios": horarios, "instagram": instagram, "facebook": facebook,
+        "tiktok": tiktok, "anio_fundacion": anio_fundacion,
+        "email_contacto": email_contacto, "whatsapp_negocio": whatsapp_negocio,
+    }
+    instrucciones_dinamicas = construir_instrucciones_dinamicas(datos_negocio_completos)
 
-    direccion = (datos_negocio.get("direccion") or "").strip()
-    ciudad = (datos_negocio.get("ciudad") or "").strip()
-    pais = (datos_negocio.get("pais") or "").strip()
-    horarios = (datos_negocio.get("horarios") or "").strip()
-    instagram = (datos_negocio.get("instagram") or "").strip()
-    facebook = (datos_negocio.get("facebook") or "").strip()
-    tiktok = (datos_negocio.get("tiktok") or "").strip()
-    anio = (datos_negocio.get("anio_fundacion") or "").strip()
-    email_contacto = (datos_negocio.get("email_contacto") or "").strip()
-    whatsapp = (datos_negocio.get("whatsapp_negocio") or "").strip()
+    info_negocio = [
+        "- Nombre: " + nombre_negocio,
+        "- Sector: " + sector,
+        "- Descripcion: " + descripcion,
+    ]
+    if publico_objetivo: info_negocio.append("- Publico objetivo: " + publico_objetivo)
+    if diferenciadores: info_negocio.append("- Diferenciadores: " + diferenciadores)
+    if ciudad: info_negocio.append("- Ubicacion: " + ciudad + (", " + pais if pais else ""))
+    if direccion: info_negocio.append("- Direccion: " + direccion)
+    if anio_fundacion: info_negocio.append("- Ano de fundacion: " + anio_fundacion)
+    if email_contacto: info_negocio.append("- Email de contacto: " + email_contacto)
+    if whatsapp_negocio: info_negocio.append("- WhatsApp: " + whatsapp_negocio)
+    if horarios: info_negocio.append("- Horarios: " + horarios)
+    if instagram: info_negocio.append("- Instagram: @" + instagram.lstrip("@"))
+    if facebook: info_negocio.append("- Facebook: " + facebook)
+    if tiktok: info_negocio.append("- TikTok: @" + tiktok.lstrip("@"))
 
-    if direccion and ciudad:
-        instrucciones.append("\n### DATOS PARA SECCION UBICACION:\n- Direccion: " + direccion + "\n- Ciudad: " + ciudad + "\n- Pais: " + (pais or "no especificado") + "\n")
-        instrucciones.append(REGLAS_SECCION_UBICACION)
-        secciones_extra.append("Ubicacion")
+    info_negocio_texto = "\n".join(info_negocio)
 
-    if horarios:
-        instrucciones.append("\n### DATOS PARA SECCION HORARIOS:\n- Horarios: " + horarios + "\n")
-        instrucciones.append(REGLAS_SECCION_HORARIOS)
-        secciones_extra.append("Horarios")
-
-    redes = []
-    if instagram: redes.append("Instagram: @" + instagram.lstrip("@"))
-    if facebook: redes.append("Facebook: " + facebook)
-    if tiktok: redes.append("TikTok: @" + tiktok.lstrip("@"))
-
-    if redes:
-        instrucciones.append("\n### DATOS PARA REDES SOCIALES:\n" + "\n".join(["- " + r for r in redes]) + "\n")
-        instrucciones.append(REGLAS_REDES_SOCIALES)
-
-    if anio: instrucciones.append("\n### DATO HISTORICO:\n- Ano de fundacion: " + anio + "\n")
-    if email_contacto: instrucciones.append("\n### EMAIL DE CONTACTO:\n- Incluye el email " + email_contacto + " en la seccion de contacto.\n")
-    if whatsapp:
-        wa_limpio = whatsapp.replace("+", "").replace(" ", "")
-        instrucciones.append("\n### WHATSAPP:\n- Boton: <a href=\"https://wa.me/" + wa_limpio + "\" class=\"btn\">WhatsApp</a>\n")
-
-    if secciones_extra:
-        instrucciones.insert(0, "\n### SECCIONES EXTRA REQUERIDAS:\n" + "\n".join(["- " + s for s in secciones_extra]) + "\n\nORDEN SUGERIDO: Hero, Servicios, Sobre Nosotros, " + ", ".join(secciones_extra) + ", Contacto\n")
-    return "\n".join(instrucciones)
-
-def construir_reglas_contenido(sector, lista_negra):
-    return (
-        "\n## REGLAS DE CONTENIDO\n\n"
-        "### PROHIBIDO USAR ESTAS FRASES:\n" + lista_negra + "\n\n"
-        "### ANTI-ALUCINACION (CRITICO):\n"
-        "1. PROHIBIDO INVENTAR numeros de telefono.\n"
-        "2. PROHIBIDO INVENTAR direcciones.\n"
-        "3. PROHIBIDO INVENTAR emails.\n"
-        "4. PROHIBIDO INVENTAR anos de fundacion.\n"
-        "5. PROHIBIDO INVENTAR nombres de clientes.\n"
-        "6. PROHIBIDO INVENTAR certificaciones o premios.\n"
-        "7. Si falta info, usa texto generico sin datos.\n"
-        "8. SOLO usa los datos que aparecen en la seccion DATOS.\n\n"
-        "### REGLAS DE ESTILO:\n"
-        "1. NO uses rayas largas.\n"
-        "2. NO uses emojis en el contenido.\n"
-        "3. NO uses frases genericas de IA.\n"
-        "4. SI usa ejemplos del sector " + sector + ".\n"
-        "5. SI usa lenguaje natural y directo.\n\n"
+    prompt = (
+        DIRECTOR_DE_ARTE_PROMPT +
+        "\n\n=========================================================\n"
+        "GENERA LA PAGINA WEB COMPLETA\n"
+        "=========================================================\n\n"
+        "## INFORMACION DEL NEGOCIO\n" + info_negocio_texto + "\n\n"
+        "## ESTILO\n"
+        "- Tipo de pagina: " + tipo_pagina + "\n"
+        "- Diseno visual: " + diseno + "\n"
+        "- Tono de comunicacion: " + tono + "\n"
+        "- Colores principales: " + colores + "\n"
+        "- Tipografia: Moderna, legible, responsive (usa Google Fonts)\n\n"
+        "## SECCIONES REQUERIDAS (en este orden)\n" + secciones_texto + "\n\n"
+        "## LOGICA\n" + logica + "\n\n"
+        "## FUNCIONALIDADES ESPECIALES\n" + funcionalidades_texto + "\n\n"
+        + instrucciones_dinamicas +
+        "\n\n" + REGLAS_CSS_PREMIUM +
+        reglas_contenido +
+        REGLAS_CODIGO +
+        REGLAS_IMAGENES +
+        REGLAS_SALIDA
     )
+    return prompt
+
+def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, contexto_negocio=""):
+    """
+    Genera el prompt para que la IA devuelva reglas CSS en lugar de JSON de acciones.
+    """
+    prompt = f"""Eres un experto en CSS y diseño web. El usuario de tu web no sabe términos técnicos, tiene faltas de ortografía y escribe como habla.
+
+## CONTEXTO DEL NEGOCIO
+{contexto_negocio if contexto_negocio else "Negocio generico"}
+
+## ESTRUCTURA ACTUAL DEL HTML
+{estructura_resumen}
+
+## INSTRUCCIÓN DEL USUARIO (puede tener errores)
+"{instruccion}"
+
+## TU TAREA
+Entiende lo que el usuario quiere lograr visualmente y genera las reglas CSS necesarias para hacerlo.
+NO importa si el usuario escribe "quita el blanco del contacto" o "pone oscuro los input". Tú debes deducir qué etiquetas o clases afectan esa sección.
+
+## FORMATO DE RESPUESTA (SOLO JSON):
+{{
+  "reglas_css": [
+    "form {{ background-color: #0B0C14 !important; }}",
+    "input, textarea {{ background-color: #1a1a1a !important; color: #FFFFFF !important; border: 1px solid #333 !important; }}",
+    "h1 {{ color: #FFD700 !important; }}"
+  ],
+  "explicacion": "Cambié el fondo del formulario y los campos de texto a modo oscuro."
+}}
+
+## REGLAS CRÍTICAS
+1. Devuelve SOLO JSON válido.
+2. Usa `!important` en todas las reglas CSS para asegurar que se apliquen.
+3. Si el usuario pide centrar un logo, usa `nav img {{ margin: 0 auto !important; display: block !important; }}`.
+4. Si pide cambiar el color del título, usa `h1, h2 {{ color: #... !important; }}`.
+5. Si pide quitar el blanco de algún lado, apunta a `form`, `input`, `textarea` o `section` con fondo oscuro.
+
+## RESPUESTA (SOLO JSON):"""
+    return prompt
+
+def generar_prompt_edicion(html_actual, instruccion):
+    prompt = (
+        "Eres un disenador web profesional. El usuario quiere hacer un cambio en su pagina web.\n\n"
+        "## INSTRUCCION DEL USUARIO:\n" + instruccion + "\n\n"
+        "## CODIGO HTML ACTUAL (COMPLETO):\n" + html_actual + "\n\n"
+        "## REGLAS ESTRICTAS:\n"
+        "1. Devuelve el CODIGO HTML COMPLETO, no solo la parte modificada.\n"
+        "2. DEBES incluir: <!DOCTYPE html>, <html>, <head>, <body>, </html>.\n"
+        "3. Modifica SOLO lo que el usuario pide, manten el resto igual.\n\n"
+        "Codigo HTML completo actualizado:"
+    )
+    return prompt
+
+def generar_prompt_resumen(html):
+    return (
+        "Analiza esta pagina web y genera un resumen ejecutivo de maximo 150 palabras.\n\n"
+        "## HTML:\n" + html[:3000] + "\n\n"
+        "## REGLAS:\n1. Maximo 150 palabras.\n2. Enfocate en propuesta de valor.\n\nResumen ejecutivo:"
+    )
+
+def generar_prompt_seo(nombre_negocio, sector, descripcion):
+    return (
+        "Genera meta tags SEO.\n\n"
+        "## INFO:\n- Nombre: " + nombre_negocio + "\n- Sector: " + sector + "\n- Descripcion: " + descripcion + "\n\n"
+        "## FORMATO (JSON):\n{\n    \"title\": \"max 60 chars\",\n    \"description\": \"max 160 chars\",\n    \"keywords\": [\"p1\", \"p2\"]\n}\n\nDevuelve SOLO el JSON."
+    )
+
+def validar_html_generado(html):
+    errores = []
+    advertencias = []
+    if not html: return {"errores": ["HTML vacio"], "advertencias": [], "valido": False}
+    if len(html) < 500: errores.append("HTML muy corto")
+    html_lower = html.lower()
+    if "<!doctype html>" not in html_lower: advertencias.append("Falta DOCTYPE")
+    if "<html" not in html_lower: errores.append("Falta etiqueta html")
+    if "<body>" not in html_lower: errores.append("Falta body")
+    if "</html>" not in html_lower: errores.append("Falta cierre html")
+    return {"errores": errores, "advertencias": advertencias, "valido": len(errores) == 0}
