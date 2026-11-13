@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V3.5 (PROCESADOR DE ACCIÓN ÚNICA)
+# EDITOR DE WEBS - V4.0 (PROCESADOR DE ACCIONES)
 # ============================================
 
 import os
@@ -80,24 +80,7 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
                 time.sleep(TIEMPO_ESPERA)
                 continue
 
-            cambios_para_patcher = {
-                "reemplazos_texto": [],
-                "reglas_css": [],
-                "secciones_html": [],
-                "eliminar_secciones": [],
-                "explicacion": data.get("explicacion", "Cambios aplicados")
-            }
-            
-            for accion in data["acciones"]:
-                tipo = accion.get("tipo")
-                if tipo == "eliminar":
-                    cambios_para_patcher["eliminar_secciones"].append({"texto_que_contiene": accion.get("texto", "")})
-                elif tipo == "agregar":
-                    cambios_para_patcher["secciones_html"].append(accion.get("html", ""))
-                elif tipo == "color":
-                    cambios_para_patcher["reglas_css"].append(accion.get("css", ""))
-
-            resultado_patcher = aplicar_cambios(html_actual, cambios_para_patcher)
+            resultado_patcher = aplicar_cambios(html_actual, data["acciones"])
             
             if not resultado_patcher["exito"]:
                 time.sleep(TIEMPO_ESPERA)
@@ -113,19 +96,21 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             print(f"Error en intento {intento}: {e}")
             time.sleep(TIEMPO_ESPERA)
 
-    return {"exito": False, "error": "No se pudieron aplicar cambios tras 3 intentos."}
+    return {"exito": False, "error": "No se pudieron aplicar cambios tras 3 intentos. La IA no encontró el elemento exacto."}
 
 def editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto_negocio=""):
     resultado = editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio)
     if not resultado["exito"]:
         return resultado
 
+    # Guardar en archivo local (solo funciona en local)
     try:
         from utils.web_storage import guardar_en_archivos
         guardar_en_archivos(usuario_id, web_id, resultado["html_nuevo"])
     except Exception as e:
         print(f"[EDITOR] Error guardando en archivos: {e}")
 
+    # Guardar en Supabase (persistencia real)
     try:
         from utils.supabase_client import supabase
         if supabase:
@@ -134,6 +119,7 @@ def editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto_negocio=""):
             data = {"html_generado": resultado["html_nuevo"]}
             import requests
             requests.patch(url, headers=headers, json=data, timeout=10)
+            print(f"[EDITOR] HTML actualizado en Supabase para web_id {web_id}")
     except Exception as e:
         print(f"[EDITOR] Error guardando en Supabase: {e}")
 

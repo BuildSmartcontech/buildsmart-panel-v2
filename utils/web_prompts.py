@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V9.1 (UNA SOLA ACCIÓN)
+# PROMPTS DE CALIDAD V9.2 (REEMPLAZO SEGURO)
 # ============================================
 
 import sys
@@ -23,24 +23,45 @@ def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, context
     prompt = f"""Eres un experto en CSS y HTML. El usuario ha pedido: "{instruccion}"
 
 ## TU TAREA
-Devuelve un JSON con LAS ACCIONES que el usuario pide. 
-Si el usuario pide eliminar, usa SOLO la acción "eliminar". Si pide agregar, usa SOLO "agregar". Si pide color, usa SOLO "color".
+Devuelve un JSON con las ACCIONES que el usuario pide. 
 
 ## FORMATO (SOLO JSON):
 {{
   "acciones": [
     {{
+      "tipo": "reemplazar_texto",
+      "selector": "h1",
+      "texto_actual": "texto viejo (opcional)",
+      "texto_nuevo": "texto nuevo"
+    }},
+    {{
+      "tipo": "reemplazar_imagen",
+      "alt_viejo": "texto del alt de la imagen a cambiar",
+      "busqueda_nueva": "palabra clave en ingles para buscar la nueva foto"
+    }},
+    {{
+      "tipo": "agregar_seccion",
+      "html": "<section class='services-grid'><div class='card'><h2>Nuevo</h2><img src='{{{{NUEVA_IMAGEN}}}}' alt='foto'></div></section>"
+    }},
+    {{
       "tipo": "eliminar",
-      "texto": "Amazonía Colombiana"
+      "texto": "Texto exacto de la sección a borrar"
+    }},
+    {{
+      "tipo": "color",
+      "css": "h1 {{ color: #FFD700 !important; }}"
     }}
   ],
-  "explicacion": "Eliminé la sección de Amazonía"
+  "explicacion": "Explicación de lo que se hizo"
 }}
 
-## REGLAS:
-1. Para eliminar, escribe el texto EXACTO del título que el usuario quiere borrar (ej: "Amazonía Colombiana"). No escribas el selector HTML, solo el texto.
-2. Si pide agregar, usa el comodín {{{{NUEVA_IMAGEN}}}} y las clases `card`.
-3. Devuelve SOLO JSON válido.
+## REGLAS CRÍTICAS:
+1. Devuelve SOLO JSON válido.
+2. Para reemplazar texto, usa `tipo: "reemplazar_texto"`. Si el usuario no especifica el texto viejo, usa `selector: "h1"` o `"h2"` y deja `texto_actual` vacío. NUNCA borres la etiqueta completa.
+3. Para cambiar una imagen, usa `tipo: "reemplazar_imagen"`. Busca la imagen por su texto `alt`. La `busqueda_nueva` DEBE estar en INGLÉS.
+4. Si pide agregar, usa `tipo: "agregar_seccion"`.
+5. Si pide borrar, usa `tipo: "eliminar"`.
+6. Si pide colores, usa `tipo: "color"`.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt
