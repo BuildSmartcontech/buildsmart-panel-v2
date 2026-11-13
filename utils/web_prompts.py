@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V9.2 (REEMPLAZO SEGURO)
+# PROMPTS DE CALIDAD V9.3 (ANTI-BORRADO ACCIDENTAL)
 # ============================================
 
 import sys
@@ -24,6 +24,7 @@ def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, context
 
 ## TU TAREA
 Devuelve un JSON con las ACCIONES que el usuario pide. 
+¡ATENCIÓN! Si el usuario dice "cambia", "modifica" o "reemplaza" el texto, usa SOLO `reemplazar_texto`. Si el usuario dice "elimina", "borra" o "quita", usa SOLO `eliminar`. NO confundas cambiar con eliminar.
 
 ## FORMATO (SOLO JSON):
 {{

@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V4.0 (PARCHER DEFINITIVO)
+# APLICADOR DE CAMBIOS AL HTML - V4.1 (BORRADO SEGURO)
 # ============================================
 
 import re
@@ -40,20 +40,19 @@ def aplicar_cambios(html, acciones):
     for accion in acciones:
         tipo = accion.get("tipo")
         
-        # 1. REEMPLAZAR TEXTO (Seguro, sin borrar la etiqueta)
+        # 1. REEMPLAZAR TEXTO
         if tipo == "reemplazar_texto":
             selector = accion.get("selector", "h1")
             texto_actual = accion.get("texto_actual", "")
             texto_nuevo = accion.get("texto_nuevo", "")
             etiquetas = soup.find_all(selector)
             for etiqueta in etiquetas:
-                # Si no hay texto_actual, cambiamos el primero que encontremos
                 if not texto_actual or texto_actual in etiqueta.get_text():
                     etiqueta.string = texto_nuevo
                     cambios_reales += 1
                     break
 
-        # 2. REEMPLAZAR IMAGEN (Buscando por Alt)
+        # 2. REEMPLAZAR IMAGEN
         elif tipo == "reemplazar_imagen":
             alt_viejo = accion.get("alt_viejo", "")
             busqueda = accion.get("busqueda_nueva", "")
@@ -61,7 +60,6 @@ def aplicar_cambios(html, acciones):
                 imagenes = soup.find_all('img')
                 for img in imagenes:
                     if alt_viejo.lower() in img.get('alt', '').lower():
-                        # Buscamos una nueva imagen real
                         nuevas = obtener_urls_imagenes_negocio({"sector": busqueda}, cantidad=1)
                         if nuevas:
                             img['src'] = nuevas[0]['url_regular']
@@ -85,17 +83,22 @@ def aplicar_cambios(html, acciones):
         elif tipo == "eliminar":
             texto = accion.get("texto", "")
             if texto:
-                nodos = soup.find_all(string=re.compile(re.escape(texto), re.IGNORECASE))
+                # Solo borra si el texto es un título de sección (h1, h2, h3)
+                # para evitar borrar productos individuales.
+                nodos = soup.find_all(['h1', 'h2', 'h3'])
                 for nodo in nodos:
-                    padre = nodo.parent
-                    top_padre = padre
-                    while padre and padre.name not in ['body', 'html']:
+                    if texto.lower() in nodo.get_text().lower():
+                        # Buscamos el "abuelo" (el <section> o <div> que contiene al título)
+                        padre = nodo.parent
                         top_padre = padre
-                        padre = padre.parent
-                    if top_padre and top_padre.name not in ['body', 'html']:
-                        top_padre.decompose()
-                        cambios_reales += 1
-                        break
+                        while padre and padre.name not in ['section', 'body', 'html']:
+                            top_padre = padre
+                            padre = padre.parent
+                        
+                        if top_padre and top_padre.name not in ['body', 'html']:
+                            top_padre.decompose()
+                            cambios_reales += 1
+                            break
 
         # 5. CAMBIAR COLOR
         elif tipo == "color":
@@ -115,7 +118,6 @@ def aplicar_cambios(html, acciones):
             "error": "La IA no encontró el texto o la imagen que pediste cambiar. Intenta ser más específico."
         }
 
-    # Reparar imágenes si es que se agregó una sección con el comodín
     html_final = _reparar_imagenes_rotas(html_final)
 
     return {
