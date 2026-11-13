@@ -1,8 +1,6 @@
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
-# ============================================
-# V4.5: El boton Deshacer solo aparece si el cambio fue exitoso.
+# MINI-PANEL DEL CLIENTE - V4.7 (LIMPIEZA DE ERRORES)
 # ============================================
 
 import streamlit as st
@@ -189,7 +187,7 @@ def _renderizar_panel(pedido, sb):
                     exito, msg, html_generado = _generar_web_inicial(sb, pedido)
                 if exito:
                     st.session_state["preview_html"] = html_generado
-                    st.session_state.pop("html_anterior", None) # Limpiar undo
+                    st.session_state.pop("html_anterior", None)
                     st.success(msg)
                     st.rerun()
                 else:
@@ -223,6 +221,11 @@ def _renderizar_panel(pedido, sb):
         with st.expander("💡 ¿No sabes qué escribir? Haz clic aquí para ver ejemplos", expanded=False):
             st.info(f"Para que la IA te entienda perfectamente, pídele las cosas de forma sencilla. Aquí tienes algunos ejemplos:\n\n{ejemplos}\n\n*Truco: Puedes pedir una cosa a la vez para obtener resultados más rápidos.*")
         
+        # --- LIMPIAMOS EL MENSAJE DE ERROR AL INICIAR EL FORMULARIO ---
+        if "mensaje_error_ia" in st.session_state:
+            st.error(st.session_state["mensaje_error_ia"])
+            del st.session_state["mensaje_error_ia"]
+
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             
@@ -234,26 +237,27 @@ def _renderizar_panel(pedido, sb):
                     if not instruccion.strip():
                         st.warning("Escribe lo que quieres cambiar antes de generar la vista previa.")
                     else:
-                        # --- FIX DESHACER: Guardamos el HTML actual ANTES de intentar el cambio
                         html_previo = st.session_state.get("preview_html", "")
                         
                         with st.spinner("La IA esta aplicando los cambios..."):
                             exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion)
                         
                         if exito:
-                            # Solo si fue exitoso, guardamos el respaldo y actualizamos
                             st.session_state["html_anterior"] = html_previo
                             st.session_state["preview_html"] = html_nuevo
                             st.success(msg)
                             st.rerun()
                         else:
-                            st.error(msg)
+                            st.session_state["mensaje_error_ia"] = msg
+                            st.rerun()
                             
             # --- BOTON DE DESHACER ---
             if "html_anterior" in st.session_state and st.session_state["html_anterior"]:
                 if st.button("🔄 Deshacer el último cambio", use_container_width=True):
                     st.session_state["preview_html"] = st.session_state["html_anterior"]
-                    st.session_state.pop("html_anterior", None) # Ocultar el boton
+                    st.session_state.pop("html_anterior", None) 
+                    if "mensaje_error_ia" in st.session_state:
+                        del st.session_state["mensaje_error_ia"]
                     st.success("Cambio revertido. La web volvió a su estado anterior.")
                     st.rerun()
         else:

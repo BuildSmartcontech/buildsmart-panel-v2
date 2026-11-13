@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V9.0 (MODO DIOS SUPREMO)
+# APLICADOR DE CAMBIOS AL HTML - V9.2 (REPARADOR INFALIBLE)
 # ============================================
 
 import re
@@ -21,21 +21,30 @@ def _es_color_claro(hex_color):
         return (r * 0.299 + g * 0.587 + b * 0.114) > 186
     except: return False
 
-def _reparar_imagenes_rotas(html_completo):
-    soup = BeautifulSoup(html_completo, 'html.parser')
+def _reparar_imagenes_rotas(soup):
+    """
+    Busca imágenes rotas en el objeto BeautifulSoup y les inyecta una foto real.
+    Retorna el número de imágenes reparadas.
+    """
+    cambios = 0
     for img in soup.find_all('img'):
-        src = img.get('src', '')
-        if not src or "{{" in src or (src.startswith("http") and "images.unsplash.com" not in src):
-            if "base64" in src: continue
+        src = img.get('src', '').strip()
+        
+        # Si es base64 (logo), lo dejamos intacto
+        if "base64" in src: continue
+            
+        # Si el src está vacío, no empieza con http/https, o es un marcador {{...}}, lo reemplazamos
+        es_roto = not src or not src.startswith("http") or "{{" in src
+        
+        if es_roto:
             alt_texto = img.get('alt', 'negocio')
-            # Buscamos una imagen real
             imagenes = obtener_urls_imagenes_negocio({"sector": alt_texto}, cantidad=1)
             if imagenes:
                 img['src'] = imagenes[0]['url_regular']
             else:
-                # Fallback directo a Unsplash
                 img['src'] = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop"
-    return str(soup)
+            cambios += 1
+    return cambios
 
 def _buscar_elemento_tolerante(soup, selector):
     elementos = soup.select(selector)
@@ -62,8 +71,8 @@ def _buscar_elemento_tolerante(soup, selector):
     return []
 
 def aplicar_cambios(html, operaciones):
-    if not html or not operaciones:
-        return {"exito": False, "html_nuevo": html, "error": "Sin cambios"}
+    if not html:
+        return {"exito": False, "html_nuevo": html, "error": "Sin HTML"}
 
     html = _limpiar_html_residual(html)
     soup = BeautifulSoup(html, 'html.parser')
@@ -72,14 +81,14 @@ def aplicar_cambios(html, operaciones):
     cambio_fondo_body = False
     color_fondo_body = "#000"
 
-    for op in operaciones:
+    # 1. EJECUTAR OPERACIONES DE LA IA
+    for op in (operaciones or []):
         selector = op.get("selector", "")
         accion = op.get("accion", "")
         valor = op.get("valor", "")
         
         if not selector or not accion: continue
             
-        # Protección SVG
         if "svg" in selector.lower() or "map" in selector.lower() or "icon" in selector.lower():
             continue
 
@@ -144,43 +153,38 @@ def aplicar_cambios(html, operaciones):
                 cambios_reales += 1
                 break
 
-    # --- REGLAS DE MODO DIOS SUPREMO ---
+    # 2. REPARAR IMÁGENES (SIEMPRE SE EJECUTA, SIN IMPORTAR SI LA IA FALLÓ)
+    cambios_imgs = _reparar_imagenes_rotas(soup)
+    cambios_reales += cambios_imgs
+
+    # 3. REGLAS DE MODO DIOS SUPREMO
     style_tag = soup.find('style')
-    if style_tag:
+    if style_tag and cambio_fondo_body:
         css_extra = ""
-        if cambio_fondo_body:
-            # 1. Limpiar TODOS los fondos y gradientes hardcodeados
-            css_extra += "\nbody, nav, footer, section, .hero, .card { background: none !important; box-shadow: none !important; }\n"
+        css_extra += "\nbody, nav, footer, section, .hero, .card { background: none !important; box-shadow: none !important; }\n"
+        
+        if _es_color_claro(color_fondo_body):
+            css_extra += "body, nav, footer, section, .card { background-color: #FFFFFF !important; }\n"
+            css_extra += "body, h1, h2, h3, p, span, li, a, nav a, footer a { color: #111111 !important; }\n"
+            css_extra += "h1, h2 { -webkit-text-fill-color: #111111 !important; -webkit-background-clip: initial !important; background: none !important; }\n"
+        else:
+            css_extra += "body, nav, footer, section, .card { background-color: #0B0C14 !important; }\n"
+            css_extra += "body, h1, h2, h3, p, span, li, a, nav a, footer a { color: #FFFFFF !important; }\n"
             
-            if _es_color_claro(color_fondo_body):
-                # 2. Fondo claro: forzar TODO a blanco y textos a negro
-                css_extra += "body, nav, footer, section, .card { background-color: #FFFFFF !important; }\n"
-                css_extra += "body, h1, h2, h3, p, span, li, a, nav a, footer a { color: #111111 !important; }\n"
-                # 3. Fusilar el gradiente del título
-                css_extra += "h1, h2 { -webkit-text-fill-color: #111111 !important; -webkit-background-clip: initial !important; background: none !important; }\n"
-            else:
-                # Fondo oscuro: forzar TODO a negro
-                css_extra += "body, nav, footer, section, .card { background-color: #0B0C14 !important; }\n"
-                css_extra += "body, h1, h2, h3, p, span, li, a, nav a, footer a { color: #FFFFFF !important; }\n"
-        
-        # Proteger SVGs de tamaño
         css_extra += "\nsvg { max-width: 100px !important; max-height: 100px !important; }\n"
-        
         style_tag.string = (style_tag.string or "") + css_extra
 
     html_final = str(soup)
 
+    # SI NO HUBO CAMBIOS DE LA IA, PERO SÍ SE REPARARON IMÁGENES, ES UN ÉXITO.
     if cambios_reales == 0:
         return {"exito": False, "html_nuevo": html, "error": "La IA no encontró el elemento exacto para aplicar el cambio."}
-
-    # Reparar imágenes rotas SIEMPRE al final
-    html_final = _reparar_imagenes_rotas(html_final)
 
     return {
         "exito": True,
         "html_nuevo": html_final,
         "cambios_aplicados": cambios_reales,
-        "cambios_totales": len(operaciones),
+        "cambios_totales": cambios_reales,
         "aplicados": [{"descripcion": "Cambios aplicados", "detalle": ""}],
         "fallidos": []
     }
