@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V2.9 (BORRADO BRUTAL)
+# APLICADOR DE CAMBIOS AL HTML - V3.1 (BORRADO GARANTIZADO)
 # ============================================
 
 import re
@@ -33,25 +33,29 @@ def aplicar_cambios(html, cambios):
     explicacion = cambios.get("explicacion", "Cambios aplicados")
 
     soup = BeautifulSoup(html, 'html.parser')
+    cambios_reales = 0
 
-    # 1. ELIMINAR SECCIONES VIEJAS (Búsqueda por texto brutal)
+    # 1. ELIMINAR SECCIONES VIEJAS (BORRADO BRUTAL POR TEXTO)
     if eliminar_secciones:
         for elim in eliminar_secciones:
-            texto = elim.get("texto_que_contiene", "")
+            texto = elim.get("texto_que_contiene", "").strip()
             if texto:
-                # Buscamos cualquier etiqueta que contenga ese texto exacto
-                for string_node in soup.find_all(string=re.compile(re.escape(texto), re.IGNORECASE)):
-                    # Buscamos el "abuelo" para destruir todo el bloque, no solo el texto
-                    parent = string_node.parent
-                    # Subimos máximo 3 niveles para no borrar todo el body
-                    levels_up = 0
-                    while parent and parent.name not in ['body', 'html', 'main'] and levels_up < 3:
-                        parent = parent.parent
-                        levels_up += 1
-                    if parent and parent.name not in ['body', 'html', 'main']:
-                        parent.decompose()
-                    elif string_node.parent:
-                        string_node.parent.decompose()
+                # Buscamos el texto en cualquier etiqueta (h1, h2, p, span)
+                nodos = soup.find_all(string=re.compile(re.escape(texto), re.IGNORECASE))
+                for nodo in nodos:
+                    # Subimos hasta encontrar el contenedor principal (section o div)
+                    padre = nodo.parent
+                    while padre and padre.name not in ['section', 'div', 'article']:
+                        padre = padre.parent
+                    
+                    if padre and padre.name in ['section', 'div', 'article'] and padre.name not in ['body', 'main', 'html']:
+                        padre.decompose() # Destruye TODO el bloque
+                        cambios_reales += 1
+                        break # Pasamos al siguiente texto
+                    elif nodo.parent:
+                        nodo.parent.decompose()
+                        cambios_reales += 1
+                        break
 
     # 2. REEMPLAZAR TEXTOS
     if reemplazos_texto:
@@ -64,9 +68,11 @@ def aplicar_cambios(html, cambios):
                 for etiqueta in etiquetas:
                     if texto_actual and texto_actual in etiqueta.get_text():
                         etiqueta.string = texto_nuevo
+                        cambios_reales += 1
                         break
                     elif not texto_actual:
                         etiqueta.string = texto_nuevo
+                        cambios_reales += 1
                         break
 
     # 3. INYECTAR CSS
@@ -75,32 +81,40 @@ def aplicar_cambios(html, cambios):
         style_tag = soup.find('style')
         if style_tag:
             style_tag.string = (style_tag.string or "") + bloque_css
+            cambios_reales += 1
 
-    # 4. INYECTAR HTML NUEVO (Ubicación Inteligente)
+    # 4. INYECTAR HTML NUEVO
     if secciones_html:
         for html_seccion in secciones_html:
             seccion_soup = BeautifulSoup(html_seccion, 'html.parser')
-            
-            # Buscamos el mejor lugar para inyectar: ANTES de Ubicación o Horarios (para que quede arriba)
             anclaje = soup.find(id='ubicacion') or soup.find(id='horarios') or soup.find(id='contacto') or soup.find('footer')
-            
             if anclaje:
                 anclaje.insert_before(seccion_soup)
+                cambios_reales += 1
             else:
                 body = soup.find('body')
-                if body: body.append(seccion_soup)
-                else: soup.append(seccion_soup)
+                if body: body.append(seccion_soup); cambios_reales += 1
+                else: soup.append(seccion_soup); cambios_reales += 1
 
     html_final = str(soup)
     
-    # 5. REPARACIÓN MASIVA DE IMÁGENES
-    html_final = _reparar_imagenes_rotas(html_final)
+    # 5. REPARACIÓN MASIVA DE IMÁGENES (si se agregaron nuevas)
+    if secciones_html:
+        html_final = _reparar_imagenes_rotas(html_final)
+
+    # SI NO SE APLICÓ NINGÚN CAMBIO REAL, DEVOLVEMOS ERROR
+    if cambios_reales == 0:
+        return {
+            "exito": False, 
+            "html_nuevo": html, 
+            "error": "No se encontró la sección o el texto que pediste eliminar."
+        }
 
     return {
         "exito": True,
         "html_nuevo": html_final,
-        "cambios_aplicados": len(reglas_css) + len(secciones_html) + len(reemplazos_texto) + len(eliminar_secciones),
-        "cambios_totales": len(reglas_css) + len(secciones_html) + len(reemplazos_texto) + len(eliminar_secciones),
+        "cambios_aplicados": cambios_reales,
+        "cambios_totales": cambios_reales,
         "aplicados": [{"descripcion": explicacion, "detalle": ""}],
         "fallidos": []
     }

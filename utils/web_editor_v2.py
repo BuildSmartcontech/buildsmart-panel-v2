@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V3.3 (PERSISTENCIA SUPABASE)
+# EDITOR DE WEBS - V3.4 (PARSER SIMPLIFICADO)
 # ============================================
 
 import os
@@ -76,11 +76,29 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1)
 
             data = parsear_json_cambios(respuesta)
-            if not data:
+            if not data or "acciones" not in data:
                 time.sleep(TIEMPO_ESPERA)
                 continue
 
-            resultado_patcher = aplicar_cambios(html_actual, data)
+            # Convertir el formato "acciones" al formato que espera el patcher
+            cambios_para_patcher = {
+                "reemplazos_texto": [],
+                "reglas_css": [],
+                "secciones_html": [],
+                "eliminar_secciones": [],
+                "explicacion": data.get("explicacion", "Cambios aplicados")
+            }
+            
+            for accion in data["acciones"]:
+                tipo = accion.get("tipo")
+                if tipo == "eliminar":
+                    cambios_para_patcher["eliminar_secciones"].append({"texto_que_contiene": accion.get("texto", "")})
+                elif tipo == "agregar":
+                    cambios_para_patcher["secciones_html"].append(accion.get("html", ""))
+                elif tipo == "color":
+                    cambios_para_patcher["reglas_css"].append(accion.get("css", ""))
+
+            resultado_patcher = aplicar_cambios(html_actual, cambios_para_patcher)
             
             if not resultado_patcher["exito"]:
                 time.sleep(TIEMPO_ESPERA)
@@ -103,24 +121,20 @@ def editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto_negocio=""):
     if not resultado["exito"]:
         return resultado
 
-    # 1. Guardar en archivos (local)
     try:
         from utils.web_storage import guardar_en_archivos
         guardar_en_archivos(usuario_id, web_id, resultado["html_nuevo"])
     except Exception as e:
         print(f"[EDITOR] Error guardando en archivos: {e}")
 
-    # 2. Guardar en Supabase (Persistencia Real para Reboot)
     try:
         from utils.supabase_client import supabase
         if supabase:
             url = supabase.url + f"/rest/v1/paginas_web?id=eq.{web_id}"
             headers = supabase.headers.copy()
-            headers["Prefer"] = "return=representation"
             data = {"html_generado": resultado["html_nuevo"]}
             import requests
             requests.patch(url, headers=headers, json=data, timeout=10)
-            print(f"[EDITOR] HTML actualizado en Supabase para web_id {web_id}")
     except Exception as e:
         print(f"[EDITOR] Error guardando en Supabase: {e}")
 

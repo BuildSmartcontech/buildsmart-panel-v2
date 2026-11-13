@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V8.8 (BORRADO POR TEXTO)
+# PROMPTS DE CALIDAD V9.0 (JSON SIMPLIFICADO)
 # ============================================
 
 import sys
@@ -20,34 +20,38 @@ def generar_prompt_web(*args, **kwargs):
     pass
 
 def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, contexto_negocio=""):
-    prompt = f"""Eres un experto en CSS, HTML y edición de contenido.
+    prompt = f"""Eres un experto en CSS y HTML. El usuario ha pedido: "{instruccion}"
 
-## CONTEXTO DEL NEGOCIO
-{contexto_negocio if contexto_negocio else "Negocio generico"}
+## TU TAREA
+Devuelve un JSON con las acciones a realizar. 
 
-## ESTRUCTURA ACTUAL DE LA WEB
-{estructura_resumen}
+Si el usuario pide BORRAR o ELIMINAR una sección, DEBES usar la acción "eliminar". 
+Si pide AGREGAR, usa "agregar".
+Si pide CAMBIAR COLOR, usa "color".
 
-## INSTRUCCIÓN DEL USUARIO
-"{instruccion}"
-
-## REGLAS ESTRICTAS:
-1. Si el usuario pide ELIMINAR o BORRAR una sección, usa `eliminar_secciones`. Escribe el título EXACTO de la sección que quieres borrar (ej: "Amazonía Colombiana") en `texto_que_contiene`. El sistema en Python se encargará de buscar y destruir ese bloque.
-2. Si el usuario pide AGREGAR, usa las clases `<section class="services-grid">` y `<div class="card">`. Usa el comodín `src="{{NUEVA_IMAGEN}}"` para fotos.
-3. Si pide cambiar colores, usa `reglas_css`.
-
-## FORMATO DE RESPUESTA (SOLO JSON):
+## FORMATO (SOLO JSON):
 {{
-  "reemplazos_texto": [],
-  "reglas_css": [],
-  "secciones_html": [
-    "<section class='services-grid' style='padding: 60px 20px;'><div class='card'><h2>Amazonía</h2><img src='{{NUEVA_IMAGEN}}' alt='Selva amazónica'><p>Explora la selva...</p></div></section>"
+  "acciones": [
+    {{
+      "tipo": "eliminar",
+      "texto": "Amazonía Colombiana"
+    }},
+    {{
+      "tipo": "agregar",
+      "html": "<section class='services-grid'><div class='card'><h2>Nuevo</h2><img src='{{{{NUEVA_IMAGEN}}}}' alt='foto'></div></section>"
+    }},
+    {{
+      "tipo": "color",
+      "css": "h1 {{ color: red !important; }}"
+    }}
   ],
-  "eliminar_secciones": [
-    {{ "texto_que_contiene": "Amazonía Colombiana" }}
-  ],
-  "explicacion": "Borré la sección vieja y agregué la nueva con tarjetas."
+  "explicacion": "Eliminé la sección y cambié el color"
 }}
+
+## REGLAS:
+1. Devuelve SOLO JSON.
+2. Para eliminar, escribe el texto exacto del título de la sección.
+3. Para agregar, usa las clases `card` y el comodín `{{{{NUEVA_IMAGEN}}}}`.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt
