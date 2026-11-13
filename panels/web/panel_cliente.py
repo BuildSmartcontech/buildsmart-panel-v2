@@ -2,7 +2,7 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V4.3: Codigo completo, con clear_on_submit y ejemplos dinamicos.
+# V4.4: Agrega boton de Deshacer (Undo)
 # ============================================
 
 import streamlit as st
@@ -73,28 +73,24 @@ def _renderizar_vista_previa(html_content: str):
 
 def _generar_web_inicial(sb, pedido):
     datos_negocio = pedido.get("datos_negocio", {})
-    if not datos_negocio:
-        return False, "Faltan los datos del negocio.", None
+    if not datos_negocio: return False, "Faltan los datos del negocio.", None
 
     try:
         from utils.web_generator import generar_web
         from utils.web_storage import guardar_web, generar_uuid
         
         resultado_gen = generar_web(datos_negocio=datos_negocio)
-        if not resultado_gen.get("exito"):
-            return False, f"Error de IA: {resultado_gen.get('error')}", None
+        if not resultado_gen.get("exito"): return False, f"Error de IA: {resultado_gen.get('error')}", None
             
         html = resultado_gen["html"]
         web_id = generar_uuid()
         usuario_id = pedido.get("email", "usuario_default")
         
         guardado = guardar_web(usuario_id=usuario_id, web_id=web_id, html=html, datos_extra={"pedido_id": pedido.get("id")})
-        if not guardado.get("exito"):
-            return False, f"Error guardando web: {guardado.get('error')}", None
+        if not guardado.get("exito"): return False, f"Error guardando web: {guardado.get('error')}", None
             
         sb.update("pedidos_web", {"web_id": web_id, "estado": "pagado", "updated_at": datetime.datetime.now().isoformat()}, "id", pedido.get("id"))
         return True, "¡Web generada! Revisa la vista previa abajo.", html
-
     except Exception as e:
         return False, f"Error del sistema: {str(e)}", None
 
@@ -108,27 +104,18 @@ def _solicitar_modificacion(sb, pedido, instruccion):
     limite_total = LIMITE_MODIFICACIONES_BASE + extras
     restantes = max(0, limite_total - usadas)
 
-    if restantes <= 0:
-        return False, "Sin cambios disponibles.", None
+    if restantes <= 0: return False, "Sin cambios disponibles.", None
 
     try:
         from utils.web_editor_v2 import editar_y_guardar_v2
-        
-        contexto = f"Negocio: {pedido.get('datos_negocio', {}).get('nombre_negocio', '')}\n"
-        contexto += f"Sector: {pedido.get('datos_negocio', {}).get('sector', '')}"
-
+        contexto = f"Negocio: {pedido.get('datos_negocio', {}).get('nombre_negocio', '')}\nSector: {pedido.get('datos_negocio', {}).get('sector', '')}"
         resultado = editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto)
 
         if resultado.get("exito"):
-            sb.update(
-                "pedidos_web",
-                {"modificaciones_usadas": usadas + 1, "updated_at": datetime.datetime.now().isoformat()},
-                "id", pedido_id
-            )
+            sb.update("pedidos_web", {"modificaciones_usadas": usadas + 1, "updated_at": datetime.datetime.now().isoformat()}, "id", pedido_id)
             return True, "¡Tu web se ha modificado! Revisa la vista previa.", resultado.get("html_nuevo")
         else:
             return False, f"Error de la IA: {resultado.get('error')}", None
-            
     except Exception as e:
         return False, f"Error del sistema: {str(e)}", None
 
@@ -172,8 +159,7 @@ def _renderizar_panel(pedido, sb):
                 st.query_params.clear()
                 st.query_params.update({"web": "panel", "token": token})
                 st.rerun()
-    except Exception:
-        pass
+    except Exception: pass
 
     st.markdown(f"# {E_CORONA} Tu panel - SAMU IA")
     col_h1, col_h2 = st.columns([2, 1])
@@ -198,12 +184,12 @@ def _renderizar_panel(pedido, sb):
     if not web_id and not web_url:
         st.warning(f"{E_RELOJ} Tu web aun no esta creada.")
         if estado == "pagado":
-            st.markdown("Haz clic en el botón de abajo para que nuestra IA construya tu página web.")
             if st.button(f"{E_COHETE} Generar mi web ahora", type="primary", use_container_width=True):
                 with st.spinner("La IA está construyendo tu página..."):
                     exito, msg, html_generado = _generar_web_inicial(sb, pedido)
                 if exito:
                     st.session_state["preview_html"] = html_generado
+                    st.session_state.pop("html_anterior", None) # Limpiar undo
                     st.success(msg)
                     st.rerun()
                 else:
@@ -217,8 +203,7 @@ def _renderizar_panel(pedido, sb):
                 res_leer = leer_web(email, web_id)
                 if res_leer.get("exito"):
                     st.session_state["preview_html"] = res_leer.get("html")
-            except Exception:
-                pass
+            except Exception: pass
 
         if web_url:
             st.success(f"{E_OK} Tu web esta publicada y activa")
@@ -236,18 +221,11 @@ def _renderizar_panel(pedido, sb):
         ejemplos = ejemplos_por_sector.get(sector, ejemplos_por_sector["general"])
 
         with st.expander("💡 ¿No sabes qué escribir? Haz clic aquí para ver ejemplos", expanded=False):
-            st.info(f"""
-            Para que la IA te entienda perfectamente, pídele las cosas de forma sencilla. Aquí tienes algunos ejemplos:
-            
-            {ejemplos}
-            
-            *Truco: Puedes pedir una cosa a la vez para obtener resultados más rápidos.*
-            """)
+            st.info(f"Para que la IA te entienda perfectamente, pídele las cosas de forma sencilla. Aquí tienes algunos ejemplos:\n\n{ejemplos}\n\n*Truco: Puedes pedir una cosa a la vez para obtener resultados más rápidos.*")
         
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             
-            # --- AQUI ESTA EL CLEAR_ON_SUBMIT ---
             with st.form("form_modificacion", clear_on_submit=True):
                 instruccion = st.text_area("Escribe lo que quieres cambiar aquí:", placeholder="Ej: Cambia el título principal a 'Mi Nuevo Titulo'.", height=100)
                 btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa", type="primary", use_container_width=True)
@@ -264,9 +242,16 @@ def _renderizar_panel(pedido, sb):
                             st.rerun()
                         else:
                             st.error(msg)
+                            
+            # --- BOTON DE DESHACER ---
+            if "html_anterior" in st.session_state and st.session_state["html_anterior"]:
+                if st.button("🔄 Deshacer el último cambio", use_container_width=True):
+                    st.session_state["preview_html"] = st.session_state["html_anterior"]
+                    st.session_state.pop("html_anterior", None) # Ocultar el boton
+                    st.success("Cambio revertido. La web volvió a su estado anterior.")
+                    st.rerun()
         else:
             st.warning(f"Has agotado tus {limite_total} modificaciones disponibles.")
-            st.markdown("Puedes comprar más cambios para seguir editando.")
             from panels.web.pagos import obtener_proveedor, proveedor_actual
             prov_nombre = proveedor_actual()
             proveedor = obtener_proveedor(prov_nombre, {})
@@ -374,8 +359,7 @@ def renderizar():
         params = st.query_params
         token = params.get("token", "")
         if isinstance(token, list): token = token[0] if token else ""
-    except Exception:
-        token = ""
+    except Exception: token = ""
 
     if not token:
         st.markdown(f"# {E_LLAVE} Acceso al panel")
