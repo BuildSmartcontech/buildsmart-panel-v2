@@ -2,7 +2,7 @@
 # ============================================
 # MINI-PANEL DEL CLIENTE - Web Gancho SAMU IA
 # ============================================
-# V4.4: Agrega boton de Deshacer (Undo)
+# V4.5: El boton Deshacer solo aparece si el cambio fue exitoso.
 # ============================================
 
 import streamlit as st
@@ -234,9 +234,15 @@ def _renderizar_panel(pedido, sb):
                     if not instruccion.strip():
                         st.warning("Escribe lo que quieres cambiar antes de generar la vista previa.")
                     else:
+                        # --- FIX DESHACER: Guardamos el HTML actual ANTES de intentar el cambio
+                        html_previo = st.session_state.get("preview_html", "")
+                        
                         with st.spinner("La IA esta aplicando los cambios..."):
                             exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion)
+                        
                         if exito:
+                            # Solo si fue exitoso, guardamos el respaldo y actualizamos
+                            st.session_state["html_anterior"] = html_previo
                             st.session_state["preview_html"] = html_nuevo
                             st.success(msg)
                             st.rerun()

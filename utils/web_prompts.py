@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V10.1 (SWAP DE IMÁGENES)
+# PROMPTS DE CALIDAD V10.2 (SWAP CLARO)
 # ============================================
 
 import sys
@@ -38,14 +38,14 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
       "valor": "Nuevo texto"
     }},
     {{
-      "selector": "#sec-servicios img[data-img='servicio-1']",
+      "selector": "img[data-img='servicio-1']",
       "accion": "cambiar_atributo",
       "atributo": "src",
       "valor": "{{NUEVA_IMAGEN}}"
     }},
     {{
-      "selector": "#sec-servicios img[data-img='servicio-1']",
-      "selector_2": "#sec-servicios img[data-img='servicio-3']",
+      "selector": "img[data-img='servicio-1']",
+      "selector_2": "img[data-img='servicio-3']",
       "accion": "intercambiar_imagenes"
     }},
     {{
@@ -59,10 +59,10 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
 
 ## REGLAS CRÍTICAS:
 1. Devuelve SOLO JSON válido.
-2. Usa las anclas del MAPA DE ANCLAS. NUNCA inventes IDs.
+2. Usa los selectores exactos del MAPA DE ANCLAS. NUNCA inventes IDs.
 3. Para cambiar texto, usa `cambiar_texto`.
 4. Para cambiar una imagen, usa `cambiar_atributo` con atributo `src` y valor `{{NUEVA_IMAGEN}}`.
-5. Para INTERCAMBIAR dos imágenes de lugar, usa `accion: "intercambiar_imagenes"` y define `selector` y `selector_2`.
+5. Para INTERCAMBIAR dos imágenes de lugar, usa `accion: "intercambiar_imagenes"` y define `selector` y `selector_2` con los valores exactos del mapa de anclas.
 6. Para insertar contenido, usa `insertar_html`.
 7. Para mover una sección, usa `mover` con `destino`.
 8. Para cambiar estilos, usa `cambiar_css` con el selector del ancla.

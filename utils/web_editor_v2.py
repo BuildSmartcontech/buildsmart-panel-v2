@@ -1,7 +1,6 @@
-
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V5.1 (BACKUP PARA DESHACER)
+# EDITOR DE WEBS - V5.2 (MAPA MEJORADO)
 # ============================================
 
 import os
@@ -9,7 +8,6 @@ import sys
 import re
 import json
 import time
-import streamlit as st
 from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -32,18 +30,25 @@ def extraer_mapa_anclas(html):
     if not html: return "HTML vacio"
     soup = BeautifulSoup(html, 'html.parser')
     anclas = []
+    
+    # 1. Secciones con ID
     for sec in soup.find_all('section'):
         sec_id = sec.get('id', '')
         if sec_id:
             texto = sec.get_text(strip=True)[:50]
             anclas.append(f"- Sección [{sec_id}]: \"{texto}...\"")
+            
+    # 2. Imágenes con data-img (Le damos el selector exacto a la IA)
     for img in soup.find_all('img'):
         data_img = img.get('data-img', '')
         if data_img:
             alt = img.get('alt', 'sin alt')
-            anclas.append(f"- Imagen [{data_img}]: alt=\"{alt}\"")
+            anclas.append(f"- Imagen [{data_img}]: alt=\"{alt}\", selector=\"img[data-img='{data_img}']\"")
+            
+    # 3. Nav y Footer
     if soup.find('nav'): anclas.append("- Sección [nav]: Menú superior")
     if soup.find('footer'): anclas.append("- Sección [footer]: Pie de página")
+        
     return "MAPA DE ANCLAS DE LA WEB:\n" + "\n".join(anclas) if anclas else "No se encontraron anclas."
 
 def parsear_json_cambios(texto):
@@ -73,9 +78,6 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
         if not resultado_lectura["exito"]:
             return {"exito": False, "error": "No se pudo leer la web."}
         html_actual = resultado_lectura["html"]
-
-    # --- GUARDAR RESPALDO PARA DESHACER ---
-    st.session_state["html_anterior"] = html_actual
 
     mapa_anclas = extraer_mapa_anclas(html_actual)
 
