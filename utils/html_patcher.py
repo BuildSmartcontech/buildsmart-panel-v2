@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V5.0 (EJECUTOR DOM)
+# APLICADOR DE CAMBIOS AL HTML - V6.0 (ESCUDO DE SINÓNIMOS)
 # ============================================
 
 import re
@@ -28,6 +28,49 @@ def _reparar_imagenes_rotas(html_completo):
                 img['src'] = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop"
     return str(soup)
 
+def _buscar_elemento_tolerante(soup, selector):
+    """
+    Busca el elemento. Si el selector exacto falla, intenta buscar
+    por palabras clave en el contenido (Búsqueda por Texto).
+    """
+    # 1. Intento Exacto (Ej: #sec-contacto)
+    elementos = soup.select(selector)
+    if elementos:
+        return elementos
+
+    # 2. Intento por Texto (Limpiamos el selector para buscar palabras)
+    texto_limpio = selector.replace("#", "").replace(".", "").replace("sec-", "").replace("-", " ").strip().lower()
+    
+    if not texto_limpio:
+        return []
+
+    # Mapeo de sinónimos comunes
+    sinonimos = {
+        "hero": ["hero", "inicio", "bienvenido", "descubre"],
+        "contacto": ["contacto", "contactanos", "formulario", "email"],
+        "servicios": ["servicio", "propiedad", "producto", "oferta"],
+        "quienes": ["quienes", "sobre", "nosotros", "historia"],
+        "ubicacion": ["ubicacion", "donde", "estamos", "mapa", "direccion"],
+        "horarios": ["horario", "atencion", "lunes"],
+        "nav": ["inicio", "menu", "navegacion"],
+        "footer": ["derechos", "reservados", "privacidad"]
+    }
+    
+    # Buscar sinónimos
+    for key, palabras in sinonimos.items():
+        if key in texto_limpio or any(p in texto_limpio for p in palabras):
+            for tag in soup.find_all(['section', 'div', 'nav', 'footer']):
+                contenido = tag.get_text(strip=True).lower()
+                if any(p in contenido for p in palabras):
+                    return [tag]
+
+    # Búsqueda genérica por el texto exacto
+    for tag in soup.find_all(['section', 'div']):
+        if texto_limpio in tag.get_text(strip=True).lower():
+            return [tag]
+
+    return []
+
 def aplicar_cambios(html, operaciones):
     if not html or not operaciones:
         return {"exito": False, "html_nuevo": html, "error": "Sin cambios"}
@@ -45,7 +88,8 @@ def aplicar_cambios(html, operaciones):
         if not selector or not accion:
             continue
             
-        elementos = soup.select(selector)
+        # Usamos el buscador tolerante
+        elementos = _buscar_elemento_tolerante(soup, selector)
         if not elementos:
             continue
 
@@ -72,23 +116,28 @@ def aplicar_cambios(html, operaciones):
                 
         elif accion == "mover":
             destino = op.get("destino", "")
-            # Buscar el elemento ancla de destino
-            if destino.startswith("despues_de_"):
-                ancla_destino_sel = destino.replace("despues_de_", "")
-                ancla_destino = soup.select_one(ancla_destino_sel)
-                if ancla_destino:
-                    for el in elementos:
+            
+            # Limpiamos el destino (la IA a veces escribe "despues de" en vez de "despues_de_")
+            destino_limpio = destino.lower().replace("despues de", "despues_de").replace("antes de", "antes_de").replace(" ", "_")
+            
+            ancla_destino = None
+            if destino_limpio.startswith("despues_de_"):
+                sel_dest = destino_limpio.replace("despues_de_", "")
+                ancla_destino = _buscar_elemento_tolerante(soup, sel_dest)
+                if ancla_destino: ancla_destino = ancla_destino[0]
+            elif destino_limpio.startswith("antes_de_"):
+                sel_dest = destino_limpio.replace("antes_de_", "")
+                ancla_destino = _buscar_elemento_tolerante(soup, sel_dest)
+                if ancla_destino: ancla_destino = ancla_destino[0]
+
+            if ancla_destino:
+                for el in elementos:
+                    if destino_limpio.startswith("despues_de_"):
                         ancla_destino.insert_after(el.extract())
-                        cambios_reales += 1
-                        break
-            elif destino.startswith("antes_de_"):
-                ancla_destino_sel = destino.replace("antes_de_", "")
-                ancla_destino = soup.select_one(ancla_destino_sel)
-                if ancla_destino:
-                    for el in elementos:
+                    else:
                         ancla_destino.insert_before(el.extract())
-                        cambios_reales += 1
-                        break
+                    cambios_reales += 1
+                    break
                         
         elif accion == "cambiar_css":
             for el in elementos:
