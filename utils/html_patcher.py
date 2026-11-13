@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V8.0 (MODO DIOS)
+# APLICADOR DE CAMBIOS AL HTML - V9.0 (MODO DIOS SUPREMO)
 # ============================================
 
 import re
@@ -19,8 +19,7 @@ def _es_color_claro(hex_color):
         if len(hex_color) == 3: hex_color = ''.join([c*2 for c in hex_color])
         r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
         return (r * 0.299 + g * 0.587 + b * 0.114) > 186
-    except:
-        return False
+    except: return False
 
 def _reparar_imagenes_rotas(html_completo):
     soup = BeautifulSoup(html_completo, 'html.parser')
@@ -29,10 +28,12 @@ def _reparar_imagenes_rotas(html_completo):
         if not src or "{{" in src or (src.startswith("http") and "images.unsplash.com" not in src):
             if "base64" in src: continue
             alt_texto = img.get('alt', 'negocio')
+            # Buscamos una imagen real
             imagenes = obtener_urls_imagenes_negocio({"sector": alt_texto}, cantidad=1)
             if imagenes:
                 img['src'] = imagenes[0]['url_regular']
             else:
+                # Fallback directo a Unsplash
                 img['src'] = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop"
     return str(soup)
 
@@ -78,9 +79,9 @@ def aplicar_cambios(html, operaciones):
         
         if not selector or not accion: continue
             
-        # --- REGLA MODO DIOS: PROTECCIÓN DE SVG ---
+        # Protección SVG
         if "svg" in selector.lower() or "map" in selector.lower() or "icon" in selector.lower():
-            continue # Ignoramos cualquier intento de modificar SVGs o mapas
+            continue
 
         elementos = _buscar_elemento_tolerante(soup, selector)
         if not elementos: continue
@@ -93,7 +94,7 @@ def aplicar_cambios(html, operaciones):
                 
         elif accion == "cambiar_atributo":
             atributo = op.get("atributo", "")
-            if atributo and atributo.lower() != "style": # No permitimos cambiar estilos por atributo
+            if atributo and atributo.lower() != "style":
                 for el in elementos:
                     el[atributo] = valor
                     cambios_reales += 1
@@ -125,9 +126,7 @@ def aplicar_cambios(html, operaciones):
                         
         elif accion == "cambiar_css":
             for el in elementos:
-                # Si es un SVG o un IMG, no le inyectamos CSS, solo al contenedor
                 if el.name in ['svg', 'path', 'img']: continue
-                
                 estilo_actual = el.get('style', '')
                 el['style'] = estilo_actual + "; " + valor
                 cambios_reales += 1
@@ -140,27 +139,31 @@ def aplicar_cambios(html, operaciones):
                 
         elif accion == "eliminar":
             for el in elementos:
-                # No permitimos eliminar SVGs o IMGs enteros
                 if el.name in ['svg', 'img']: continue
                 el.decompose()
                 cambios_reales += 1
                 break
 
-    # --- REGLAS DE MODO DISEÑADOR ---
+    # --- REGLAS DE MODO DIOS SUPREMO ---
     style_tag = soup.find('style')
     if style_tag:
         css_extra = ""
         if cambio_fondo_body:
-            # Limpiar gradientes que rompen el layout
-            css_extra += "\n.hero, section { background-image: none !important; }\n"
+            # 1. Limpiar TODOS los fondos y gradientes hardcodeados
+            css_extra += "\nbody, nav, footer, section, .hero, .card { background: none !important; box-shadow: none !important; }\n"
             
-            # Auto-Contraste
             if _es_color_claro(color_fondo_body):
-                css_extra += "body, h1, h2, h3, p, span, li, a { color: #111111 !important; }\n"
+                # 2. Fondo claro: forzar TODO a blanco y textos a negro
+                css_extra += "body, nav, footer, section, .card { background-color: #FFFFFF !important; }\n"
+                css_extra += "body, h1, h2, h3, p, span, li, a, nav a, footer a { color: #111111 !important; }\n"
+                # 3. Fusilar el gradiente del título
+                css_extra += "h1, h2 { -webkit-text-fill-color: #111111 !important; -webkit-background-clip: initial !important; background: none !important; }\n"
             else:
-                css_extra += "body, h1, h2, h3, p, span, li, a { color: #FFFFFF !important; }\n"
+                # Fondo oscuro: forzar TODO a negro
+                css_extra += "body, nav, footer, section, .card { background-color: #0B0C14 !important; }\n"
+                css_extra += "body, h1, h2, h3, p, span, li, a, nav a, footer a { color: #FFFFFF !important; }\n"
         
-        # REGLA DE ORO: Proteger SVGs de tamaño
+        # Proteger SVGs de tamaño
         css_extra += "\nsvg { max-width: 100px !important; max-height: 100px !important; }\n"
         
         style_tag.string = (style_tag.string or "") + css_extra
@@ -170,6 +173,7 @@ def aplicar_cambios(html, operaciones):
     if cambios_reales == 0:
         return {"exito": False, "html_nuevo": html, "error": "La IA no encontró el elemento exacto para aplicar el cambio."}
 
+    # Reparar imágenes rotas SIEMPRE al final
     html_final = _reparar_imagenes_rotas(html_final)
 
     return {
