@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V3.4 (PARSER SIMPLIFICADO)
+# EDITOR DE WEBS - V3.5 (PROCESADOR DE ACCIÓN ÚNICA)
 # ============================================
 
 import os
@@ -80,7 +80,6 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
                 time.sleep(TIEMPO_ESPERA)
                 continue
 
-            # Convertir el formato "acciones" al formato que espera el patcher
             cambios_para_patcher = {
                 "reemplazos_texto": [],
                 "reglas_css": [],

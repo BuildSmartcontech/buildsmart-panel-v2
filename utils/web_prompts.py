@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V9.0 (JSON SIMPLIFICADO)
+# PROMPTS DE CALIDAD V9.1 (UNA SOLA ACCIÓN)
 # ============================================
 
 import sys
@@ -23,11 +23,8 @@ def generar_prompt_edicion_estructurada(estructura_resumen, instruccion, context
     prompt = f"""Eres un experto en CSS y HTML. El usuario ha pedido: "{instruccion}"
 
 ## TU TAREA
-Devuelve un JSON con las acciones a realizar. 
-
-Si el usuario pide BORRAR o ELIMINAR una sección, DEBES usar la acción "eliminar". 
-Si pide AGREGAR, usa "agregar".
-Si pide CAMBIAR COLOR, usa "color".
+Devuelve un JSON con LAS ACCIONES que el usuario pide. 
+Si el usuario pide eliminar, usa SOLO la acción "eliminar". Si pide agregar, usa SOLO "agregar". Si pide color, usa SOLO "color".
 
 ## FORMATO (SOLO JSON):
 {{
@@ -35,23 +32,15 @@ Si pide CAMBIAR COLOR, usa "color".
     {{
       "tipo": "eliminar",
       "texto": "Amazonía Colombiana"
-    }},
-    {{
-      "tipo": "agregar",
-      "html": "<section class='services-grid'><div class='card'><h2>Nuevo</h2><img src='{{{{NUEVA_IMAGEN}}}}' alt='foto'></div></section>"
-    }},
-    {{
-      "tipo": "color",
-      "css": "h1 {{ color: red !important; }}"
     }}
   ],
-  "explicacion": "Eliminé la sección y cambié el color"
+  "explicacion": "Eliminé la sección de Amazonía"
 }}
 
 ## REGLAS:
-1. Devuelve SOLO JSON.
-2. Para eliminar, escribe el texto exacto del título de la sección.
-3. Para agregar, usa las clases `card` y el comodín `{{{{NUEVA_IMAGEN}}}}`.
+1. Para eliminar, escribe el texto EXACTO del título que el usuario quiere borrar (ej: "Amazonía Colombiana"). No escribas el selector HTML, solo el texto.
+2. Si pide agregar, usa el comodín {{{{NUEVA_IMAGEN}}}} y las clases `card`.
+3. Devuelve SOLO JSON válido.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt

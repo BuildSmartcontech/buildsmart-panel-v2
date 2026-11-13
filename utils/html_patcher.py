@@ -1,11 +1,19 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V3.1 (BORRADO GARANTIZADO)
+# APLICADOR DE CAMBIOS AL HTML - V3.2 (LIMPIEZA NUCLEAR)
 # ============================================
 
 import re
 from bs4 import BeautifulSoup
 from utils.image_fetcher import obtener_urls_imagenes_negocio
+
+def limpiar_html_residual(html_code: str) -> str:
+    """Corta cualquier basura que haya quedado después del cierre del footer."""
+    if "</footer>" in html_code:
+        partes = html_code.split("</footer>")
+        html_limpio = partes[0] + "</footer>\n</body>\n</html>"
+        return html_limpio
+    return html_code
 
 def _reparar_imagenes_rotas(html_completo):
     soup = BeautifulSoup(html_completo, 'html.parser')
@@ -26,6 +34,9 @@ def aplicar_cambios(html, cambios):
     if not html or not cambios:
         return {"exito": False, "html_nuevo": html, "error": "Sin cambios"}
 
+    # 1. LIMPIEZA PREVIA (Corta basura después del footer)
+    html = limpiar_html_residual(html)
+
     reglas_css = cambios.get("reglas_css", [])
     secciones_html = cambios.get("secciones_html", [])
     reemplazos_texto = cambios.get("reemplazos_texto", [])
@@ -35,29 +46,30 @@ def aplicar_cambios(html, cambios):
     soup = BeautifulSoup(html, 'html.parser')
     cambios_reales = 0
 
-    # 1. ELIMINAR SECCIONES VIEJAS (BORRADO BRUTAL POR TEXTO)
+    # 2. ELIMINAR SECCIONES VIEJAS (BORRADO BRUTAL POR TEXTO)
     if eliminar_secciones:
         for elim in eliminar_secciones:
             texto = elim.get("texto_que_contiene", "").strip()
             if texto:
-                # Buscamos el texto en cualquier etiqueta (h1, h2, p, span)
                 nodos = soup.find_all(string=re.compile(re.escape(texto), re.IGNORECASE))
                 for nodo in nodos:
-                    # Subimos hasta encontrar el contenedor principal (section o div)
+                    # Buscamos el "padre" más alto que no sea el body
                     padre = nodo.parent
-                    while padre and padre.name not in ['section', 'div', 'article']:
+                    top_padre = padre
+                    while padre and padre.name not in ['body', 'html']:
+                        top_padre = padre
                         padre = padre.parent
                     
-                    if padre and padre.name in ['section', 'div', 'article'] and padre.name not in ['body', 'main', 'html']:
-                        padre.decompose() # Destruye TODO el bloque
+                    if top_padre and top_padre.name not in ['body', 'html']:
+                        top_padre.decompose()
                         cambios_reales += 1
-                        break # Pasamos al siguiente texto
+                        break
                     elif nodo.parent:
                         nodo.parent.decompose()
                         cambios_reales += 1
                         break
 
-    # 2. REEMPLAZAR TEXTOS
+    # 3. REEMPLAZAR TEXTOS
     if reemplazos_texto:
         for rep in reemplazos_texto:
             selector = rep.get("selector", "")
@@ -75,7 +87,7 @@ def aplicar_cambios(html, cambios):
                         cambios_reales += 1
                         break
 
-    # 3. INYECTAR CSS
+    # 4. INYECTAR CSS
     if reglas_css:
         bloque_css = "\n/* CAMBIOS DINÁMICOS */\n" + "\n".join(reglas_css) + "\n"
         style_tag = soup.find('style')
@@ -83,7 +95,7 @@ def aplicar_cambios(html, cambios):
             style_tag.string = (style_tag.string or "") + bloque_css
             cambios_reales += 1
 
-    # 4. INYECTAR HTML NUEVO
+    # 5. INYECTAR HTML NUEVO
     if secciones_html:
         for html_seccion in secciones_html:
             seccion_soup = BeautifulSoup(html_seccion, 'html.parser')
@@ -98,16 +110,14 @@ def aplicar_cambios(html, cambios):
 
     html_final = str(soup)
     
-    # 5. REPARACIÓN MASIVA DE IMÁGENES (si se agregaron nuevas)
     if secciones_html:
         html_final = _reparar_imagenes_rotas(html_final)
 
-    # SI NO SE APLICÓ NINGÚN CAMBIO REAL, DEVOLVEMOS ERROR
     if cambios_reales == 0:
         return {
             "exito": False, 
             "html_nuevo": html, 
-            "error": "No se encontró la sección o el texto que pediste eliminar."
+            "error": "No se encontró la sección o el texto que pediste eliminar. Intenta ser más específico."
         }
 
     return {
