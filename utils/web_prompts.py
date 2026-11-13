@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V10.0 (JSON QUIRÚRGICO)
+# PROMPTS DE CALIDAD V10.1 (SWAP DE IMÁGENES)
 # ============================================
 
 import sys
@@ -35,7 +35,7 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
     {{
       "selector": "#sec-hero h1",
       "accion": "cambiar_texto",
-      "valor": "Nuevo texto del título"
+      "valor": "Nuevo texto"
     }},
     {{
       "selector": "#sec-servicios img[data-img='servicio-1']",
@@ -44,19 +44,14 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
       "valor": "{{NUEVA_IMAGEN}}"
     }},
     {{
-      "selector": "#sec-ubicacion",
-      "accion": "insertar_html",
-      "valor": "<p>Visítanos en nuestra oficina principal</p><a href='https://maps.google.com' class='btn'>Abrir en Google Maps</a>"
+      "selector": "#sec-servicios img[data-img='servicio-1']",
+      "selector_2": "#sec-servicios img[data-img='servicio-3']",
+      "accion": "intercambiar_imagenes"
     }},
     {{
-      "selector": "#sec-ubicacion",
-      "accion": "mover",
-      "destino": "despues_de_#sec-hero"
-    }},
-    {{
-      "selector": "nav",
+      "selector": "body",
       "accion": "cambiar_css",
-      "valor": "justify-content: center;"
+      "valor": "background-color: #FF5722;"
     }}
   ],
   "explicacion": "Explicación breve"
@@ -64,13 +59,13 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
 
 ## REGLAS CRÍTICAS:
 1. Devuelve SOLO JSON válido.
-2. Usa las anclas del MAPA DE ANCLAS para referenciar elementos. NUNCA inventes IDs.
+2. Usa las anclas del MAPA DE ANCLAS. NUNCA inventes IDs.
 3. Para cambiar texto, usa `cambiar_texto`.
 4. Para cambiar una imagen, usa `cambiar_atributo` con atributo `src` y valor `{{NUEVA_IMAGEN}}`.
-5. Para insertar contenido, usa `insertar_html` con el selector del ancla y el HTML nuevo.
-6. Para mover una sección, usa `mover` con `destino` indicando después de qué ancla.
-7. Para cambiar estilos, usa `cambiar_css` con el selector del ancla.
-8. Si el usuario pide "eliminar", usa `accion: "eliminar"`.
+5. Para INTERCAMBIAR dos imágenes de lugar, usa `accion: "intercambiar_imagenes"` y define `selector` y `selector_2`.
+6. Para insertar contenido, usa `insertar_html`.
+7. Para mover una sección, usa `mover` con `destino`.
+8. Para cambiar estilos, usa `cambiar_css` con el selector del ancla.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt
