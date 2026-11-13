@@ -1,11 +1,17 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V4.1 (BORRADO SEGURO)
+# APLICADOR DE CAMBIOS AL HTML - V5.0 (EJECUTOR DOM)
 # ============================================
 
 import re
 from bs4 import BeautifulSoup
 from utils.image_fetcher import obtener_urls_imagenes_negocio
+
+def _limpiar_html_residual(html_code: str) -> str:
+    if "</footer>" in html_code:
+        partes = html_code.split("</footer>")
+        return partes[0] + "</footer>\n</body>\n</html>"
+    return html_code
 
 def _reparar_imagenes_rotas(html_completo):
     soup = BeautifulSoup(html_completo, 'html.parser')
@@ -22,92 +28,80 @@ def _reparar_imagenes_rotas(html_completo):
                 img['src'] = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop"
     return str(soup)
 
-def _limpiar_html_residual(html_code: str) -> str:
-    if "</footer>" in html_code:
-        partes = html_code.split("</footer>")
-        return partes[0] + "</footer>\n</body>\n</html>"
-    return html_code
-
-def aplicar_cambios(html, acciones):
-    if not html or not acciones:
+def aplicar_cambios(html, operaciones):
+    if not html or not operaciones:
         return {"exito": False, "html_nuevo": html, "error": "Sin cambios"}
 
     html = _limpiar_html_residual(html)
     soup = BeautifulSoup(html, 'html.parser')
     cambios_reales = 0
-    explicacion = "Cambios aplicados"
+    explicacion = ""
 
-    for accion in acciones:
-        tipo = accion.get("tipo")
+    for op in operaciones:
+        selector = op.get("selector", "")
+        accion = op.get("accion", "")
+        valor = op.get("valor", "")
         
-        # 1. REEMPLAZAR TEXTO
-        if tipo == "reemplazar_texto":
-            selector = accion.get("selector", "h1")
-            texto_actual = accion.get("texto_actual", "")
-            texto_nuevo = accion.get("texto_nuevo", "")
-            etiquetas = soup.find_all(selector)
-            for etiqueta in etiquetas:
-                if not texto_actual or texto_actual in etiqueta.get_text():
-                    etiqueta.string = texto_nuevo
+        if not selector or not accion:
+            continue
+            
+        elementos = soup.select(selector)
+        if not elementos:
+            continue
+
+        if accion == "cambiar_texto":
+            for el in elementos:
+                el.string = valor
+                cambios_reales += 1
+                break
+                
+        elif accion == "cambiar_atributo":
+            atributo = op.get("atributo", "")
+            if atributo:
+                for el in elementos:
+                    el[atributo] = valor
                     cambios_reales += 1
                     break
-
-        # 2. REEMPLAZAR IMAGEN
-        elif tipo == "reemplazar_imagen":
-            alt_viejo = accion.get("alt_viejo", "")
-            busqueda = accion.get("busqueda_nueva", "")
-            if alt_viejo and busqueda:
-                imagenes = soup.find_all('img')
-                for img in imagenes:
-                    if alt_viejo.lower() in img.get('alt', '').lower():
-                        nuevas = obtener_urls_imagenes_negocio({"sector": busqueda}, cantidad=1)
-                        if nuevas:
-                            img['src'] = nuevas[0]['url_regular']
-                            cambios_reales += 1
-                        break
-
-        # 3. AGREGAR SECCIÓN
-        elif tipo == "agregar_seccion":
-            html_seccion = accion.get("html", "")
-            if html_seccion:
-                seccion_soup = BeautifulSoup(html_seccion, 'html.parser')
-                anclaje = soup.find(id='ubicacion') or soup.find(id='horarios') or soup.find(id='contacto') or soup.find('footer')
-                if anclaje:
-                    anclaje.insert_before(seccion_soup)
-                else:
-                    body = soup.find('body')
-                    if body: body.append(seccion_soup)
+                    
+        elif accion == "insertar_html":
+            for el in elementos:
+                fragmento = BeautifulSoup(valor, 'html.parser')
+                el.append(fragmento)
                 cambios_reales += 1
-
-        # 4. ELIMINAR SECCIÓN
-        elif tipo == "eliminar":
-            texto = accion.get("texto", "")
-            if texto:
-                # Solo borra si el texto es un título de sección (h1, h2, h3)
-                # para evitar borrar productos individuales.
-                nodos = soup.find_all(['h1', 'h2', 'h3'])
-                for nodo in nodos:
-                    if texto.lower() in nodo.get_text().lower():
-                        # Buscamos el "abuelo" (el <section> o <div> que contiene al título)
-                        padre = nodo.parent
-                        top_padre = padre
-                        while padre and padre.name not in ['section', 'body', 'html']:
-                            top_padre = padre
-                            padre = padre.parent
+                break
+                
+        elif accion == "mover":
+            destino = op.get("destino", "")
+            # Buscar el elemento ancla de destino
+            if destino.startswith("despues_de_"):
+                ancla_destino_sel = destino.replace("despues_de_", "")
+                ancla_destino = soup.select_one(ancla_destino_sel)
+                if ancla_destino:
+                    for el in elementos:
+                        ancla_destino.insert_after(el.extract())
+                        cambios_reales += 1
+                        break
+            elif destino.startswith("antes_de_"):
+                ancla_destino_sel = destino.replace("antes_de_", "")
+                ancla_destino = soup.select_one(ancla_destino_sel)
+                if ancla_destino:
+                    for el in elementos:
+                        ancla_destino.insert_before(el.extract())
+                        cambios_reales += 1
+                        break
                         
-                        if top_padre and top_padre.name not in ['body', 'html']:
-                            top_padre.decompose()
-                            cambios_reales += 1
-                            break
-
-        # 5. CAMBIAR COLOR
-        elif tipo == "color":
-            css = accion.get("css", "")
-            if css:
-                style_tag = soup.find('style')
-                if style_tag:
-                    style_tag.string = (style_tag.string or "") + "\n" + css
-                    cambios_reales += 1
+        elif accion == "cambiar_css":
+            for el in elementos:
+                estilo_actual = el.get('style', '')
+                el['style'] = estilo_actual + "; " + valor
+                cambios_reales += 1
+                break
+                
+        elif accion == "eliminar":
+            for el in elementos:
+                el.decompose()
+                cambios_reales += 1
+                break
 
     html_final = str(soup)
 
@@ -115,7 +109,7 @@ def aplicar_cambios(html, acciones):
         return {
             "exito": False, 
             "html_nuevo": html, 
-            "error": "La IA no encontró el texto o la imagen que pediste cambiar. Intenta ser más específico."
+            "error": "La IA no encontró el elemento exacto para aplicar el cambio."
         }
 
     html_final = _reparar_imagenes_rotas(html_final)
@@ -124,7 +118,7 @@ def aplicar_cambios(html, acciones):
         "exito": True,
         "html_nuevo": html_final,
         "cambios_aplicados": cambios_reales,
-        "cambios_totales": len(acciones),
-        "aplicados": [{"descripcion": explicacion, "detalle": ""}],
+        "cambios_totales": len(operaciones),
+        "aplicados": [{"descripcion": explicacion or "Cambios aplicados", "detalle": ""}],
         "fallidos": []
     }

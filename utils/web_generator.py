@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V19.0 (ANTI-ALUCINACION TOTAL)
+# GENERADOR DE WEBS - V20.0 (ANCLAS INYECTADAS)
 # ============================================
 
 import os
@@ -25,6 +25,38 @@ except ImportError:
 
 MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
+
+def _inyectar_anclas(html):
+    """
+    Inyecta IDs invisibles (anclas) en las secciones clave y les pone data-img
+    a las imágenes para que el editor pueda encontrarlas fácilmente.
+    """
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    # 1. Anclas en secciones
+    sections = soup.find_all('section')
+    for sec in sections:
+        texto = sec.get_text(strip=True).lower()
+        if 'hero' in texto or (sec.find('h1') and 'bienvenido' in sec.find('h1').get_text().lower()):
+            sec['id'] = 'sec-hero'
+        elif 'servicio' in texto or 'producto' in texto or sec.find(class_=re.compile('card', re.I)):
+            sec['id'] = 'sec-servicios'
+        elif 'sobre' in texto or 'quiénes' in texto or 'quienes' in texto:
+            sec['id'] = 'sec-quienes-somos'
+        elif 'ubicación' in texto or 'donde' in texto or 'dónde' in texto:
+            sec['id'] = 'sec-ubicacion'
+        elif 'contacto' in texto or 'formulario' in texto or sec.find('form'):
+            sec['id'] = 'sec-contacto'
+        elif 'horario' in texto:
+            sec['id'] = 'sec-horarios'
+    
+    # 2. Anclas en imágenes
+    images = soup.find_all('img')
+    for i, img in enumerate(images):
+        if not img.get('data-img'):
+            img['data-img'] = f"img-{i+1}"
+            
+    return str(soup)
 
 def generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia, pedido_id="sin_id"):
     sector = datos_negocio.get('sector', 'General')
@@ -133,6 +165,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
         
         logo_img = soup.new_tag('img', src=logo_b64, alt=f"Logo de {nombre_negocio}")
         logo_img['style'] = "height:60px; width:auto; object-fit:contain; max-width:220px; margin-right:20px;"
+        logo_img['data-img'] = "logo"
         
         if header:
             header.insert(0, logo_img)
@@ -156,12 +189,12 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
             sector = datos_negocio.get('sector', 'Negocio')
             img_tag = soup.new_tag('img', src=hero_url, alt=f"Imagen representativa de {sector} para {nombre_negocio}")
             img_tag['style'] = "width:100%; max-width:1000px; height:auto; max-height:600px; object-fit:cover; border-radius:24px; margin:40px auto 0; display:block; box-shadow: 0 20px 40px rgba(0,0,0,0.4);"
+            img_tag['data-img'] = "hero"
             container.append(img_tag)
 
     if servicios_urls:
         print(f"[INYECTOR] Buscando tarjetas para inyectar {len(servicios_urls)} imagenes...")
         tarjetas = []
-        # Buscamos TODAS las tarjetas, incluso si la IA les puso una imagen falsa
         for div in soup.find_all('div'):
             if (div.find('h3') or div.find('h4')) and len(div.get_text(strip=True)) < 350:
                 tarjetas.append(div)
@@ -172,14 +205,13 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
             tarjeta = tarjetas[i]
             print(f"[INYECTOR] Inyectando imagen real en tarjeta {i+1}...")
             
-            # 1. DESTRUIMOS cualquier imagen inventada por la IA
             for img in tarjeta.find_all('img'):
                 img.decompose()
                 
-            # 2. Ponemos nuestra imagen real (Picsum o Unsplash)
             alt_serv = servicios_copy[i].get('alt_imagen', f"Servicio {i+1}") if i < len(servicios_copy) else f"Servicio {i+1}"
             img_tag = soup.new_tag('img', src=url, alt=alt_serv)
             img_tag['style'] = "width:100%; height:220px; object-fit:cover; border-radius:16px; margin-bottom:24px; display:block;"
+            img_tag['data-img'] = f"servicio-{i+1}"
             tarjeta.insert(0, img_tag)
             
             tarjeta['style'] = "background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 30px; display: flex; flex-direction: column; height: 100%;"
@@ -202,7 +234,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V19.0")
+    print("GENERANDO WEB - V20.0 (ANCLAS INYECTADAS)")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
@@ -258,6 +290,7 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
 
         html = limpiar_html(html_raw)
         html = inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_negocio, copy)
+        html = _inyectar_anclas(html)  # <-- AQUI INYECTAMOS LAS ANCLAS
 
         if validar_completo(html)["valido"]:
             return {"exito": True, "html": html, "error": None}
