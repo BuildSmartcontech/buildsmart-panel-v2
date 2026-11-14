@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V9.4 (BÚSQUEDA POR TEXTO Y FOTO)
+# APLICADOR DE CAMBIOS AL HTML - V9.6 (INYECCIÓN EN HTML NUEVO)
 # ============================================
 
 import re
@@ -38,14 +38,10 @@ def _reparar_imagenes_rotas(soup):
     return cambios
 
 def _buscar_elemento_tolerante(soup, selector):
-    # 1. Búsqueda exacta
     elementos = soup.select(selector)
     if elementos: return elementos
-    
-    # 2. Búsqueda por texto (Fallback si la IA inventó un selector)
     texto_limpio = selector.replace("#", "").replace(".", "").replace("sec-", "").replace("-", " ").strip().lower()
     if not texto_limpio: return []
-    
     sinonimos = {
         "hero": ["hero", "inicio", "bienvenido", "descubre"],
         "contacto": ["contacto", "contactanos", "formulario", "email"],
@@ -56,16 +52,13 @@ def _buscar_elemento_tolerante(soup, selector):
         "nav": ["inicio", "menu", "navegacion"],
         "footer": ["derechos", "reservados", "privacidad"]
     }
-    
     for key, palabras in sinonimos.items():
         if key in texto_limpio or any(p in texto_limpio for p in palabras):
             for tag in soup.find_all(['section', 'div', 'nav', 'footer']):
                 contenido = tag.get_text(strip=True).lower()
                 if any(p in contenido for p in palabras): return [tag]
-
     for tag in soup.find_all(['section', 'div']):
         if texto_limpio in tag.get_text(strip=True).lower(): return [tag]
-
     return []
 
 def aplicar_cambios(html, operaciones, foto_b64=None):
@@ -90,7 +83,6 @@ def aplicar_cambios(html, operaciones, foto_b64=None):
         if "svg" in selector.lower() or "map" in selector.lower() or "icon" in selector.lower():
             continue
 
-        # Búsqueda inteligente
         elementos = _buscar_elemento_tolerante(soup, selector)
         if not elementos:
             errores_acumulados.append(f"No encontré el elemento '{selector}' en la web.")
@@ -114,8 +106,13 @@ def aplicar_cambios(html, operaciones, foto_b64=None):
                     break
                     
         elif accion == "insertar_html":
+            # Reemplazamos la foto en el HTML nuevo
+            html_insertar = valor
+            if foto_b64 and "{{FOTO_USUARIO}}" in html_insertar:
+                html_insertar = html_insertar.replace("{{FOTO_USUARIO}}", foto_b64)
+                
             for el in elementos:
-                fragmento = BeautifulSoup(valor, 'html.parser')
+                fragmento = BeautifulSoup(html_insertar, 'html.parser')
                 el.append(fragmento)
                 cambios_reales += 1
                 break
@@ -159,11 +156,9 @@ def aplicar_cambios(html, operaciones, foto_b64=None):
                 cambios_reales += 1
                 break
 
-    # REPARAR IMÁGENES
     cambios_imgs = _reparar_imagenes_rotas(soup)
     cambios_reales += cambios_imgs
 
-    # REGLAS DE MODO DIOS SUPREMO
     style_tag = soup.find('style')
     if style_tag and cambio_fondo_body:
         css_extra = ""
@@ -183,7 +178,7 @@ def aplicar_cambios(html, operaciones, foto_b64=None):
     html_final = str(soup)
 
     if cambios_reales == 0:
-        msg_error = " ".join(errores_acumulados) if errores_acumulados else "La IA no encontró el elemento exacto para aplicar el cambio. Intenta ser más específico (ej: 'En la sección de Servicios, cambia el título')."
+        msg_error = " ".join(errores_acumulados) if errores_acumulados else "La IA no encontró el elemento exacto para aplicar el cambio."
         return {"exito": False, "html_nuevo": html, "error": msg_error}
 
     return {

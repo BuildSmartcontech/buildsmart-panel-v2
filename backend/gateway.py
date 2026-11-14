@@ -1,4 +1,4 @@
-# backend/gateway.py - VERSION 8.6 (MONITOR INTEGRADO)
+# backend/gateway.py - VERSION 8.7 (ENRUTADOR INTELIGENTE)
 # ============================================
 
 import os
@@ -91,7 +91,6 @@ def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pe
     raise Exception("Ningun modelo de Gemini disponible")
 
 def analizar_imagen_gemini(base64_data: str, prompt_texto: str, pedido_id: str = "sin_id") -> str:
-    # 1. Verificar límite de negocio
     ok, msg = verificar_limite(pedido_id)
     if not ok:
         print(f"[VISION] BLOQUEADO: {msg}")
@@ -103,7 +102,7 @@ def analizar_imagen_gemini(base64_data: str, prompt_texto: str, pedido_id: str =
     if "," in base64_data: base64_data = base64_data.split(",")[1]
 
     url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}'
-    payload = {'contents': [{'role': 'user', 'parts': [{'text': prompt_texto}, {'inline_data': {'mime_type': 'image/jpeg', 'data': base64_data}}]}], 'generationConfig': {'temperature': 0.2, 'maxOutputTokens': 100}}
+    payload = {'contents': [{'role': 'user', 'parts': [{'text': prompt_texto}, {'inline_data': {'mime_type': 'image/jpeg', 'data': base64_data}}]}], 'generationConfig': {'temperature': 0.2, 'maxOutputTokens': 500}}
 
     try:
         response = requests.post(url, json=payload, timeout=60)
@@ -116,6 +115,16 @@ def analizar_imagen_gemini(base64_data: str, prompt_texto: str, pedido_id: str =
     except Exception as e:
         print(f"[VISION ERROR] {e}")
         return "Imagen del negocio del usuario"
+
+def chat_con_gemini(mensaje: str, sistema: str = "Eres un asistente util.", pedido_id: str = "sin_id") -> str:
+    """Fuerza el uso de Gemini para tareas complejas."""
+    ok, msg = verificar_limite(pedido_id)
+    if not ok: return f"[BLOQUEADO] {msg}"
+    try:
+        res = chat_gemini_directo(mensaje, sistema, temperature=0.1, pedido_id=pedido_id)
+        return res if res else "[ERROR] Gemini no respondió."
+    except Exception:
+        return "[ERROR] No se pudo conectar con Gemini."
 
 def chat_inteligente(mensaje: str, sistema: str = "Eres un asistente util.", temperature: float = 0.7, pedido_id: str = "sin_id") -> Tuple[str, str]:
     ok, msg = verificar_limite(pedido_id)
@@ -143,5 +152,6 @@ class Gateway:
         self.chat = chat_inteligente
         self.chat_rapido = chat_inteligente
         self.chat_inteligente = chat_inteligente
+        self.chat_con_gemini = chat_con_gemini
 
 gateway = Gateway()

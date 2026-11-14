@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V5.5 (MAPA CONTEXTUAL)
+# EDITOR DE WEBS - V6.0 (ENRUTADOR INTELIGENTE Y VISIÓN)
 # ============================================
 
 import os
@@ -16,12 +16,13 @@ from utils.web_prompts import generar_prompt_edicion_estructurada
 from utils.html_patcher import aplicar_cambios
 
 try:
-    from backend.gateway import gateway
+    from backend.gateway import gateway, analizar_imagen_gemini
 except ImportError:
     try:
-        from gateway import gateway
+        from gateway import gateway, analizar_imagen_gemini
     except ImportError:
         gateway = None
+        analizar_imagen_gemini = None
 
 MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
@@ -31,19 +32,16 @@ def extraer_mapa_anclas(html):
     soup = BeautifulSoup(html, 'html.parser')
     anclas = []
     
-    # 1. Secciones con ID
     for sec in soup.find_all('section'):
         sec_id = sec.get('id', '')
         if sec_id:
             texto = sec.get_text(strip=True)[:50]
             anclas.append(f"- Sección [{sec_id}]: \"{texto}...\"")
             
-    # 2. Imágenes con contexto (Sin importar cuántas haya)
     for img in soup.find_all('img'):
         data_img = img.get('data-img', '')
         if data_img:
             alt = img.get('alt', 'sin alt')
-            # Buscamos si está dentro de una tarjeta para darle el título
             titulo_tarjeta = ""
             parent = img.find_parent('div')
             if parent:
@@ -53,7 +51,6 @@ def extraer_mapa_anclas(html):
             contexto = f"título_tarjeta=\"{titulo_tarjeta}\"" if titulo_tarjeta else ""
             anclas.append(f"- Imagen [{data_img}]: alt=\"{alt}\", {contexto}, selector=\"img[data-img='{data_img}']\"")
             
-    # 3. Nav y Footer
     if soup.find('nav'): anclas.append("- Sección [nav]: Menú superior, selector=\"nav\"")
     if soup.find('footer'): anclas.append("- Sección [footer]: Pie de página, selector=\"footer\"")
         
@@ -87,13 +84,33 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             return {"exito": False, "error": "No se pudo leer la web."}
         html_actual = resultado_lectura["html"]
 
+    # --- VISIÓN OCR CON GEMINI ---
+    texto_extraido = ""
+    if foto_b64 and analizar_imagen_gemini:
+        print("[VISION] Extrayendo texto de la imagen subida...")
+        prompt_ocr = "Extrae TODO el texto visible en esta imagen. Sé muy detallado, conserva títulos y viñetas. Responde SOLO con el texto extraído."
+        texto_extraido = analizar_imagen_gemini(foto_b64, prompt_ocr, pedido_id=web_id)
+        if texto_extraido:
+            instruccion += f"\n\nINFORMACIÓN EXTRAÍDA DE LA IMAGEN:\n{texto_extraido}"
+
     mapa_anclas = extraer_mapa_anclas(html_actual)
 
     for intento in range(1, MAX_INTENTOS + 1):
         try:
             prompt = generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negocio, tiene_foto=bool(foto_b64))
             sistema = "Eres un experto en manipulación de DOM. Devuelves SOLO JSON."
-            respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1)
+            
+            # --- ENRUTADOR INTELIGENTE ---
+            # Si hay foto o el prompt parece complejo ("crea", "tarjeta", "nueva"), usar Gemini.
+            es_complejo = bool(foto_b64) or any(p in instruccion.lower() for p in ["crea", "tarjeta", "nueva", "html", "sección", "al lado"])
+            
+            if es_complejo:
+                print(f"[IA] Usando Gemini Pro para tarea compleja...")
+                respuesta = gateway.chat_con_gemini(prompt, sistema, pedido_id=web_id)
+                fuente = "gemini"
+            else:
+                print(f"[IA] Usando IA rápida (Groq) para tarea simple...")
+                respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1, pedido_id=web_id)
 
             data = parsear_json_cambios(respuesta)
             if not data or "operaciones" not in data:
@@ -115,7 +132,7 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             print(f"Error en intento {intento}: {e}")
             time.sleep(TIEMPO_ESPERA)
 
-    return {"exito": False, "error": "La IA no pudo procesar la orden. Intenta ser más específico (ej: 'En la sección de Servicios...')."}
+    return {"exito": False, "error": "La IA no pudo procesar la orden. Intenta ser más específico."}
 
 def editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto_negocio="", foto_b64=None):
     resultado = editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio, foto_b64=foto_b64)
