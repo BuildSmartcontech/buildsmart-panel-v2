@@ -1,7 +1,6 @@
-
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - V5.4 (CHULITO PERSISTENTE)
+# MINI-PANEL DEL CLIENTE - V5.5 (FIX BORRADO DE IMAGEN)
 # ============================================
 
 import streamlit as st
@@ -233,7 +232,7 @@ def _renderizar_panel(pedido, sb):
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             
-            # --- SUBIR FOTO (V5.4 - LECTURA DIRECTA + MENSAJE PERSISTENTE) ---
+            # --- SUBIR FOTO (V5.5 - SIN EL ELSE DESTRUCTIVO) ---
             st.markdown("**Opcional: Sube una captura o foto de tu producto (Esto cuenta como un cambio)**")
             
             if "uploaded_image_bytes" not in st.session_state:
@@ -246,7 +245,7 @@ def _renderizar_panel(pedido, sb):
             foto_subida = st.file_uploader(
                 "Sube tu imagen aquí", 
                 type=["jpg", "jpeg", "png"], 
-                key="editor_foto_v4", 
+                key="editor_foto_v5", 
                 label_visibility="collapsed"
             )
             
@@ -262,15 +261,21 @@ def _renderizar_panel(pedido, sb):
                             st.session_state["uploaded_image_bytes"] = bytes_data
                             st.session_state["uploaded_image_name"] = foto_subida.name
                             st.session_state["upload_error"] = None
-                            print(f"[UPLOAD V5.4] Imagen guardada: {foto_subida.name} ({len(bytes_data)} bytes, tipo: {foto_subida.type})")
+                            print(f"[UPLOAD V5.5] Imagen guardada: {foto_subida.name} ({len(bytes_data)} bytes, tipo: {foto_subida.type})")
                     except Exception as e:
                         st.session_state["upload_error"] = f"Error al procesar la imagen: {str(e)}"
                         st.session_state["uploaded_image_bytes"] = None
                         st.session_state["uploaded_image_name"] = None
-                        print(f"[UPLOAD ERROR V5.4] {e}")
-            else:
-                st.session_state["uploaded_image_bytes"] = None
-                st.session_state["uploaded_image_name"] = None
+                        print(f"[UPLOAD ERROR V5.5] {e}")
+            # ¡AQUÍ ESTABA EL ERROR! He eliminado el 'else:' que borraba la foto al hacer micro-recargas.
+
+            # --- BOTÓN PARA BORRAR LA FOTO (OPCIONAL) ---
+            if st.session_state.get("uploaded_image_bytes"):
+                if st.button("❌ Borrar imagen cargada", use_container_width=True):
+                    st.session_state["uploaded_image_bytes"] = None
+                    st.session_state["uploaded_image_name"] = None
+                    st.session_state["upload_error"] = None
+                    st.rerun()
 
             # --- MENSAJES PERSISTENTES (SIEMPRE VISIBLES HAYA RERUN O NO) ---
             if st.session_state.get("upload_error"):
@@ -295,7 +300,7 @@ def _renderizar_panel(pedido, sb):
                             try:
                                 base64_str = base64.b64encode(st.session_state["uploaded_image_bytes"]).decode("utf-8")
                                 foto_b64 = f"data:image/jpeg;base64,{base64_str}"
-                                print(f"[UPLOAD V5.4] Imagen convertida a base64: {len(base64_str)} caracteres")
+                                print(f"[UPLOAD V5.5] Imagen convertida a base64: {len(base64_str)} caracteres")
                             except Exception as e:
                                 st.error(f"{E_X} Error al convertir la imagen: {str(e)}")
                                 foto_b64 = None
