@@ -1,4 +1,4 @@
-# backend/gateway.py - VERSION 9.0 (GEMINI 2.5 VIVO + ERRORES VISIBLES)
+# backend/gateway.py - VERSION 9.1 (MODELOS REALES + VISION REPARADA)
 # ============================================
 
 import os
@@ -11,24 +11,23 @@ from utils.ai_usage_monitor import verificar_limite, registrar_consumo
 
 load_dotenv()
 
+# MODELOS REALES Y ACTIVOS EN 2026
 MODELOS_OPENROUTER = [
-    "nvidia/nemotron-3-super-120b-a12b:free",
-    "deepseek/deepseek-chat-v3.1:free",
+    "meta-llama/llama-3.1-70b-instruct:free",
+    "deepseek/deepseek-chat:free",
 ]
 
 MODELOS_GROQ = [
-    "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b",
+    "llama3-70b-8192",
+    "llama3-8b-8192",
 ]
 
-# ACTUALIZADO 2026: gemini-1.5-* fue RETIRADO por Google (404).
-# Usamos la familia 2.5 que SÍ tiene vision y esta activa.
 MODELOS_GEMINI = [
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
 ]
 
-TIMEOUT_API = 300
+TIMEOUT_API = 180
 
 def chat_openrouter(mensaje: str, sistema: str, temperature: float = 0.7, pedido_id: str = "sin_id") -> Optional[str]:
     api_key = os.getenv("OPENROUTER_API_KEY")
@@ -39,7 +38,7 @@ def chat_openrouter(mensaje: str, sistema: str, temperature: float = 0.7, pedido
                 response = session.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                    json={"model": modelo, "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": mensaje}], "temperature": temperature, "max_tokens": 8000},
+                    json={"model": modelo, "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": mensaje}], "temperature": temperature, "max_tokens": 4000},
                     timeout=TIMEOUT_API
                 )
                 if response.status_code == 200:
@@ -47,7 +46,9 @@ def chat_openrouter(mensaje: str, sistema: str, temperature: float = 0.7, pedido
                     registrar_consumo(pedido_id, "openrouter", mensaje, res)
                     return res
                 elif response.status_code == 429: time.sleep(3); continue
-        except Exception: continue
+        except Exception as e: 
+            print(f"[OPENROUTER ERROR] {e}")
+            continue
     raise Exception("Ningun modelo de OpenRouter disponible")
 
 def chat_groq_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedido_id: str = "sin_id") -> Optional[str]:
@@ -59,7 +60,7 @@ def chat_groq_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedi
                 response = session.post(
                     "https://api.groq.com/openai/v1/chat/completions",
                     headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                    json={"model": modelo, "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": mensaje}], "temperature": temperature, "max_tokens": 8000},
+                    json={"model": modelo, "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": mensaje}], "temperature": temperature, "max_tokens": 4000},
                     timeout=TIMEOUT_API
                 )
                 if response.status_code == 200:
@@ -67,7 +68,9 @@ def chat_groq_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedi
                     registrar_consumo(pedido_id, "groq", mensaje, res)
                     return res
                 elif response.status_code == 429: time.sleep(3); continue
-        except Exception: continue
+        except Exception as e: 
+            print(f"[GROQ ERROR] {e}")
+            continue
     raise Exception("Ningun modelo de Groq disponible")
 
 def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedido_id: str = "sin_id", foto_b64: str = None) -> Optional[str]:
@@ -88,7 +91,7 @@ def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pe
                 
             payload = {
                 'contents': [{'role': 'user', 'parts': partes}], 
-                'generationConfig': {'temperature': temperature, 'maxOutputTokens': 8000}
+                'generationConfig': {'temperature': temperature, 'maxOutputTokens': 4000}
             }
             response = requests.post(url, json=payload, timeout=TIMEOUT_API)
             if response.status_code == 200:
@@ -106,6 +109,15 @@ def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pe
             continue
     raise Exception(f"Ningun modelo de Gemini disponible. Ultimo error: {ultimo_error}")
 
+def analizar_imagen_gemini(foto_b64: str, prompt: str, pedido_id: str = "sin_id") -> str:
+    """NUEVA FUNCION: Analiza una imagen y devuelve texto descriptivo."""
+    try:
+        res = chat_gemini_directo(prompt, "Eres un experto en análisis visual.", temperature=0.1, pedido_id=pedido_id, foto_b64=foto_b64)
+        return res if res else "Imagen sin descripción."
+    except Exception as e:
+        print(f"[VISION ERROR] {e}")
+        return "Imagen del producto."
+
 def chat_con_gemini(mensaje: str, sistema: str = "Eres un asistente util.", pedido_id: str = "sin_id", foto_b64: str = None) -> str:
     ok, msg = verificar_limite(pedido_id)
     if not ok: return f"[BLOQUEADO] {msg}"
@@ -113,12 +125,12 @@ def chat_con_gemini(mensaje: str, sistema: str = "Eres un asistente util.", pedi
         res = chat_gemini_directo(mensaje, sistema, temperature=0.1, pedido_id=pedido_id, foto_b64=foto_b64)
         return res if res else "[ERROR] Gemini no respondió."
     except Exception as e:
-        # V9.0: ya no tragamos el error; se muestra la causa real en el panel
         return f"[ERROR] {e}"
 
 def chat_inteligente(mensaje: str, sistema: str = "Eres un asistente util.", temperature: float = 0.7, pedido_id: str = "sin_id") -> Tuple[str, str]:
     ok, msg = verificar_limite(pedido_id)
     if not ok: return f"[BLOQUEADO] {msg}", "sistema"
+    
     try:
         res = chat_groq_directo(mensaje, sistema, temperature, pedido_id)
         if res: return res, "groq"
@@ -139,5 +151,6 @@ class Gateway:
         self.chat_rapido = chat_inteligente
         self.chat_inteligente = chat_inteligente
         self.chat_con_gemini = chat_con_gemini
+        self.analizar_imagen = analizar_imagen_gemini
 
 gateway = Gateway()

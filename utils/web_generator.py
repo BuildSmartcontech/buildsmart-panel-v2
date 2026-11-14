@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V20.0 (ANCLAS INYECTADAS)
+# GENERADOR DE WEBS - V20.1 (OPTIMIZADO PARA 6 FOTOS)
 # ============================================
 
 import os
@@ -17,6 +17,7 @@ from utils.web_validator import validar_completo, limpiar_html
 from utils.image_fetcher import obtener_urls_imagenes_negocio
 from utils.openrouter_manager import consultar_openrouter
 
+# IMPORTAMOS CORRECTAMENTE LAS FUNCIONES
 try:
     from backend.gateway import analizar_imagen_gemini, gateway
 except ImportError:
@@ -27,13 +28,8 @@ MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
 
 def _inyectar_anclas(html):
-    """
-    Inyecta IDs invisibles (anclas) en las secciones clave y les pone data-img
-    a las imágenes para que el editor pueda encontrarlas fácilmente.
-    """
     soup = BeautifulSoup(html, 'html.parser')
     
-    # 1. Anclas en secciones
     sections = soup.find_all('section')
     for sec in sections:
         texto = sec.get_text(strip=True).lower()
@@ -50,7 +46,6 @@ def _inyectar_anclas(html):
         elif 'horario' in texto:
             sec['id'] = 'sec-horarios'
     
-    # 2. Anclas en imágenes
     images = soup.find_all('img')
     for i, img in enumerate(images):
         if not img.get('data-img'):
@@ -234,7 +229,7 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V20.0 (ANCLAS INYECTADAS)")
+    print("GENERANDO WEB - V20.1 (OPTIMIZADO PARA MULTIPLES FOTOS)")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
@@ -242,28 +237,32 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
     pedido_id = datos_negocio.get("pedido_id", "sin_id")
     
     descripcion_fotos = ""
+    # OPTIMIZACION: Solo analizamos la primera foto para no saturar la API de Gemini
     if fotos_b64 and analizar_imagen_gemini:
-        print(f"[VISION] Analizando fotos para pedido {pedido_id}...")
-        descripciones = []
-        for idx, foto in enumerate(fotos_b64):
-            prompt_vision = f"Describe esta imagen en 10 palabras. ¿Qué muestra? (Foto {idx+1})"
-            desc_individual = analizar_imagen_gemini(foto, prompt_vision, pedido_id=pedido_id)
-            descripciones.append(f"Foto {idx+1}: {desc_individual}")
-        descripcion_fotos = "\n".join(descripciones)
+        print(f"[VISION] Analizando la foto principal (1 de {len(fotos_b64)}) para pedido {pedido_id}...")
+        try:
+            prompt_vision = "Describe esta imagen en 10 palabras. ¿Qué producto o servicio muestra?"
+            desc_individual = analizar_imagen_gemini(fotos_b64[0], prompt_vision, pedido_id=pedido_id)
+            if desc_individual and "Imagen del producto" not in desc_individual:
+                descripcion_fotos = f"Foto Principal: {desc_individual}"
+                print(f"[VISION] Resultado: {descripcion_fotos}")
+        except Exception as e:
+            print(f"[VISION] Fallo el análisis de imagen (ignorando para no romper la app): {e}")
 
     copy_raw = generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia, pedido_id=pedido_id)
-    if not copy_raw: return {"exito": False, "html": None, "error": "Fallo el copy."}
+    if not copy_raw: return {"exito": False, "html": None, "error": "Fallo el copy en todos los modelos de IA."}
     try:
         copy_str = copy_raw.replace("```json", "").replace("```", "").strip()
         start = copy_str.find('{'); end = copy_str.rfind('}') + 1
         copy = json.loads(copy_str[start:end])
     except Exception:
-        return {"exito": False, "html": None, "error": "JSON invalido."}
+        return {"exito": False, "html": None, "error": "JSON invalido devuelto por la IA."}
 
     imagenes = {"hero": None, "servicios": []}
     nombre_negocio = datos_negocio.get("nombre", "Mi Negocio")
     
     if fotos_b64:
+        # Primera foto es el Hero, las siguientes 3 son los servicios (ignoramos las que sobren)
         imagenes["hero"] = fotos_b64[0] if len(fotos_b64) > 0 else None
         imagenes["servicios"] = fotos_b64[1:4]
     
@@ -290,11 +289,11 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
 
         html = limpiar_html(html_raw)
         html = inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_negocio, copy)
-        html = _inyectar_anclas(html)  # <-- AQUI INYECTAMOS LAS ANCLAS
+        html = _inyectar_anclas(html)
 
         if validar_completo(html)["valido"]:
             return {"exito": True, "html": html, "error": None}
 
         time.sleep(TIEMPO_ESPERA)
 
-    return {"exito": False, "html": None, "error": "No se pudo generar HTML valido."}
+    return {"exito": False, "html": None, "error": "No se pudo generar HTML valido tras 3 intentos."}
