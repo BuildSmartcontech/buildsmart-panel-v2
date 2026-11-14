@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V10.2 (SWAP CLARO)
+# PROMPTS DE CALIDAD V10.4 (SOPORTE DE FOTO Y MENSAJES CLAROS)
 # ============================================
 
 import sys
@@ -19,12 +19,23 @@ from utils.web_prompts_data import (
 def generar_prompt_web(*args, **kwargs):
     pass
 
-def generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negocio=""):
+def generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negocio="", tiene_foto=False):
+    
+    regla_foto = ""
+    if tiene_foto:
+        regla_foto = """
+## REGLA DE FOTO ADJUNTA:
+El usuario ha subido una foto. Para usarla, usa el valor `{{FOTO_USUARIO}}` en el `src` de la imagen que quieras reemplazar.
+Ejemplo: {"selector": "img[data-img='servicio-1']", "accion": "cambiar_atributo", "atributo": "src", "valor": "{{FOTO_USUARIO}}"}
+"""
+
     prompt = f"""Eres un experto en manipulación de DOM con CSS y HTML.
 El usuario ha pedido: "{instruccion}"
 
 ## MAPA DE ANCLAS DE LA WEB
 {mapa_anclas}
+
+{regla_foto}
 
 ## TU TAREA
 Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
@@ -41,12 +52,7 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
       "selector": "img[data-img='servicio-1']",
       "accion": "cambiar_atributo",
       "atributo": "src",
-      "valor": "{{NUEVA_IMAGEN}}"
-    }},
-    {{
-      "selector": "img[data-img='servicio-1']",
-      "selector_2": "img[data-img='servicio-3']",
-      "accion": "intercambiar_imagenes"
+      "valor": "{{NUEVA_IMAGEN}}"  // O usa {{FOTO_USUARIO}} si el usuario subió una foto.
     }},
     {{
       "selector": "body",
@@ -59,13 +65,10 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
 
 ## REGLAS CRÍTICAS:
 1. Devuelve SOLO JSON válido.
-2. Usa los selectores exactos del MAPA DE ANCLAS. NUNCA inventes IDs.
-3. Para cambiar texto, usa `cambiar_texto`.
-4. Para cambiar una imagen, usa `cambiar_atributo` con atributo `src` y valor `{{NUEVA_IMAGEN}}`.
-5. Para INTERCAMBIAR dos imágenes de lugar, usa `accion: "intercambiar_imagenes"` y define `selector` y `selector_2` con los valores exactos del mapa de anclas.
-6. Para insertar contenido, usa `insertar_html`.
-7. Para mover una sección, usa `mover` con `destino`.
-8. Para cambiar estilos, usa `cambiar_css` con el selector del ancla.
+2. Usa los selectores exactos del MAPA DE ANCLAS.
+3. Si el usuario pide cambiar una foto y NO subió una, usa `{{NUEVA_IMAGEN}}`.
+4. Si el usuario pide cambiar una foto y SÍ subió una, usa `{{FOTO_USUARIO}}`.
+5. Si el usuario pide un cambio que no puedes hacer (ej: una sección que no existe), devuelve `{{"operaciones": [], "explicacion": "Explicación de por qué no se puede hacer"}}`.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt

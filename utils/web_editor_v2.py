@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V5.2 (MAPA MEJORADO)
+# EDITOR DE WEBS - V5.3 (SOPORTE DE IMÁGENES)
 # ============================================
 
 import os
@@ -31,23 +31,20 @@ def extraer_mapa_anclas(html):
     soup = BeautifulSoup(html, 'html.parser')
     anclas = []
     
-    # 1. Secciones con ID
     for sec in soup.find_all('section'):
         sec_id = sec.get('id', '')
         if sec_id:
             texto = sec.get_text(strip=True)[:50]
             anclas.append(f"- Sección [{sec_id}]: \"{texto}...\"")
             
-    # 2. Imágenes con data-img (Le damos el selector exacto a la IA)
     for img in soup.find_all('img'):
         data_img = img.get('data-img', '')
         if data_img:
             alt = img.get('alt', 'sin alt')
             anclas.append(f"- Imagen [{data_img}]: alt=\"{alt}\", selector=\"img[data-img='{data_img}']\"")
             
-    # 3. Nav y Footer
-    if soup.find('nav'): anclas.append("- Sección [nav]: Menú superior")
-    if soup.find('footer'): anclas.append("- Sección [footer]: Pie de página")
+    if soup.find('nav'): anclas.append("- Sección [nav]: Menú superior, selector=\"nav\"")
+    if soup.find('footer'): anclas.append("- Sección [footer]: Pie de página, selector=\"footer\"")
         
     return "MAPA DE ANCLAS DE LA WEB:\n" + "\n".join(anclas) if anclas else "No se encontraron anclas."
 
@@ -65,7 +62,7 @@ def parsear_json_cambios(texto):
     except json.JSONDecodeError:
         return None
 
-def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_actual=None):
+def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_actual=None, foto_b64=None):
     if gateway is None:
         return {"exito": False, "error": "Gateway no disponible"}
 
@@ -83,7 +80,7 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
 
     for intento in range(1, MAX_INTENTOS + 1):
         try:
-            prompt = generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negocio)
+            prompt = generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negocio, tiene_foto=bool(foto_b64))
             sistema = "Eres un experto en manipulación de DOM. Devuelves SOLO JSON."
             respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1)
 
@@ -92,11 +89,11 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
                 time.sleep(TIEMPO_ESPERA)
                 continue
 
-            resultado_patcher = aplicar_cambios(html_actual, data["operaciones"])
+            resultado_patcher = aplicar_cambios(html_actual, data["operaciones"], foto_b64)
             
             if not resultado_patcher["exito"]:
-                time.sleep(TIEMPO_ESPERA)
-                continue
+                # Si falla, guardamos el mensaje de error explicativo
+                return {"exito": False, "error": resultado_patcher["error"]}
 
             return {
                 "exito": True,
@@ -108,10 +105,10 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             print(f"Error en intento {intento}: {e}")
             time.sleep(TIEMPO_ESPERA)
 
-    return {"exito": False, "error": "No se pudieron aplicar cambios tras 3 intentos."}
+    return {"exito": False, "error": "La IA no pudo procesar la orden. Intenta ser más específico (ej: 'En la sección de servicios...')."}
 
-def editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto_negocio=""):
-    resultado = editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio)
+def editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto_negocio="", foto_b64=None):
+    resultado = editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio, foto_b64=foto_b64)
     if not resultado["exito"]:
         return resultado
 

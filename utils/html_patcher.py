@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V9.2 (REPARADOR INFALIBLE)
+# APLICADOR DE CAMBIOS AL HTML - V9.3 (INYECCIÓN DE FOTO Y MENSAJES CLAROS)
 # ============================================
 
 import re
@@ -22,20 +22,11 @@ def _es_color_claro(hex_color):
     except: return False
 
 def _reparar_imagenes_rotas(soup):
-    """
-    Busca imágenes rotas en el objeto BeautifulSoup y les inyecta una foto real.
-    Retorna el número de imágenes reparadas.
-    """
     cambios = 0
     for img in soup.find_all('img'):
         src = img.get('src', '').strip()
-        
-        # Si es base64 (logo), lo dejamos intacto
         if "base64" in src: continue
-            
-        # Si el src está vacío, no empieza con http/https, o es un marcador {{...}}, lo reemplazamos
         es_roto = not src or not src.startswith("http") or "{{" in src
-        
         if es_roto:
             alt_texto = img.get('alt', 'negocio')
             imagenes = obtener_urls_imagenes_negocio({"sector": alt_texto}, cantidad=1)
@@ -70,18 +61,18 @@ def _buscar_elemento_tolerante(soup, selector):
         if texto_limpio in tag.get_text(strip=True).lower(): return [tag]
     return []
 
-def aplicar_cambios(html, operaciones):
+def aplicar_cambios(html, operaciones, foto_b64=None):
     if not html:
         return {"exito": False, "html_nuevo": html, "error": "Sin HTML"}
 
     html = _limpiar_html_residual(html)
     soup = BeautifulSoup(html, 'html.parser')
     cambios_reales = 0
+    errores_acumulados = []
     
     cambio_fondo_body = False
     color_fondo_body = "#000"
 
-    # 1. EJECUTAR OPERACIONES DE LA IA
     for op in (operaciones or []):
         selector = op.get("selector", "")
         accion = op.get("accion", "")
@@ -93,7 +84,9 @@ def aplicar_cambios(html, operaciones):
             continue
 
         elementos = _buscar_elemento_tolerante(soup, selector)
-        if not elementos: continue
+        if not elementos:
+            errores_acumulados.append(f"No encontré el elemento '{selector}' en la web.")
+            continue
 
         if accion == "cambiar_texto":
             for el in elementos:
@@ -105,7 +98,11 @@ def aplicar_cambios(html, operaciones):
             atributo = op.get("atributo", "")
             if atributo and atributo.lower() != "style":
                 for el in elementos:
-                    el[atributo] = valor
+                    # LÓGICA DE INYECCIÓN DE FOTO
+                    if valor == "{{FOTO_USUARIO}}" and foto_b64:
+                        el[atributo] = foto_b64
+                    else:
+                        el[atributo] = valor
                     cambios_reales += 1
                     break
                     
@@ -132,6 +129,8 @@ def aplicar_cambios(html, operaciones):
                     else: ancla_destino.insert_before(el.extract())
                     cambios_reales += 1
                     break
+            else:
+                errores_acumulados.append(f"No pude encontrar la sección de destino '{destino}'.")
                         
         elif accion == "cambiar_css":
             for el in elementos:
@@ -153,11 +152,11 @@ def aplicar_cambios(html, operaciones):
                 cambios_reales += 1
                 break
 
-    # 2. REPARAR IMÁGENES (SIEMPRE SE EJECUTA, SIN IMPORTAR SI LA IA FALLÓ)
+    # REPARAR IMÁGENES
     cambios_imgs = _reparar_imagenes_rotas(soup)
     cambios_reales += cambios_imgs
 
-    # 3. REGLAS DE MODO DIOS SUPREMO
+    # REGLAS DE MODO DIOS SUPREMO
     style_tag = soup.find('style')
     if style_tag and cambio_fondo_body:
         css_extra = ""
@@ -176,9 +175,9 @@ def aplicar_cambios(html, operaciones):
 
     html_final = str(soup)
 
-    # SI NO HUBO CAMBIOS DE LA IA, PERO SÍ SE REPARARON IMÁGENES, ES UN ÉXITO.
     if cambios_reales == 0:
-        return {"exito": False, "html_nuevo": html, "error": "La IA no encontró el elemento exacto para aplicar el cambio."}
+        msg_error = " ".join(errores_acumulados) if errores_acumulados else "La IA no encontró el elemento exacto para aplicar el cambio. Intenta ser más específico (ej: 'En la sección de Servicios, cambia el título')."
+        return {"exito": False, "html_nuevo": html, "error": msg_error}
 
     return {
         "exito": True,

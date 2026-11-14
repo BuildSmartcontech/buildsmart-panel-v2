@@ -1,10 +1,11 @@
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - V4.7 (LIMPIEZA DE ERRORES)
+# MINI-PANEL DEL CLIENTE - V4.8 (UPLOAD DE FOTOS Y MENSAJES CLAROS)
 # ============================================
 
 import streamlit as st
 import datetime
+import base64
 import streamlit.components.v1 as components
 from panels.web import landing_data as D
 
@@ -24,6 +25,7 @@ E_MALETIN   = "\U0001F4BC"
 E_DINERO    = "\U0001F4B0"
 E_LLAVE     = "\U0001F511"
 E_RAYO      = "\u26A1"
+E_CAMARA    = "\U0001F4F8"
 
 LIMITE_MODIFICACIONES_BASE = 3
 TIER_LABELS = {1: "Premium Esencial", 2: "Premium + CRM", 3: "Premium Plus"}
@@ -92,7 +94,7 @@ def _generar_web_inicial(sb, pedido):
     except Exception as e:
         return False, f"Error del sistema: {str(e)}", None
 
-def _solicitar_modificacion(sb, pedido, instruccion):
+def _solicitar_modificacion(sb, pedido, instruccion, foto_b64=None):
     pedido_id = pedido.get("id")
     web_id = pedido.get("web_id")
     usuario_id = pedido.get("email", "usuario_web") 
@@ -107,13 +109,13 @@ def _solicitar_modificacion(sb, pedido, instruccion):
     try:
         from utils.web_editor_v2 import editar_y_guardar_v2
         contexto = f"Negocio: {pedido.get('datos_negocio', {}).get('nombre_negocio', '')}\nSector: {pedido.get('datos_negocio', {}).get('sector', '')}"
-        resultado = editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto)
+        resultado = editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto, foto_b64)
 
         if resultado.get("exito"):
             sb.update("pedidos_web", {"modificaciones_usadas": usadas + 1, "updated_at": datetime.datetime.now().isoformat()}, "id", pedido_id)
             return True, "¡Tu web se ha modificado! Revisa la vista previa.", resultado.get("html_nuevo")
         else:
-            return False, f"Error de la IA: {resultado.get('error')}", None
+            return False, resultado.get("error"), None
     except Exception as e:
         return False, f"Error del sistema: {str(e)}", None
 
@@ -221,7 +223,6 @@ def _renderizar_panel(pedido, sb):
         with st.expander("💡 ¿No sabes qué escribir? Haz clic aquí para ver ejemplos", expanded=False):
             st.info(f"Para que la IA te entienda perfectamente, pídele las cosas de forma sencilla. Aquí tienes algunos ejemplos:\n\n{ejemplos}\n\n*Truco: Puedes pedir una cosa a la vez para obtener resultados más rápidos.*")
         
-        # --- LIMPIAMOS EL MENSAJE DE ERROR AL INICIAR EL FORMULARIO ---
         if "mensaje_error_ia" in st.session_state:
             st.error(st.session_state["mensaje_error_ia"])
             del st.session_state["mensaje_error_ia"]
@@ -231,16 +232,24 @@ def _renderizar_panel(pedido, sb):
             
             with st.form("form_modificacion", clear_on_submit=True):
                 instruccion = st.text_area("Escribe lo que quieres cambiar aquí:", placeholder="Ej: Cambia el título principal a 'Mi Nuevo Titulo'.", height=100)
+                foto_subida = st.file_uploader("Opcional: Sube una foto para tu web (Esto también cuenta como un cambio)", type=["jpg", "png", "jpeg"], key="editor_foto")
+                
                 btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa", type="primary", use_container_width=True)
                 
                 if btn_mod:
-                    if not instruccion.strip():
-                        st.warning("Escribe lo que quieres cambiar antes de generar la vista previa.")
+                    if not instruccion.strip() and not foto_subida:
+                        st.warning("Escribe una instrucción o sube una foto antes de generar la vista previa.")
                     else:
                         html_previo = st.session_state.get("preview_html", "")
                         
+                        foto_b64 = None
+                        if foto_subida:
+                            bytes_data = foto_subida.read()
+                            base64_str = base64.b64encode(bytes_data).decode("utf-8")
+                            foto_b64 = f"data:{foto_subida.type};base64,{base64_str}"
+                            
                         with st.spinner("La IA esta aplicando los cambios..."):
-                            exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion)
+                            exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion, foto_b64)
                         
                         if exito:
                             st.session_state["html_anterior"] = html_previo
