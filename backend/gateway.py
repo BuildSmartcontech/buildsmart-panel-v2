@@ -1,4 +1,4 @@
-# backend/gateway.py - VERSION 8.9 (VISIÓN INTEGRADA EN JSON)
+# backend/gateway.py - VERSION 9.0 (GEMINI 2.5 VIVO + ERRORES VISIBLES)
 # ============================================
 
 import os
@@ -21,9 +21,11 @@ MODELOS_GROQ = [
     "openai/gpt-oss-20b",
 ]
 
+# ACTUALIZADO 2026: gemini-1.5-* fue RETIRADO por Google (404).
+# Usamos la familia 2.5 que SÍ tiene vision y esta activa.
 MODELOS_GEMINI = [
-    "gemini-1.5-flash",
-    "gemini-1.5-pro", # Usamos Pro para mejor razonamiento
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
 ]
 
 TIMEOUT_API = 300
@@ -70,18 +72,19 @@ def chat_groq_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedi
 
 def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedido_id: str = "sin_id", foto_b64: str = None) -> Optional[str]:
     api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key: raise Exception("GEMINI_API_KEY no configurada")
+    if not api_key: raise Exception("GEMINI_API_KEY no configurada en Secrets")
     
+    ultimo_error = "sin detalle"
     for modelo in MODELOS_GEMINI:
         try:
             url = f'https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}'
             
             partes = [{'text': f"{sistema}\n\nUsuario: {mensaje}"}]
             
-            # Si hay foto, la adjuntamos como inline_data
             if foto_b64:
-                if "," in foto_b64: foto_b64 = foto_b64.split(",")[1]
-                partes.append({'inline_data': {'mime_type': 'image/jpeg', 'data': foto_b64}})
+                foto_limpia = foto_b64
+                if "," in foto_limpia: foto_limpia = foto_limpia.split(",")[1]
+                partes.append({'inline_data': {'mime_type': 'image/jpeg', 'data': foto_limpia}})
                 
             payload = {
                 'contents': [{'role': 'user', 'parts': partes}], 
@@ -92,11 +95,16 @@ def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pe
                 res = response.json()['candidates'][0]['content']['parts'][0]['text']
                 registrar_consumo(pedido_id, "gemini_text", mensaje, res)
                 return res
-            elif response.status_code == 503: time.sleep(3); continue
+            else:
+                ultimo_error = f"{modelo} HTTP {response.status_code}: {response.text[:200]}"
+                print(f"[GEMINI] {ultimo_error}")
+                time.sleep(2)
+                continue
         except Exception as e: 
-            print(f"[GEMINI ERROR] {e}")
+            ultimo_error = f"{modelo}: {e}"
+            print(f"[GEMINI ERROR] {ultimo_error}")
             continue
-    raise Exception("Ningun modelo de Gemini disponible")
+    raise Exception(f"Ningun modelo de Gemini disponible. Ultimo error: {ultimo_error}")
 
 def chat_con_gemini(mensaje: str, sistema: str = "Eres un asistente util.", pedido_id: str = "sin_id", foto_b64: str = None) -> str:
     ok, msg = verificar_limite(pedido_id)
@@ -104,8 +112,9 @@ def chat_con_gemini(mensaje: str, sistema: str = "Eres un asistente util.", pedi
     try:
         res = chat_gemini_directo(mensaje, sistema, temperature=0.1, pedido_id=pedido_id, foto_b64=foto_b64)
         return res if res else "[ERROR] Gemini no respondió."
-    except Exception:
-        return "[ERROR] No se pudo conectar con Gemini."
+    except Exception as e:
+        # V9.0: ya no tragamos el error; se muestra la causa real en el panel
+        return f"[ERROR] {e}"
 
 def chat_inteligente(mensaje: str, sistema: str = "Eres un asistente util.", temperature: float = 0.7, pedido_id: str = "sin_id") -> Tuple[str, str]:
     ok, msg = verificar_limite(pedido_id)

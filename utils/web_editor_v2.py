@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V7.0 (GEMINI VISION + JSON)
+# EDITOR DE WEBS - V7.1 (ERRORES DE IA VISIBLES)
 # ============================================
 
 import os
@@ -42,7 +42,7 @@ def extraer_mapa_anclas(html):
         if data_img:
             alt = img.get('alt', 'sin alt')
             anclas.append(f"- Imagen [{data_img}]: alt=\"{alt}\", selector=\"img[data-img='{data_img}']\"")
-            
+    
     if soup.find('nav'): anclas.append("- Sección [nav]: Menú superior, selector=\"nav\"")
     if soup.find('footer'): anclas.append("- Sección [footer]: Pie de página, selector=\"footer\"")
         
@@ -77,22 +77,30 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
         html_actual = resultado_lectura["html"]
 
     mapa_anclas = extraer_mapa_anclas(html_actual)
+    ultima_respuesta = ""
 
     for intento in range(1, MAX_INTENTOS + 1):
         try:
             prompt = generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negocio, tiene_foto=bool(foto_b64))
             sistema = "Eres un experto en manipulación de DOM. Devuelves SOLO JSON, sin texto extra ni bloques markdown."
             
-            # SIEMPRE usamos Gemini si hay foto (para que vea la imagen)
             if foto_b64:
-                print(f"[IA] Usando Gemini Vision para analizar imagen y generar JSON...")
+                print(f"[IA] Intento {intento}: usando Gemini Vision (imagen adjunta)...")
                 respuesta = gateway.chat_con_gemini(prompt, sistema, pedido_id=web_id, foto_b64=foto_b64)
             else:
-                print(f"[IA] Usando IA de texto (Groq/OpenRouter) para tarea simple...")
+                print(f"[IA] Intento {intento}: usando IA de texto (Groq/OpenRouter)...")
                 respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1, pedido_id=web_id)
+
+            ultima_respuesta = respuesta or ""
+
+            # V7.1: si el motor reporta error real (key faltante, modelo caido, limite),
+            # lo devolvemos AL INSTANTE en vez de quemar 3 intentos a ciegas.
+            if ultima_respuesta.startswith("[ERROR]") or ultima_respuesta.startswith("[BLOQUEADO]"):
+                return {"exito": False, "error": f"Fallo del motor de IA: {ultima_respuesta}"}
 
             data = parsear_json_cambios(respuesta)
             if not data or "operaciones" not in data:
+                print(f"[IA] Intento {intento}: JSON no valido. Respuesta: {ultima_respuesta[:150]}")
                 time.sleep(TIEMPO_ESPERA)
                 continue
 
@@ -111,7 +119,8 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             print(f"Error en intento {intento}: {e}")
             time.sleep(TIEMPO_ESPERA)
 
-    return {"exito": False, "error": "La IA no pudo procesar la orden. Intenta ser más específico."}
+    detalle = f" Ultima respuesta de la IA: {ultima_respuesta[:200]}" if ultima_respuesta else ""
+    return {"exito": False, "error": f"La IA no pudo procesar la orden tras {MAX_INTENTOS} intentos. Intenta ser más específico.{detalle}"}
 
 def editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto_negocio="", foto_b64=None):
     resultado = editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio, foto_b64=foto_b64)
