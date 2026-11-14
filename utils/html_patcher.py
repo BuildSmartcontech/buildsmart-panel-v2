@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V9.7 (CONSTRUCTOR DE TARJETAS)
+# APLICADOR DE CAMBIOS AL HTML - V9.8 (CONSTRUCTOR PREMIUM)
 # ============================================
 
 import re

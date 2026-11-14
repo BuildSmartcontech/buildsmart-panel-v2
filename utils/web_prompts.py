@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V11.0 (DATOS PUROS)
+# PROMPTS DE CALIDAD V11.1 (INVESTIGACIÓN AUTÓNOMA)
 # ============================================
 
 import sys
@@ -66,8 +66,8 @@ Devuelve un JSON con las operaciones a realizar.
 ## REGLAS CRÍTICAS:
 1. Devuelve SOLO JSON válido.
 2. Usa los selectores exactos del MAPA DE ANCLAS.
-3. Si el usuario pide "crear una nueva tarjeta" o "agregar un producto" o te da información de un producto, DEBES usar la acción `crear_tarjeta`. NO escribas HTML.
-4. Si el usuario subió una foto, el sistema ya la inyectará automáticamente. Solo devuelve los datos.
+3. Si el usuario pide "crear una nueva tarjeta" o "agregar un producto" o te da información de un producto, DEBES usar la acción `crear_tarjeta`.
+4. **INVESTIGACIÓN AUTÓNOMA:** Si la información extraída de la imagen (OCR) es muy corta (solo el título), investiga y deduce al menos 4 características técnicas estándar del producto basándote en el título y el nicho de la web, y agrégalas al array `caracteristicas`.
 5. Si el usuario dice "el montacargas" o "la segunda tarjeta", BUSCA en el MAPA la imagen cuyo `alt` o `título_tarjeta` coincida y usa su selector.
 6. Si el usuario pide algo que no existe, devuelve una lista vacía `[]` y una explicación.
 

@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V6.0 (ENRUTADOR INTELIGENTE Y VISIÓN)
+# EDITOR DE WEBS - V6.2 (VISIÓN + INVESTIGACIÓN AUTÓNOMA)
 # ============================================
 
 import os
@@ -101,7 +101,6 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             sistema = "Eres un experto en manipulación de DOM. Devuelves SOLO JSON."
             
             # --- ENRUTADOR INTELIGENTE ---
-            # Si hay foto o el prompt parece complejo ("crea", "tarjeta", "nueva"), usar Gemini.
             es_complejo = bool(foto_b64) or any(p in instruccion.lower() for p in ["crea", "tarjeta", "nueva", "html", "sección", "al lado"])
             
             if es_complejo:

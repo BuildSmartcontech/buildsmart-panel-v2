@@ -1,6 +1,6 @@
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - V4.9 (ESTABLE)
+# MINI-PANEL DEL CLIENTE - V5.0 (UPLOAD CORREGIDO)
 # ============================================
 
 import streamlit as st
@@ -216,13 +216,14 @@ def _renderizar_panel(pedido, sb):
             "turismo": "Cambia el título y ponle 'Los mejores tours de Colombia'.\nAgrega una sección sobre la Amazonía.",
             "inmobiliaria": "Cambia el título a 'Encuentra tu hogar ideal'.\nPon el fondo de la página en blanco y negro.",
             "restaurante": "Cambia el título a 'El mejor sabor de la ciudad'.\nAgrega una sección con el menú del día.",
-            "general": "Cambia el título principal de tu web.\nPon el fondo de la página en color oscuro.\nAgrega una nueva sección con información de tu negocio."
+            "general": "Cambia el título principal de tu web.\nPon el fondo de la página en color oscuro.\nAgrega una nueva tarjeta con la información de una foto."
         }
         ejemplos = ejemplos_por_sector.get(sector, ejemplos_por_sector["general"])
 
         with st.expander("💡 ¿No sabes qué escribir? Haz clic aquí para ver ejemplos", expanded=False):
             st.info(f"Para que la IA te entienda perfectamente, pídele las cosas de forma sencilla. Aquí tienes algunos ejemplos:\n\n{ejemplos}\n\n*Truco: Puedes pedir una cosa a la vez para obtener resultados más rápidos.*")
         
+        # --- MENSAJE DE ERROR ---
         if "mensaje_error_ia" in st.session_state:
             st.error(st.session_state["mensaje_error_ia"])
             del st.session_state["mensaje_error_ia"]
@@ -230,10 +231,15 @@ def _renderizar_panel(pedido, sb):
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             
+            # --- BOTON DE SUBIR FOTO (FUERA DEL FORMULARIO) ---
+            st.markdown("**Opcional: Sube una captura o foto de tu producto/producto (Esto cuenta como un cambio)**")
+            foto_subida = st.file_uploader("Sube tu imagen aquí", type=["jpg", "png", "jpeg"], key="editor_foto", label_visibility="collapsed")
+            if foto_subida:
+                st.success(f"✅ Imagen cargada: {foto_subida.name}. Ahora escribe la instrucción abajo.")
+
+            # --- FORMULARIO DE TEXTO ---
             with st.form("form_modificacion", clear_on_submit=True):
-                instruccion = st.text_area("Escribe lo que quieres cambiar aquí:", placeholder="Ej: Pon esta foto en la tarjeta del montacargas.", height=100)
-                foto_subida = st.file_uploader("Opcional: Sube una foto para tu web (Esto también cuenta como un cambio)", type=["jpg", "png", "jpeg"], key="editor_foto")
-                
+                instruccion = st.text_area("Escribe lo que quieres cambiar aquí:", placeholder="Ej: Crea una nueva tarjeta con la información de esta imagen.", height=100)
                 btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa", type="primary", use_container_width=True)
                 
                 if btn_mod:
