@@ -1,24 +1,21 @@
 # config_app.py
 # ============================================
-# CONFIGURACION GLOBAL DE SAMU IA V4.1
+# CONFIGURACION GLOBAL DE SAMU IA V4.2 (BLINDADA)
 # ============================================
 
 import os
 import uuid
 import streamlit as st
 
-
-# ==========================================
-# CARGA INICIAL DE CONFIG GLOBAL (una vez)
-# ==========================================
 _CONFIG_DB = {}
 try:
     from utils.config_global import cargar_config
     _CONFIG_DB = cargar_config()
+    if not isinstance(_CONFIG_DB, dict):
+        _CONFIG_DB = {}
 except Exception as e:
     print(f"[config_app] No se pudo cargar config_global: {e}")
     _CONFIG_DB = {}
-
 
 def recargar_config():
     """Fuerza re-lectura de config_global."""
@@ -35,6 +32,9 @@ def recargar_config():
         global SUCURSAL_DESCUENTO_PORCENTAJE
 
         _CONFIG_DB = cargar_config(forzar=True)
+        if not isinstance(_CONFIG_DB, dict):
+            _CONFIG_DB = {}
+            
         MODO = _CONFIG_DB.get("modo_app", "prueba")
 
         if MODO == "prueba":
@@ -74,26 +74,17 @@ def recargar_config():
 
 
 # ==========================================
-# MODO DE OPERACION
+# MODO DE OPERACION (Valores por defecto seguros)
 # ==========================================
 MODO = _CONFIG_DB.get("modo_app", "prueba")
-
-# ==========================================
-# TIPO DE USUARIO
-# ==========================================
 _es_dueno_str = os.getenv("BUILDSMART_ES_DUENO", "True")
 ES_DUENO = _es_dueno_str.lower() == "true"
 
-
-# ==========================================
-# IDENTIFICACION DE USUARIO
-# ==========================================
 def obtener_usuario_actual():
     """Retorna el ID del usuario actual. Evita fallos de escritura en la nube."""
     if "usuario_id" in st.session_state and st.session_state.usuario_id:
         return st.session_state.usuario_id
 
-    # Intentar leer archivo local (solo funciona en local)
     ruta = os.path.join("data", "usuario_actual.txt")
     try:
         if os.path.exists(ruta):
@@ -105,10 +96,7 @@ def obtener_usuario_actual():
     except Exception:
         pass
 
-    # Si no existe, generar uno nuevo
     usuario_id = str(uuid.uuid4())
-    
-    # Intentar guardar (ignorar error si es en la nube)
     try:
         os.makedirs("data", exist_ok=True)
         with open(ruta, "w", encoding="utf-8") as f:
@@ -119,10 +107,6 @@ def obtener_usuario_actual():
     st.session_state.usuario_id = usuario_id
     return usuario_id
 
-
-# ==========================================
-# CONFIGURACION SEGUN MODO
-# ==========================================
 if MODO == "prueba":
     SISTEMA_CREDITOS_ACTIVO = False
     MOSTRAR_CREDITOS = False
@@ -154,5 +138,5 @@ WEB_GANCHO_COSTO_EXTRA = float(_CONFIG_DB.get("web_gancho_costo_modificacion_ext
 SUCURSAL_DESCUENTO_PORCENTAJE = float(_CONFIG_DB.get("sucursal_descuento_porcentaje", 50))
 LANDING_ACTIVA = bool(_CONFIG_DB.get("landing_activa", True))
 
-VERSION = "4.1"
+VERSION = "4.2"
 NOMBRE_APP = "SAMU IA"

@@ -1,9 +1,18 @@
 # app.py - SAMU IA Operations Center
 # ============================================
-# V2.2: Fix Loop Infinito respetando session_state en la web.
+# V2.3: Fix Loop y KeyError (set_page_config al inicio)
 # ============================================
 
 import streamlit as st
+
+# 1. set_page_config DEBE SER EL PRIMER COMANDO DE STREAMLIT
+st.set_page_config(
+    page_title="SAMU IA",
+    page_icon=":office:",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 import traceback
 
 if "_session_initialized" not in st.session_state:
@@ -14,14 +23,12 @@ if "_session_initialized" not in st.session_state:
 st.session_state._rerun_count += 1
 print(f"[RERUN {st.session_state._rerun_count}] Iniciando app...")
 
-from config_app import ES_DUENO, MODO, NOMBRE_APP, VERSION, obtener_usuario_actual
-
-st.set_page_config(
-    page_title=f"{NOMBRE_APP} - {MODO.upper()}",
-    page_icon=":office:",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Importamos config DESPUÉS de configurar la página
+try:
+    from config_app import ES_DUENO, MODO, NOMBRE_APP, VERSION, obtener_usuario_actual
+except Exception as e:
+    st.error(f"Error crítico cargando configuración: {e}")
+    st.stop()
 
 def detectar_subruta_web():
     try:
@@ -59,7 +66,6 @@ def detectar_rol():
 # --- ROUTING CORREGIDO ---
 subruta_web = detectar_subruta_web()
 
-# Si la URL no tiene parametros, revisamos si el session_state guardo una subruta (como checkout)
 if subruta_web is None:
     subruta_web = st.session_state.get("_web_subruta", "landing")
 

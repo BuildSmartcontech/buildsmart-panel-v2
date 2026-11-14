@@ -1,4 +1,4 @@
-# backend/gateway.py - VERSION 9.1 (MODELOS REALES + VISION REPARADA)
+# backend/gateway.py - VERSION 9.2 (MODELOS ACTUALIZADOS)
 # ============================================
 
 import os
@@ -11,15 +11,15 @@ from utils.ai_usage_monitor import verificar_limite, registrar_consumo
 
 load_dotenv()
 
-# MODELOS REALES Y ACTIVOS EN 2026
+# MODELOS ACTUALIZADOS Y VIGENTES
 MODELOS_OPENROUTER = [
-    "meta-llama/llama-3.1-70b-instruct:free",
-    "deepseek/deepseek-chat:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemini-flash-1.5:free",
 ]
 
 MODELOS_GROQ = [
-    "llama3-70b-8192",
-    "llama3-8b-8192",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
 ]
 
 MODELOS_GEMINI = [
@@ -46,6 +46,7 @@ def chat_openrouter(mensaje: str, sistema: str, temperature: float = 0.7, pedido
                     registrar_consumo(pedido_id, "openrouter", mensaje, res)
                     return res
                 elif response.status_code == 429: time.sleep(3); continue
+                else: print(f"[OPENROUTER] {modelo} fallo: {response.status_code}")
         except Exception as e: 
             print(f"[OPENROUTER ERROR] {e}")
             continue
@@ -68,6 +69,7 @@ def chat_groq_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedi
                     registrar_consumo(pedido_id, "groq", mensaje, res)
                     return res
                 elif response.status_code == 429: time.sleep(3); continue
+                else: print(f"[GROQ] {modelo} fallo: {response.status_code}")
         except Exception as e: 
             print(f"[GROQ ERROR] {e}")
             continue
@@ -110,7 +112,6 @@ def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pe
     raise Exception(f"Ningun modelo de Gemini disponible. Ultimo error: {ultimo_error}")
 
 def analizar_imagen_gemini(foto_b64: str, prompt: str, pedido_id: str = "sin_id") -> str:
-    """NUEVA FUNCION: Analiza una imagen y devuelve texto descriptivo."""
     try:
         res = chat_gemini_directo(prompt, "Eres un experto en análisis visual.", temperature=0.1, pedido_id=pedido_id, foto_b64=foto_b64)
         return res if res else "Imagen sin descripción."
