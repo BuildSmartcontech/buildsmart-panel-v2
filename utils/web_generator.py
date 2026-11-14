@@ -1,6 +1,6 @@
 # utils/web_generator.py
 # ============================================
-# GENERADOR DE WEBS - V20.1 (OPTIMIZADO PARA 6 FOTOS)
+# GENERADOR DE WEBS - V20.2 (PARSER JSON BLINDADO)
 # ============================================
 
 import os
@@ -17,7 +17,6 @@ from utils.web_validator import validar_completo, limpiar_html
 from utils.image_fetcher import obtener_urls_imagenes_negocio
 from utils.openrouter_manager import consultar_openrouter
 
-# IMPORTAMOS CORRECTAMENTE LAS FUNCIONES
 try:
     from backend.gateway import analizar_imagen_gemini, gateway
 except ImportError:
@@ -53,6 +52,20 @@ def _inyectar_anclas(html):
             
     return str(soup)
 
+def _obtener_copy_fallback(nombre_negocio):
+    """Plan B: Si la IA falla, usamos esto para que la web no muera."""
+    return {
+        "headline": f"Bienvenido a {nombre_negocio}",
+        "subheadline": "Ofrecemos los mejores servicios de alta calidad para satisfacer todas tus necesidades.",
+        "servicios": [
+            {"titulo": "Servicio Principal", "descripcion": "Calidad y compromiso garantizado en cada detalle.", "alt_imagen": "Imagen de servicio 1"},
+            {"titulo": "Atención Personalizada", "descripcion": "Nos adaptamos a lo que necesitas de manera rápida.", "alt_imagen": "Imagen de servicio 2"},
+            {"titulo": "Garantía de Satisfacción", "descripcion": "Trabajamos para superar tus expectativas.", "alt_imagen": "Imagen de servicio 3"}
+        ],
+        "sobre_nosotros": f"En {nombre_negocio} nos dedicamos a brindar la mejor experiencia a nuestros clientes, con años de experiencia en el sector.",
+        "keywords_imagenes": ["business", "office", "success"]
+    }
+
 def generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia, pedido_id="sin_id"):
     sector = datos_negocio.get('sector', 'General')
     desc = datos_negocio.get('descripcion', '')
@@ -72,7 +85,7 @@ Redacta el Copy exacto para su pagina web premium.
 ¡ATENCIÓN! Los servicios DEBEN estar directamente relacionados con el sector '{sector}' y la descripción.
 ¡CRÍTICO! Usa ESPAÑOL NEUTRO DE LATINOAMÉRICA. NO uses modismos de España.
 
-Devuelve UNICAMENTE un JSON valido:
+Devuelve UNICAMENTE un JSON valido. NO agregues texto antes ni después. Solo el JSON puro:
 {{
   "headline": "Titulo impactante (max 10 palabras)",
   "subheadline": "Subtitulo persuasivo (max 25 palabras)",
@@ -87,16 +100,20 @@ Devuelve UNICAMENTE un JSON valido:
 """
     sistema = "Eres un redactor publicitario experto. No hables de diseño web ni marketing digital a menos que el cliente sea una agencia."
     
+    # 1. Intentar con OpenRouter Manager
     try:
         respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia, temperature=0.7, pedido_id=pedido_id)
-        if not error and respuesta: return respuesta
+        if not error and respuesta and len(respuesta) > 20: return respuesta
     except Exception: pass
     
+    # 2. Intentar con Gateway Inteligente
     try:
         if gateway:
-            respuesta, _ = gateway.chat_inteligente(prompt, sistema, temperature=0.7, pedido_id=pedido_id)
-            return respuesta
+            respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.7, pedido_id=pedido_id)
+            if respuesta and "[ERROR]" not in respuesta and len(respuesta) > 20:
+                return respuesta
     except Exception: pass
+    
     return None
 
 def generar_html_programador(datos_negocio, copy, modelo_ia, pedido_id="sin_id"):
@@ -124,17 +141,18 @@ def generar_html_programador(datos_negocio, copy, modelo_ia, pedido_id="sin_id")
 {REGLAS_FOOTER_LEGAL}
 {REGLAS_SALIDA}
 """
-    sistema = "Eres un programador Frontend Senior. Devuelves solo HTML."
+    sistema = "Eres un programador Frontend Senior. Devuelves solo el codigo HTML puro, sin markdown."
     
     try:
         respuesta, _, error = consultar_openrouter(prompt, sistema, modelo=modelo_ia, pedido_id=pedido_id)
-        if not error and respuesta: return respuesta
+        if not error and respuesta and len(respuesta) > 100: return respuesta
     except Exception: pass
     
     try:
         if gateway:
             respuesta, _ = gateway.chat_inteligente(prompt, sistema, pedido_id=pedido_id)
-            return respuesta
+            if respuesta and "[ERROR]" not in respuesta and len(respuesta) > 100:
+                return respuesta
     except Exception: pass
     return None
 
@@ -229,15 +247,15 @@ def inyectar_elementos_criticos(html, imagenes, logo_b64, nombre_negocio, datos_
 
 def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super-120b"):
     print("=" * 60)
-    print("GENERANDO WEB - V20.1 (OPTIMIZADO PARA MULTIPLES FOTOS)")
+    print("GENERANDO WEB - V20.2 (PARSER JSON BLINDADO)")
     print("=" * 60)
 
     logo_b64 = datos_negocio.get("logo_b64")
     fotos_b64 = datos_negocio.get("fotos_b64", [])
     pedido_id = datos_negocio.get("pedido_id", "sin_id")
+    nombre_negocio = datos_negocio.get("nombre", "Mi Negocio")
     
     descripcion_fotos = ""
-    # OPTIMIZACION: Solo analizamos la primera foto para no saturar la API de Gemini
     if fotos_b64 and analizar_imagen_gemini:
         print(f"[VISION] Analizando la foto principal (1 de {len(fotos_b64)}) para pedido {pedido_id}...")
         try:
@@ -247,22 +265,34 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
                 descripcion_fotos = f"Foto Principal: {desc_individual}"
                 print(f"[VISION] Resultado: {descripcion_fotos}")
         except Exception as e:
-            print(f"[VISION] Fallo el análisis de imagen (ignorando para no romper la app): {e}")
+            print(f"[VISION] Fallo el análisis de imagen (ignorando): {e}")
 
     copy_raw = generar_copy_estrategico(datos_negocio, descripcion_fotos, modelo_ia, pedido_id=pedido_id)
-    if not copy_raw: return {"exito": False, "html": None, "error": "Fallo el copy en todos los modelos de IA."}
-    try:
-        copy_str = copy_raw.replace("```json", "").replace("```", "").strip()
-        start = copy_str.find('{'); end = copy_str.rfind('}') + 1
-        copy = json.loads(copy_str[start:end])
-    except Exception:
-        return {"exito": False, "html": None, "error": "JSON invalido devuelto por la IA."}
+    
+    # --- INICIO DEL BLINDAJE JSON ---
+    copy = None
+    if copy_raw and not copy_raw.startswith("[ERROR]"):
+        try:
+            # Buscamos el JSON usando Regex para ignorar markdown o texto extra
+            match = re.search(r'\{.*\}', copy_raw, re.DOTALL)
+            if match:
+                json_limpio = match.group(0)
+                copy = json.loads(json_limpio)
+            else:
+                raise ValueError("No se encontró estructura JSON en la respuesta.")
+        except Exception as e:
+            print(f"[ERROR COPY JSON] Detalle: {e}")
+            print(f"[ERROR COPY JSON] Respuesta IA: {copy_raw[:300]}...")
+    
+    # Si falló la IA o el JSON es inválido, usamos el Plan B (Fallback)
+    if not copy:
+        print("[ALERTA] Usando COPY DE RESPALDO (Fallback) para no detener la generación.")
+        copy = _obtener_copy_fallback(nombre_negocio)
+    # --- FIN DEL BLINDAJE JSON ---
 
     imagenes = {"hero": None, "servicios": []}
-    nombre_negocio = datos_negocio.get("nombre", "Mi Negocio")
     
     if fotos_b64:
-        # Primera foto es el Hero, las siguientes 3 son los servicios (ignoramos las que sobren)
         imagenes["hero"] = fotos_b64[0] if len(fotos_b64) > 0 else None
         imagenes["servicios"] = fotos_b64[1:4]
     
@@ -296,4 +326,4 @@ def generar_web(datos_negocio, opciones=None, modelo_ia="nvidia/nemotron-3-super
 
         time.sleep(TIEMPO_ESPERA)
 
-    return {"exito": False, "html": None, "error": "No se pudo generar HTML valido tras 3 intentos."}
+    return {"exito": False, "html": None, "error": "La IA generó un HTML estructuralmente inválido."}
