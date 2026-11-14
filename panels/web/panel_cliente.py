@@ -1,6 +1,6 @@
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - V6.1 (UPLOADER BLINDADO + SECURITY)
+# MINI-PANEL DEL CLIENTE - V6.2 (UPLOADER SIN CALLBACK)
 # ============================================
 
 import streamlit as st
@@ -232,58 +232,54 @@ def _renderizar_panel(pedido, sb):
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             
-            # --- SUBIR FOTO BLINDADO (FUERA DEL FORM) ---
+            # --- SUBIR FOTO BLINDADO (SIN CALLBACK) ---
             st.markdown("**Opcional: Sube una captura o foto de tu producto (Esto cuenta como un cambio)**")
             
             if "uploaded_image_bytes" not in st.session_state:
                 st.session_state["uploaded_image_bytes"] = None
             if "uploaded_image_name" not in st.session_state:
                 st.session_state["uploaded_image_name"] = None
-            if "upload_error" not in st.session_state:
-                st.session_state["upload_error"] = None
-
-            def _on_file_upload():
-                foto = st.session_state.get("editor_foto_v7")
-                if foto is not None:
-                    from utils.security import validar_imagen_subida
-                    ok, msg = validar_imagen_subida(foto, max_mb=MAX_FILE_SIZE_MB)
-                    if ok:
-                        st.session_state["uploaded_image_bytes"] = foto.getvalue()
-                        st.session_state["uploaded_image_name"] = foto.name
-                        st.session_state["upload_error"] = None
-                    else:
-                        st.session_state["upload_error"] = msg
-                        st.session_state["uploaded_image_bytes"] = None
-                        st.session_state["uploaded_image_name"] = None
-                else:
-                    st.session_state["uploaded_image_bytes"] = None
-                    st.session_state["uploaded_image_name"] = None
+            if "upload_key" not in st.session_state:
+                st.session_state["upload_key"] = 0
 
             col_up, col_del = st.columns([4, 1])
             with col_up:
-                st.file_uploader(
+                foto_subida = st.file_uploader(
                     "Sube tu imagen aquí", 
                     type=["jpg", "jpeg", "png"], 
-                    key="editor_foto_v7", 
-                    label_visibility="collapsed",
-                    on_change=_on_file_upload
+                    key=f"editor_foto_{st.session_state['upload_key']}", 
+                    label_visibility="collapsed"
                 )
             with col_del:
                 if st.button("❌ Quitar", use_container_width=True, disabled=(st.session_state["uploaded_image_bytes"] is None)):
                     st.session_state["uploaded_image_bytes"] = None
                     st.session_state["uploaded_image_name"] = None
-                    st.session_state["upload_error"] = None
+                    st.session_state["upload_key"] += 1 # Esto reinicia visualmente el botón de subir
                     st.rerun()
 
-            if st.session_state.get("upload_error"):
-                st.error(f"{E_X} {st.session_state['upload_error']}")
-            elif st.session_state.get("uploaded_image_bytes"):
+            # Lógica para guardar la imagen
+            if foto_subida is not None:
+                if st.session_state.get("uploaded_image_name") != foto_subida.name:
+                    if foto_subida.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+                        st.error(f"{E_X} La imagen supera los {MAX_FILE_SIZE_MB}MB.")
+                    else:
+                        st.session_state["uploaded_image_bytes"] = foto_subida.getvalue()
+                        st.session_state["uploaded_image_name"] = foto_subida.name
+                        st.rerun() # Forzamos recarga para mostrar el mensaje verde inmediatamente
+
+            # Mensaje persistente
+            if st.session_state.get("uploaded_image_bytes"):
                 kb = len(st.session_state["uploaded_image_bytes"]) / 1024
                 st.success(f"{E_OK} Imagen cargada: {st.session_state['uploaded_image_name']} ({kb:.0f} KB).")
 
             # --- FORMULARIO SOLO CON TEXTO ---
             with st.form("form_modificacion"):
-                instruccion = st.text_area("Escribe lo que quieres cambiar aquí:", placeholder="Ej: Crea una nueva tarjeta con la información de esta imagen.", height=100)
+                instruccion = st.text_area(
+                    "Escribe lo que quieres cambiar aquí:", 
+                    key="texto_instruccion",
+                    placeholder="Ej: Crea una nueva tarjeta con la información de esta imagen.", 
+                    height=100
+                )
                 btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa", type="primary", use_container_width=True)
                 
                 if btn_mod:
@@ -297,7 +293,6 @@ def _renderizar_panel(pedido, sb):
                             try:
                                 base64_str = base64.b64encode(st.session_state["uploaded_image_bytes"]).decode("utf-8")
                                 foto_b64 = f"data:image/jpeg;base64,{base64_str}"
-                                print(f"[UPLOAD V6.1] Imagen convertida: {st.session_state['uploaded_image_name']} ({len(base64_str)} chars)")
                             except Exception as e:
                                 st.error(f"{E_X} Error leyendo la imagen: {str(e)}")
                                 foto_b64 = None
@@ -312,6 +307,7 @@ def _renderizar_panel(pedido, sb):
                                 # Limpiar imagen tras éxito
                                 st.session_state["uploaded_image_bytes"] = None
                                 st.session_state["uploaded_image_name"] = None
+                                st.session_state["upload_key"] += 1
                                 st.success(msg)
                                 st.rerun()
                             else:
