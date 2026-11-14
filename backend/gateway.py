@@ -1,4 +1,4 @@
-# backend/gateway.py - VERSION 8.8 (VISIÓN Y ENRUTADOR)
+# backend/gateway.py - VERSION 8.9 (VISIÓN INTEGRADA EN JSON)
 # ============================================
 
 import os
@@ -14,7 +14,6 @@ load_dotenv()
 MODELOS_OPENROUTER = [
     "nvidia/nemotron-3-super-120b-a12b:free",
     "deepseek/deepseek-chat-v3.1:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
 ]
 
 MODELOS_GROQ = [
@@ -24,6 +23,7 @@ MODELOS_GROQ = [
 
 MODELOS_GEMINI = [
     "gemini-1.5-flash",
+    "gemini-1.5-pro", # Usamos Pro para mejor razonamiento
 ]
 
 TIMEOUT_API = 300
@@ -68,53 +68,41 @@ def chat_groq_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedi
         except Exception: continue
     raise Exception("Ningun modelo de Groq disponible")
 
-def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedido_id: str = "sin_id") -> Optional[str]:
+def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedido_id: str = "sin_id", foto_b64: str = None) -> Optional[str]:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key: raise Exception("GEMINI_API_KEY no configurada")
+    
     for modelo in MODELOS_GEMINI:
         try:
             url = f'https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}'
-            payload = {'contents': [{'role': 'user', 'parts': [{'text': f"{sistema}\n\nUsuario: {mensaje}"}]}], 'generationConfig': {'temperature': temperature, 'maxOutputTokens': 8000}}
+            
+            partes = [{'text': f"{sistema}\n\nUsuario: {mensaje}"}]
+            
+            # Si hay foto, la adjuntamos como inline_data
+            if foto_b64:
+                if "," in foto_b64: foto_b64 = foto_b64.split(",")[1]
+                partes.append({'inline_data': {'mime_type': 'image/jpeg', 'data': foto_b64}})
+                
+            payload = {
+                'contents': [{'role': 'user', 'parts': partes}], 
+                'generationConfig': {'temperature': temperature, 'maxOutputTokens': 8000}
+            }
             response = requests.post(url, json=payload, timeout=TIMEOUT_API)
             if response.status_code == 200:
                 res = response.json()['candidates'][0]['content']['parts'][0]['text']
                 registrar_consumo(pedido_id, "gemini_text", mensaje, res)
                 return res
             elif response.status_code == 503: time.sleep(3); continue
-        except Exception: continue
+        except Exception as e: 
+            print(f"[GEMINI ERROR] {e}")
+            continue
     raise Exception("Ningun modelo de Gemini disponible")
 
-def analizar_imagen_gemini(base64_data: str, prompt_texto: str, pedido_id: str = "sin_id") -> str:
-    """Lee el texto de una imagen usando Gemini Vision (OCR)."""
-    ok, msg = verificar_limite(pedido_id)
-    if not ok: return "Imagen del negocio (Cuota agotada)"
-
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key: return "Imagen sin texto extraído"
-
-    if "," in base64_data: base64_data = base64_data.split(",")[1]
-
-    url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}'
-    payload = {'contents': [{'role': 'user', 'parts': [{'text': prompt_texto}, {'inline_data': {'mime_type': 'image/jpeg', 'data': base64_data}}]}], 'generationConfig': {'temperature': 0.1, 'maxOutputTokens': 2000}}
-
-    try:
-        response = requests.post(url, json=payload, timeout=60)
-        if response.status_code == 200:
-            result = response.json()
-            descripcion = result['candidates'][0]['content']['parts'][0]['text'].strip()
-            registrar_consumo(pedido_id, "gemini_vision", prompt_texto, descripcion)
-            return descripcion
-        return "Imagen sin texto extraído"
-    except Exception as e:
-        print(f"[VISION ERROR] {e}")
-        return "Imagen sin texto extraído"
-
-def chat_con_gemini(mensaje: str, sistema: str = "Eres un asistente util.", pedido_id: str = "sin_id") -> str:
-    """Fuerza el uso de Gemini para tareas complejas."""
+def chat_con_gemini(mensaje: str, sistema: str = "Eres un asistente util.", pedido_id: str = "sin_id", foto_b64: str = None) -> str:
     ok, msg = verificar_limite(pedido_id)
     if not ok: return f"[BLOQUEADO] {msg}"
     try:
-        res = chat_gemini_directo(mensaje, sistema, temperature=0.1, pedido_id=pedido_id)
+        res = chat_gemini_directo(mensaje, sistema, temperature=0.1, pedido_id=pedido_id, foto_b64=foto_b64)
         return res if res else "[ERROR] Gemini no respondió."
     except Exception:
         return "[ERROR] No se pudo conectar con Gemini."

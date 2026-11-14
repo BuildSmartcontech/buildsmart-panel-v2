@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V9.8 (CONSTRUCTOR PREMIUM)
+# APLICADOR DE CAMBIOS AL HTML - V9.9 (BOTÓN CORREGIDO)
 # ============================================
 
 import re
@@ -76,7 +76,8 @@ def _construir_tarjeta_html(titulo, descripcion, caracteristicas, foto_b64=None)
             html += f'<li style="margin-bottom:8px;">{car}</li>'
         html += '</ul>'
         
-    html += '<a href="#" style="display:inline-block; padding:12px 24px; background:#14B8A6; color:#0B0C14; text-decoration:none; border-radius:999px; font-weight:bold; margin-top:auto;">CONSULTA AHORA</a>'
+    # El botón ahora apunta a la sección de contacto (#contacto)
+    html += '<a href="#contacto" style="display:inline-block; padding:12px 24px; background:#14B8A6; color:#0B0C14; text-decoration:none; border-radius:999px; font-weight:bold; margin-top:auto; text-align:center;">CONSULTA AHORA</a>'
     html += '</div>'
     return html
 

@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V11.2 (JSON ESTRICTO)
+# PROMPTS DE CALIDAD V11.3 (EXTRACCIÓN PROFUNDA)
 # ============================================
 
 import sys
@@ -24,8 +24,12 @@ def generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negoc
     regla_foto = ""
     if tiene_foto:
         regla_foto = """
-## REGLA DE FOTO ADJUNTA:
-El usuario ha subido una foto. Para usarla, usa el valor `{{FOTO_USUARIO}}` en el `src`.
+## REGLA DE FOTO ADJUNTA (CRÍTICO):
+El usuario ha subido una imagen. DEBES analizarla. 
+1. Extrae el título real del producto (NO pongas "Nuevo Producto").
+2. Extrae todas las características técnicas, especificaciones o viñetas que veas en la imagen.
+3. Si la imagen tiene mucho texto, resume las 4 características más importantes.
+4. Usa el valor `{{FOTO_USUARIO}}` en el `src` de la imagen.
 """
 
     prompt = f"""Eres un experto en manipulación de DOM con CSS y HTML.
@@ -45,9 +49,9 @@ Devuelve un JSON con las operaciones a realizar.
     {{
       "selector": "#sec-servicios",
       "accion": "crear_tarjeta",
-      "titulo": "Generador Yanmar",
-      "descripcion": "Generador diésel marino de alta eficiencia.",
-      "caracteristicas": ["12 voltios CC", "Apagado automático", "Filtro de combustible", "Bomba de transferencia"]
+      "titulo": "Título exacto extraído de la imagen",
+      "descripcion": "Descripción persuasiva del producto",
+      "caracteristicas": ["Especificación 1", "Especificación 2", "Especificación 3"]
     }}
   ],
   "explicacion": "Creé la tarjeta con la información extraída."
@@ -57,7 +61,7 @@ Devuelve un JSON con las operaciones a realizar.
 1. **TU RESPUESTA DEBE SER EXCLUSIVAMENTE EL JSON.** NO uses bloques de código markdown (```json). NO escribas "Aquí tienes el JSON". Solo empieza con {{ y termina con }}.
 2. Usa los selectores exactos del MAPA DE ANCLAS.
 3. Si el usuario pide crear una tarjeta o te da información de un producto, DEBES usar la acción `crear_tarjeta`.
-4. **INVESTIGACIÓN AUTÓNOMA:** Si el texto extraído de la imagen (en la instrucción) es corto, deduce al menos 4 características técnicas del producto basándote en el título y agrégalas al array `caracteristicas`.
+4. **EXTRACCIÓN PROFUNDA:** Si hay una imagen adjunta, analízala. NO uses textos genéricos como "Alta calidad". Lee la imagen y escribe las especificaciones reales (ej: "12 voltios CC", "Apagado automático").
 5. Si el usuario pide algo que no existe, devuelve una lista vacía `[]` y una explicación.
 
 ## RESPUESTA (SOLO JSON):"""

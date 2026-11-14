@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V6.3 (ENRUTADOR ESTRICTO)
+# EDITOR DE WEBS - V7.0 (GEMINI VISION + JSON)
 # ============================================
 
 import os
@@ -16,13 +16,12 @@ from utils.web_prompts import generar_prompt_edicion_estructurada
 from utils.html_patcher import aplicar_cambios
 
 try:
-    from backend.gateway import gateway, analizar_imagen_gemini
+    from backend.gateway import gateway
 except ImportError:
     try:
-        from gateway import gateway, analizar_imagen_gemini
+        from gateway import gateway
     except ImportError:
         gateway = None
-        analizar_imagen_gemini = None
 
 MAX_INTENTOS = 3
 TIEMPO_ESPERA = 2
@@ -42,14 +41,7 @@ def extraer_mapa_anclas(html):
         data_img = img.get('data-img', '')
         if data_img:
             alt = img.get('alt', 'sin alt')
-            titulo_tarjeta = ""
-            parent = img.find_parent('div')
-            if parent:
-                h3 = parent.find(['h3', 'h4', 'h2'])
-                if h3: titulo_tarjeta = h3.get_text(strip=True)
-            
-            contexto = f"título_tarjeta=\"{titulo_tarjeta}\"" if titulo_tarjeta else ""
-            anclas.append(f"- Imagen [{data_img}]: alt=\"{alt}\", {contexto}, selector=\"img[data-img='{data_img}']\"")
+            anclas.append(f"- Imagen [{data_img}]: alt=\"{alt}\", selector=\"img[data-img='{data_img}']\"")
             
     if soup.find('nav'): anclas.append("- Sección [nav]: Menú superior, selector=\"nav\"")
     if soup.find('footer'): anclas.append("- Sección [footer]: Pie de página, selector=\"footer\"")
@@ -84,15 +76,6 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             return {"exito": False, "error": "No se pudo leer la web."}
         html_actual = resultado_lectura["html"]
 
-    # --- VISIÓN OCR CON GEMINI (SOLO PARA LEER LA FOTO) ---
-    texto_extraido = ""
-    if foto_b64 and analizar_imagen_gemini:
-        print("[VISION] Extrayendo texto de la imagen subida con Gemini...")
-        prompt_ocr = "Extrae TODO el texto visible en esta imagen. Sé muy detallado, conserva títulos y viñetas. Responde SOLO con el texto extraído."
-        texto_extraido = analizar_imagen_gemini(foto_b64, prompt_ocr, pedido_id=web_id)
-        if texto_extraido:
-            instruccion += f"\n\nINFORMACIÓN EXTRAÍDA DE LA IMAGEN:\n{texto_extraido}"
-
     mapa_anclas = extraer_mapa_anclas(html_actual)
 
     for intento in range(1, MAX_INTENTOS + 1):
@@ -100,15 +83,16 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             prompt = generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negocio, tiene_foto=bool(foto_b64))
             sistema = "Eres un experto en manipulación de DOM. Devuelves SOLO JSON, sin texto extra ni bloques markdown."
             
-            # --- ENRUTADOR ESTRICTO ---
-            # Siempre usamos Groq/OpenRouter (chat_inteligente) para armar el JSON,
-            # porque Gemini se distrae con el texto extraído y rompe el formato.
-            print(f"[IA] Usando IA de Texto (Groq/OpenRouter) para estructurar el JSON...")
-            respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1, pedido_id=web_id)
+            # SIEMPRE usamos Gemini si hay foto (para que vea la imagen)
+            if foto_b64:
+                print(f"[IA] Usando Gemini Vision para analizar imagen y generar JSON...")
+                respuesta = gateway.chat_con_gemini(prompt, sistema, pedido_id=web_id, foto_b64=foto_b64)
+            else:
+                print(f"[IA] Usando IA de texto (Groq/OpenRouter) para tarea simple...")
+                respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1, pedido_id=web_id)
 
             data = parsear_json_cambios(respuesta)
             if not data or "operaciones" not in data:
-                print(f"[WARN] JSON invalido en intento {intento}. Respuesta: {respuesta[:100]}")
                 time.sleep(TIEMPO_ESPERA)
                 continue
 
