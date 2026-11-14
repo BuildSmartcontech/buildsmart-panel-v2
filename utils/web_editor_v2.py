@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V6.2 (VISIÓN + INVESTIGACIÓN AUTÓNOMA)
+# EDITOR DE WEBS - V6.3 (ENRUTADOR ESTRICTO)
 # ============================================
 
 import os
@@ -84,10 +84,10 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             return {"exito": False, "error": "No se pudo leer la web."}
         html_actual = resultado_lectura["html"]
 
-    # --- VISIÓN OCR CON GEMINI ---
+    # --- VISIÓN OCR CON GEMINI (SOLO PARA LEER LA FOTO) ---
     texto_extraido = ""
     if foto_b64 and analizar_imagen_gemini:
-        print("[VISION] Extrayendo texto de la imagen subida...")
+        print("[VISION] Extrayendo texto de la imagen subida con Gemini...")
         prompt_ocr = "Extrae TODO el texto visible en esta imagen. Sé muy detallado, conserva títulos y viñetas. Responde SOLO con el texto extraído."
         texto_extraido = analizar_imagen_gemini(foto_b64, prompt_ocr, pedido_id=web_id)
         if texto_extraido:
@@ -98,21 +98,17 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
     for intento in range(1, MAX_INTENTOS + 1):
         try:
             prompt = generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negocio, tiene_foto=bool(foto_b64))
-            sistema = "Eres un experto en manipulación de DOM. Devuelves SOLO JSON."
+            sistema = "Eres un experto en manipulación de DOM. Devuelves SOLO JSON, sin texto extra ni bloques markdown."
             
-            # --- ENRUTADOR INTELIGENTE ---
-            es_complejo = bool(foto_b64) or any(p in instruccion.lower() for p in ["crea", "tarjeta", "nueva", "html", "sección", "al lado"])
-            
-            if es_complejo:
-                print(f"[IA] Usando Gemini Pro para tarea compleja...")
-                respuesta = gateway.chat_con_gemini(prompt, sistema, pedido_id=web_id)
-                fuente = "gemini"
-            else:
-                print(f"[IA] Usando IA rápida (Groq) para tarea simple...")
-                respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1, pedido_id=web_id)
+            # --- ENRUTADOR ESTRICTO ---
+            # Siempre usamos Groq/OpenRouter (chat_inteligente) para armar el JSON,
+            # porque Gemini se distrae con el texto extraído y rompe el formato.
+            print(f"[IA] Usando IA de Texto (Groq/OpenRouter) para estructurar el JSON...")
+            respuesta, fuente = gateway.chat_inteligente(prompt, sistema, temperature=0.1, pedido_id=web_id)
 
             data = parsear_json_cambios(respuesta)
             if not data or "operaciones" not in data:
+                print(f"[WARN] JSON invalido en intento {intento}. Respuesta: {respuesta[:100]}")
                 time.sleep(TIEMPO_ESPERA)
                 continue
 

@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V11.1 (INVESTIGACIÓN AUTÓNOMA)
+# PROMPTS DE CALIDAD V11.2 (JSON ESTRICTO)
 # ============================================
 
 import sys
@@ -43,33 +43,22 @@ Devuelve un JSON con las operaciones a realizar.
 {{
   "operaciones": [
     {{
-      "selector": "#sec-hero h1",
-      "accion": "cambiar_texto",
-      "valor": "Nuevo texto"
-    }},
-    {{
       "selector": "#sec-servicios",
       "accion": "crear_tarjeta",
-      "titulo": "Título del producto",
-      "descripcion": "Descripción persuasiva",
-      "caracteristicas": ["Característica 1", "Característica 2"]
-    }},
-    {{
-      "selector": "body",
-      "accion": "cambiar_css",
-      "valor": "background-color: #FF5722;"
+      "titulo": "Generador Yanmar",
+      "descripcion": "Generador diésel marino de alta eficiencia.",
+      "caracteristicas": ["12 voltios CC", "Apagado automático", "Filtro de combustible", "Bomba de transferencia"]
     }}
   ],
-  "explicacion": "Explicación breve"
+  "explicacion": "Creé la tarjeta con la información extraída."
 }}
 
-## REGLAS CRÍTICAS:
-1. Devuelve SOLO JSON válido.
+## REGLAS CRÍTICAS (SI NO LAS CUMPLES, FALLAS):
+1. **TU RESPUESTA DEBE SER EXCLUSIVAMENTE EL JSON.** NO uses bloques de código markdown (```json). NO escribas "Aquí tienes el JSON". Solo empieza con {{ y termina con }}.
 2. Usa los selectores exactos del MAPA DE ANCLAS.
-3. Si el usuario pide "crear una nueva tarjeta" o "agregar un producto" o te da información de un producto, DEBES usar la acción `crear_tarjeta`.
-4. **INVESTIGACIÓN AUTÓNOMA:** Si la información extraída de la imagen (OCR) es muy corta (solo el título), investiga y deduce al menos 4 características técnicas estándar del producto basándote en el título y el nicho de la web, y agrégalas al array `caracteristicas`.
-5. Si el usuario dice "el montacargas" o "la segunda tarjeta", BUSCA en el MAPA la imagen cuyo `alt` o `título_tarjeta` coincida y usa su selector.
-6. Si el usuario pide algo que no existe, devuelve una lista vacía `[]` y una explicación.
+3. Si el usuario pide crear una tarjeta o te da información de un producto, DEBES usar la acción `crear_tarjeta`.
+4. **INVESTIGACIÓN AUTÓNOMA:** Si el texto extraído de la imagen (en la instrucción) es corto, deduce al menos 4 características técnicas del producto basándote en el título y agrégalas al array `caracteristicas`.
+5. Si el usuario pide algo que no existe, devuelve una lista vacía `[]` y una explicación.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt
