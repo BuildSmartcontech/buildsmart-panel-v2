@@ -1,6 +1,6 @@
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - V5.2 (UPLOAD CON BYTES Y CALLBACK)
+# MINI-PANEL DEL CLIENTE - V5.3 (UPLOAD SIMPLE Y DIRECTO)
 # ============================================
 
 import streamlit as st
@@ -131,42 +131,6 @@ def _procesar_retorno_pago(sb, pedido_id, paquete):
     except Exception as e:
         return False
 
-def _callback_subir_imagen():
-    """Callback que se ejecuta inmediatamente cuando el usuario sube una imagen."""
-    uploaded_file = st.session_state.get("editor_foto_v3")
-    
-    if uploaded_file is None:
-        st.session_state["uploaded_image_bytes"] = None
-        st.session_state["uploaded_image_name"] = None
-        return
-    
-    # Validar tamaño
-    if uploaded_file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
-        st.session_state["uploaded_image_bytes"] = None
-        st.session_state["uploaded_image_name"] = None
-        st.session_state["upload_error"] = f"El archivo es muy grande (máx {MAX_FILE_SIZE_MB}MB)"
-        return
-    
-    # Validar tipo
-    if uploaded_file.type not in ["image/jpeg", "image/jpg", "image/png"]:
-        st.session_state["uploaded_image_bytes"] = None
-        st.session_state["uploaded_image_name"] = None
-        st.session_state["upload_error"] = "Solo se permiten archivos JPG o PNG"
-        return
-    
-    # Guardar BYTES (no el objeto UploadedFile)
-    try:
-        bytes_data = uploaded_file.read()
-        st.session_state["uploaded_image_bytes"] = bytes_data
-        st.session_state["uploaded_image_name"] = uploaded_file.name
-        st.session_state["upload_error"] = None
-        print(f"[UPLOAD] Imagen guardada en memoria: {uploaded_file.name} ({len(bytes_data)} bytes)")
-    except Exception as e:
-        st.session_state["uploaded_image_bytes"] = None
-        st.session_state["uploaded_image_name"] = None
-        st.session_state["upload_error"] = f"Error al procesar la imagen: {str(e)}"
-        print(f"[UPLOAD ERROR] {e}")
-
 def _renderizar_panel(pedido, sb):
     pedido_id = pedido.get("id", "?")
     nombre = pedido.get("nombre_cliente", "Cliente")
@@ -268,10 +232,10 @@ def _renderizar_panel(pedido, sb):
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             
-            # --- BOTON DE SUBIR FOTO (V5.2 - CON BYTES Y CALLBACK) ---
+            # --- BOTON DE SUBIR FOTO (V5.3 - LECTURA DIRECTA SIN CALLBACK) ---
             st.markdown("**Opcional: Sube una captura o foto de tu producto (Esto cuenta como un cambio)**")
             
-            # Inicializar session_state para bytes
+            # Inicializar session_state
             if "uploaded_image_bytes" not in st.session_state:
                 st.session_state["uploaded_image_bytes"] = None
             if "uploaded_image_name" not in st.session_state:
@@ -283,18 +247,42 @@ def _renderizar_panel(pedido, sb):
             if st.session_state["upload_error"]:
                 st.error(f"{E_X} {st.session_state['upload_error']}")
             
-            # Uploader con callback
+            # Uploader SIN callback, SIN form alrededor
             foto_subida = st.file_uploader(
                 "Sube tu imagen aquí", 
                 type=["jpg", "jpeg", "png"], 
-                key="editor_foto_v3", 
-                label_visibility="collapsed",
-                on_change=_callback_subir_imagen
+                key="editor_foto_v4", 
+                label_visibility="collapsed"
             )
             
-            # Mostrar mensaje de éxito si hay imagen cargada
-            if st.session_state["uploaded_image_bytes"]:
-                st.success(f"✅ Imagen cargada: {st.session_state['uploaded_image_name']}. Ahora escribe la instrucción abajo.")
+            # Procesar la imagen inmediatamente si hay una nueva
+            if foto_subida is not None:
+                # Solo procesar si es una imagen diferente a la ya guardada
+                if st.session_state.get("uploaded_image_name") != foto_subida.name:
+                    try:
+                        # Validar tamaño
+                        if foto_subida.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+                            st.session_state["upload_error"] = f"El archivo es muy grande ({foto_subida.size / 1024 / 1024:.1f}MB). Máximo {MAX_FILE_SIZE_MB}MB."
+                            st.session_state["uploaded_image_bytes"] = None
+                            st.session_state["uploaded_image_name"] = None
+                        else:
+                            # Leer y guardar bytes
+                            bytes_data = foto_subida.read()
+                            st.session_state["uploaded_image_bytes"] = bytes_data
+                            st.session_state["uploaded_image_name"] = foto_subida.name
+                            st.session_state["upload_error"] = None
+                            print(f"[UPLOAD V5.3] Imagen guardada: {foto_subida.name} ({len(bytes_data)} bytes, tipo: {foto_subida.type})")
+                            st.success(f"{E_OK} Imagen cargada: {foto_subida.name} ({len(bytes_data) / 1024:.0f} KB). Ahora escribe la instrucción abajo.")
+                    except Exception as e:
+                        st.session_state["upload_error"] = f"Error al procesar la imagen: {str(e)}"
+                        st.session_state["uploaded_image_bytes"] = None
+                        st.session_state["uploaded_image_name"] = None
+                        print(f"[UPLOAD ERROR V5.3] {e}")
+            else:
+                # Si el uploader está vacío, limpiar session_state
+                if st.session_state.get("uploaded_image_bytes") is not None:
+                    st.session_state["uploaded_image_bytes"] = None
+                    st.session_state["uploaded_image_name"] = None
 
             # --- FORMULARIO DE TEXTO (SIN clear_on_submit) ---
             with st.form("form_modificacion"):
@@ -302,20 +290,20 @@ def _renderizar_panel(pedido, sb):
                 btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa", type="primary", use_container_width=True)
                 
                 if btn_mod:
-                    if not instruccion.strip() and not st.session_state["uploaded_image_bytes"]:
+                    if not instruccion.strip() and not st.session_state.get("uploaded_image_bytes"):
                         st.warning("Escribe una instrucción o sube una foto antes de generar la vista previa.")
                     else:
                         html_previo = st.session_state.get("preview_html", "")
                         
                         foto_b64 = None
-                        if st.session_state["uploaded_image_bytes"]:
+                        if st.session_state.get("uploaded_image_bytes"):
                             try:
                                 base64_str = base64.b64encode(st.session_state["uploaded_image_bytes"]).decode("utf-8")
                                 foto_b64 = f"data:image/jpeg;base64,{base64_str}"
-                                print(f"[UPLOAD] Imagen convertida a base64: {len(base64_str)} caracteres")
+                                print(f"[UPLOAD V5.3] Imagen convertida a base64: {len(base64_str)} caracteres")
                             except Exception as e:
-                                st.error(f"{E_X} Error al procesar la imagen: {str(e)}")
-                                print(f"[UPLOAD ERROR] {e}")
+                                st.error(f"{E_X} Error al convertir la imagen: {str(e)}")
+                                print(f"[UPLOAD ERROR V5.3] {e}")
                                 foto_b64 = None
                             
                         with st.spinner("La IA esta aplicando los cambios..."):
@@ -327,10 +315,8 @@ def _renderizar_panel(pedido, sb):
                             st.session_state["uploaded_image_bytes"] = None
                             st.session_state["uploaded_image_name"] = None
                             st.success(msg)
-                            # No hacer rerun inmediato, dejar que el usuario vea el mensaje
                         else:
                             st.session_state["mensaje_error_ia"] = msg
-                            # No hacer rerun inmediato, dejar que el usuario vea el error
             
             # --- BOTON DE DESHACER ---
             if "html_anterior" in st.session_state and st.session_state["html_anterior"]:
