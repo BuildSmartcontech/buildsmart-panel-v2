@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V9.6 (INYECCIÓN EN HTML NUEVO)
+# APLICADOR DE CAMBIOS AL HTML - V9.7 (CONSTRUCTOR DE TARJETAS)
 # ============================================
 
 import re
@@ -61,6 +61,25 @@ def _buscar_elemento_tolerante(soup, selector):
         if texto_limpio in tag.get_text(strip=True).lower(): return [tag]
     return []
 
+def _construir_tarjeta_html(titulo, descripcion, caracteristicas, foto_b64=None):
+    """Construye el HTML de una tarjeta con los datos puros."""
+    img_src = foto_b64 if foto_b64 else "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop"
+    
+    html = f'<div class="card" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 30px; display: flex; flex-direction: column; height: 100%;">'
+    html += f'<img src="{img_src}" alt="{titulo}" style="width:100%; height:220px; object-fit:cover; border-radius:16px; margin-bottom:24px; display:block;">'
+    html += f'<h3 style="color:#14B8A6; font-size:1.4rem; margin-bottom:15px;">{titulo}</h3>'
+    html += f'<p style="color:#94A3B8; margin-bottom:20px;">{descripcion}</p>'
+    
+    if caracteristicas:
+        html += '<ul style="color:#94A3B8; margin-left:20px; margin-bottom:20px;">'
+        for car in caracteristicas:
+            html += f'<li style="margin-bottom:8px;">{car}</li>'
+        html += '</ul>'
+        
+    html += '<a href="#" style="display:inline-block; padding:12px 24px; background:#14B8A6; color:#0B0C14; text-decoration:none; border-radius:999px; font-weight:bold; margin-top:auto;">CONSULTA AHORA</a>'
+    html += '</div>'
+    return html
+
 def aplicar_cambios(html, operaciones, foto_b64=None):
     if not html:
         return {"exito": False, "html_nuevo": html, "error": "Sin HTML"}
@@ -106,13 +125,25 @@ def aplicar_cambios(html, operaciones, foto_b64=None):
                     break
                     
         elif accion == "insertar_html":
-            # Reemplazamos la foto en el HTML nuevo
             html_insertar = valor
             if foto_b64 and "{{FOTO_USUARIO}}" in html_insertar:
                 html_insertar = html_insertar.replace("{{FOTO_USUARIO}}", foto_b64)
                 
             for el in elementos:
                 fragmento = BeautifulSoup(html_insertar, 'html.parser')
+                el.append(fragmento)
+                cambios_reales += 1
+                break
+
+        elif accion == "crear_tarjeta":
+            titulo = op.get("titulo", "Producto Destacado")
+            descripcion = op.get("descripcion", "")
+            caracteristicas = op.get("caracteristicas", [])
+            
+            html_tarjeta = _construir_tarjeta_html(titulo, descripcion, caracteristicas, foto_b64)
+            
+            for el in elementos:
+                fragmento = BeautifulSoup(html_tarjeta, 'html.parser')
                 el.append(fragmento)
                 cambios_reales += 1
                 break

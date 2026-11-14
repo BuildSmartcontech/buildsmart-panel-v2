@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V10.6 (VISIÓN Y CREACIÓN DE TARJETAS)
+# PROMPTS DE CALIDAD V11.0 (DATOS PUROS)
 # ============================================
 
 import sys
@@ -25,8 +25,7 @@ def generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negoc
     if tiene_foto:
         regla_foto = """
 ## REGLA DE FOTO ADJUNTA:
-El usuario ha subido una foto. Para usarla en una imagen existente o en una tarjeta nueva, usa el valor `{{FOTO_USUARIO}}` en el `src`.
-Ejemplo: <img src="{{FOTO_USUARIO}}" alt="Foto del producto">
+El usuario ha subido una foto. Para usarla, usa el valor `{{FOTO_USUARIO}}` en el `src`.
 """
 
     prompt = f"""Eres un experto en manipulación de DOM con CSS y HTML.
@@ -38,7 +37,7 @@ El usuario ha pedido: "{instruccion}"
 {regla_foto}
 
 ## TU TAREA
-Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
+Devuelve un JSON con las operaciones a realizar.
 
 ## FORMATO (SOLO JSON):
 {{
@@ -50,8 +49,10 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
     }},
     {{
       "selector": "#sec-servicios",
-      "accion": "insertar_html",
-      "valor": "<div class='card'><img src='{{{{FOTO_USUARIO}}}}' alt='Nuevo'><h3>Nuevo Titulo</h3><p>Nueva descripcion</p></div>"
+      "accion": "crear_tarjeta",
+      "titulo": "Título del producto",
+      "descripcion": "Descripción persuasiva",
+      "caracteristicas": ["Característica 1", "Característica 2"]
     }},
     {{
       "selector": "body",
@@ -65,11 +66,10 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
 ## REGLAS CRÍTICAS:
 1. Devuelve SOLO JSON válido.
 2. Usa los selectores exactos del MAPA DE ANCLAS.
-3. Si el usuario pide "crear una nueva tarjeta" o "agregar un producto", usa la acción `insertar_html` con el selector `#sec-servicios`.
-4. El HTML de la nueva tarjeta DEBE tener esta estructura: `<div class="card"> [imagen] <h3>Título</h3> <p>Texto</p> </div>`.
-5. Si el usuario subió una foto, usa `{{FOTO_USUARIO}}` como valor del `src` de la imagen. Si no subió foto, usa una URL real de Unsplash.
-6. Si el usuario dice "el montacargas" o "la segunda tarjeta", BUSCA en el MAPA la imagen cuyo `alt` o `título_tarjeta` coincida y usa su selector.
-7. Si el usuario pide algo que no existe, devuelve una lista vacía `[]` y una explicación.
+3. Si el usuario pide "crear una nueva tarjeta" o "agregar un producto" o te da información de un producto, DEBES usar la acción `crear_tarjeta`. NO escribas HTML.
+4. Si el usuario subió una foto, el sistema ya la inyectará automáticamente. Solo devuelve los datos.
+5. Si el usuario dice "el montacargas" o "la segunda tarjeta", BUSCA en el MAPA la imagen cuyo `alt` o `título_tarjeta` coincida y usa su selector.
+6. Si el usuario pide algo que no existe, devuelve una lista vacía `[]` y una explicación.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt
