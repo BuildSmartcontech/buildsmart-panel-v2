@@ -1,4 +1,4 @@
-# backend/gateway.py - VERSION 9.3 (MODELOS 2026 VERIFICADOS)
+# backend/gateway.py - VERSION 9.4 (MODELOS GEMINI 3.1 VIGENTES)
 # ============================================
 
 import os
@@ -14,17 +14,18 @@ load_dotenv()
 # --- MODELOS ACTUALIZADOS Y VERIFICADOS (NOVIEMBRE 2026) ---
 MODELOS_OPENROUTER = [
     "nvidia/nemotron-3-super-120b-a12b:free",
-    "openrouter/free",  # Enrutador automático de OpenRouter
+    "openrouter/free",
 ]
 
 MODELOS_GROQ = [
-    "openai/gpt-oss-120b",   # Reemplazo oficial de los Llama retirados
-    "openai/gpt-oss-20b",    # Alternativa más rápida y ligera
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
 ]
 
+# Gemini 3.1 es la familia vigente con visión. gemini-2.5 ya no existe.
 MODELOS_GEMINI = [
-    "gemini-2.5-flash",      # Modelo vigente y estable
-    "gemini-2.5-pro",        # Mayor capacidad de razonamiento
+    "gemini-3.1-pro-preview",    # Visión + razonamiento
+    "gemini-3.1-flash-lite",     # Respaldo rápido
 ]
 
 TIMEOUT_API = 180
@@ -116,7 +117,6 @@ def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pe
     raise Exception(f"Ningun modelo de Gemini disponible. Ultimo error: {ultimo_error}")
 
 def analizar_imagen_gemini(foto_b64: str, prompt: str, pedido_id: str = "sin_id") -> str:
-    """Analiza una imagen usando Gemini Vision y devuelve texto descriptivo."""
     try:
         res = chat_gemini_directo(prompt, "Eres un experto en análisis visual.", temperature=0.1, pedido_id=pedido_id, foto_b64=foto_b64)
         return res if res else "Imagen sin descripción."

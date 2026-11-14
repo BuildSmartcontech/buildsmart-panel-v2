@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V11.4 (TODAS LAS ACCIONES)
+# PROMPTS DE CALIDAD V11.5 (VISIÓN + INSTRUCCIÓN)
 # ============================================
 
 import sys
@@ -25,10 +25,10 @@ def generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negoc
     if tiene_foto:
         regla_foto = """
 ## REGLA DE FOTO ADJUNTA (CRÍTICO):
-El usuario ha subido una imagen. DEBES analizarla. 
-1. Extrae el título real del producto (NO pongas "Nuevo Producto").
-2. Extrae todas las características técnicas, especificaciones o viñetas que veas en la imagen.
-3. Si la imagen tiene mucho texto, resume las 4 características más importantes.
+El usuario ha subido una imagen. DEBES analizarla.
+1. Lee el TEXTO REAL que aparece en la imagen (título del producto, especificaciones, viñetas, etc.).
+2. Combínalo con la instrucción escrita del usuario para formar el contenido.
+3. NO uses textos genéricos como "Nuevo Producto" o "Alta calidad".
 4. Usa el valor `{{FOTO_USUARIO}}` en el `src` de la imagen.
 """
 
@@ -45,7 +45,7 @@ Devuelve un JSON con las operaciones a realizar.
 
 ## ACCIONES PERMITIDAS (USA EXACTAMENTE ESTOS NOMBRES):
 1. "cambiar_texto": Modifica el texto de un elemento. (Necesita: selector, accion, valor).
-2. "cambiar_css": Modifica los estilos visuales de un elemento. (Necesita: selector, accion, valor). 
+2. "cambiar_css": Modifica los estilos visuales de un elemento. (Necesita: selector, accion, valor).
    * EJEMPLO FONDO: Si el usuario pide cambiar el fondo, usa selector "body" y valor "background-color: #0a192f !important; color: #ffffff !important;".
 3. "cambiar_atributo": Modifica un atributo (ej. src, href). (Necesita: selector, accion, atributo, valor).
 4. "insertar_html": Inserta código HTML dentro de un elemento. (Necesita: selector, accion, valor).
@@ -57,24 +57,21 @@ Devuelve un JSON con las operaciones a realizar.
 {{
   "operaciones": [
     {{
-      "selector": "#sec-hero",
-      "accion": "cambiar_texto",
-      "valor": "Nuevo título de la web"
-    }},
-    {{
-      "selector": "body",
-      "accion": "cambiar_css",
-      "valor": "background-color: #0a192f !important; color: #ffffff !important;"
+      "selector": "#sec-servicios",
+      "accion": "crear_tarjeta",
+      "titulo": "Título exacto extraído de la imagen o instrucción",
+      "descripcion": "Descripción persuasiva del producto",
+      "caracteristicas": ["Especificación 1", "Especificación 2", "Especificación 3"]
     }}
   ],
-  "explicacion": "Cambié el título y el fondo a azul oscuro."
+  "explicacion": "Creé la tarjeta con la información extraída."
 }}
 
 ## REGLAS CRÍTICAS (SI NO LAS CUMPLES, FALLAS):
 1. **TU RESPUESTA DEBE SER EXCLUSIVAMENTE EL JSON.** NO uses bloques de código markdown (```json). NO escribas "Aquí tienes el JSON". Solo empieza con {{ y termina con }}.
-2. Usa los selectores exactos del MAPA DE ANCLAS. Si el usuario pide cambiar el fondo general, usa el selector "body".
+2. Usa los selectores exactos del MAPA DE ANCLAS.
 3. Si el usuario pide crear una tarjeta o te da información de un producto, DEBES usar la acción `crear_tarjeta`.
-4. **EXTRACCIÓN PROFUNDA:** Si hay una imagen adjunta, analízala. NO uses textos genéricos como "Alta calidad". Lee la imagen y escribe las especificaciones reales.
+4. **EXTRACCIÓN PROFUNDA:** Si hay una imagen adjunta, analízala. Lee el texto real de la imagen y combínalo con la instrucción del usuario. NO uses textos genéricos.
 5. Si el usuario pide algo que no existe, devuelve una lista vacía `[]` y una explicación.
 
 ## RESPUESTA (SOLO JSON):"""
