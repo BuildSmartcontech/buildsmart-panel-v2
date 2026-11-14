@@ -1,6 +1,6 @@
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - V5.5 (FIX BORRADO DE IMAGEN)
+# MINI-PANEL DEL CLIENTE - V6.0 (UPLOADER DENTRO DEL FORM)
 # ============================================
 
 import streamlit as st
@@ -232,90 +232,52 @@ def _renderizar_panel(pedido, sb):
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             
-            # --- SUBIR FOTO (V5.5 - SIN EL ELSE DESTRUCTIVO) ---
-            st.markdown("**Opcional: Sube una captura o foto de tu producto (Esto cuenta como un cambio)**")
-            
-            if "uploaded_image_bytes" not in st.session_state:
-                st.session_state["uploaded_image_bytes"] = None
-            if "uploaded_image_name" not in st.session_state:
-                st.session_state["uploaded_image_name"] = None
-            if "upload_error" not in st.session_state:
-                st.session_state["upload_error"] = None
-            
-            foto_subida = st.file_uploader(
-                "Sube tu imagen aquí", 
-                type=["jpg", "jpeg", "png"], 
-                key="editor_foto_v5", 
-                label_visibility="collapsed"
-            )
-            
-            if foto_subida is not None:
-                if st.session_state.get("uploaded_image_name") != foto_subida.name:
-                    try:
-                        if foto_subida.size > MAX_FILE_SIZE_MB * 1024 * 1024:
-                            st.session_state["upload_error"] = f"El archivo es muy grande ({foto_subida.size / 1024 / 1024:.1f}MB). Máximo {MAX_FILE_SIZE_MB}MB."
-                            st.session_state["uploaded_image_bytes"] = None
-                            st.session_state["uploaded_image_name"] = None
-                        else:
-                            bytes_data = foto_subida.read()
-                            st.session_state["uploaded_image_bytes"] = bytes_data
-                            st.session_state["uploaded_image_name"] = foto_subida.name
-                            st.session_state["upload_error"] = None
-                            print(f"[UPLOAD V5.5] Imagen guardada: {foto_subida.name} ({len(bytes_data)} bytes, tipo: {foto_subida.type})")
-                    except Exception as e:
-                        st.session_state["upload_error"] = f"Error al procesar la imagen: {str(e)}"
-                        st.session_state["uploaded_image_bytes"] = None
-                        st.session_state["uploaded_image_name"] = None
-                        print(f"[UPLOAD ERROR V5.5] {e}")
-            # ¡AQUÍ ESTABA EL ERROR! He eliminado el 'else:' que borraba la foto al hacer micro-recargas.
-
-            # --- BOTÓN PARA BORRAR LA FOTO (OPCIONAL) ---
-            if st.session_state.get("uploaded_image_bytes"):
-                if st.button("❌ Borrar imagen cargada", use_container_width=True):
-                    st.session_state["uploaded_image_bytes"] = None
-                    st.session_state["uploaded_image_name"] = None
-                    st.session_state["upload_error"] = None
-                    st.rerun()
-
-            # --- MENSAJES PERSISTENTES (SIEMPRE VISIBLES HAYA RERUN O NO) ---
-            if st.session_state.get("upload_error"):
-                st.error(f"{E_X} {st.session_state['upload_error']}")
-            elif st.session_state.get("uploaded_image_bytes"):
-                kb = len(st.session_state["uploaded_image_bytes"]) / 1024
-                st.success(f"{E_OK} Imagen cargada: {st.session_state['uploaded_image_name']} ({kb:.0f} KB). La IA la leerá al pulsar Generar Vista Previa.")
-
-            # --- FORMULARIO DE TEXTO (SIN clear_on_submit) ---
+            # --- FORMULARIO UNIFICADO (TEXTO + FOTO) ---
             with st.form("form_modificacion"):
                 instruccion = st.text_area("Escribe lo que quieres cambiar aquí:", placeholder="Ej: Crea una nueva tarjeta con la información de esta imagen.", height=100)
+                
+                st.markdown("**Opcional: Sube una captura o foto de tu producto (Esto cuenta como un cambio)**")
+                foto_subida = st.file_uploader(
+                    "Sube tu imagen aquí", 
+                    type=["jpg", "jpeg", "png"], 
+                    key="editor_foto_v6", 
+                    label_visibility="collapsed"
+                )
+                
                 btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa", type="primary", use_container_width=True)
                 
                 if btn_mod:
-                    if not instruccion.strip() and not st.session_state.get("uploaded_image_bytes"):
+                    if not instruccion.strip() and not foto_subida:
                         st.warning("Escribe una instrucción o sube una foto antes de generar la vista previa.")
                     else:
                         html_previo = st.session_state.get("preview_html", "")
                         
                         foto_b64 = None
-                        if st.session_state.get("uploaded_image_bytes"):
+                        if foto_subida:
                             try:
-                                base64_str = base64.b64encode(st.session_state["uploaded_image_bytes"]).decode("utf-8")
-                                foto_b64 = f"data:image/jpeg;base64,{base64_str}"
-                                print(f"[UPLOAD V5.5] Imagen convertida a base64: {len(base64_str)} caracteres")
+                                if foto_subida.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+                                    st.error(f"{E_X} La imagen supera los {MAX_FILE_SIZE_MB}MB.")
+                                else:
+                                    bytes_data = foto_subida.read()
+                                    base64_str = base64.b64encode(bytes_data).decode("utf-8")
+                                    foto_b64 = f"data:image/jpeg;base64,{base64_str}"
+                                    print(f"[UPLOAD V6.0] Imagen convertida: {foto_subida.name} ({len(base64_str)} chars)")
                             except Exception as e:
-                                st.error(f"{E_X} Error al convertir la imagen: {str(e)}")
+                                st.error(f"{E_X} Error leyendo la imagen: {str(e)}")
                                 foto_b64 = None
                             
-                        with st.spinner("La IA esta aplicando los cambios..."):
-                            exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion, foto_b64)
-                        
-                        if exito:
-                            st.session_state["html_anterior"] = html_previo
-                            st.session_state["preview_html"] = html_nuevo
-                            st.session_state["uploaded_image_bytes"] = None
-                            st.session_state["uploaded_image_name"] = None
-                            st.success(msg)
-                        else:
-                            st.session_state["mensaje_error_ia"] = msg
+                        if foto_b64 or instruccion.strip():
+                            with st.spinner("La IA esta aplicando los cambios..."):
+                                exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion, foto_b64)
+                            
+                            if exito:
+                                st.session_state["html_anterior"] = html_previo
+                                st.session_state["preview_html"] = html_nuevo
+                                st.success(msg)
+                                st.rerun()
+                            else:
+                                st.session_state["mensaje_error_ia"] = msg
+                                st.rerun()
             
             # --- BOTON DE DESHACER ---
             if "html_anterior" in st.session_state and st.session_state["html_anterior"]:
