@@ -1,6 +1,6 @@
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - V5.0 (UPLOAD CORREGIDO)
+# MINI-PANEL DEL CLIENTE - V5.1 (UPLOAD BLINDADO)
 # ============================================
 
 import streamlit as st
@@ -231,11 +231,19 @@ def _renderizar_panel(pedido, sb):
         if restantes > 0:
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             
-            # --- BOTON DE SUBIR FOTO (FUERA DEL FORMULARIO) ---
-            st.markdown("**Opcional: Sube una captura o foto de tu producto/producto (Esto cuenta como un cambio)**")
-            foto_subida = st.file_uploader("Sube tu imagen aquí", type=["jpg", "png", "jpeg"], key="editor_foto", label_visibility="collapsed")
+            # --- BOTON DE SUBIR FOTO (BLINDADO CON SESSION STATE) ---
+            st.markdown("**Opcional: Sube una captura o foto de tu producto (Esto cuenta como un cambio)**")
+            
+            if "uploaded_image" not in st.session_state:
+                st.session_state["uploaded_image"] = None
+                
+            foto_subida = st.file_uploader("Sube tu imagen aquí", type=["jpg", "jpeg", "png"], key="editor_foto_v2", label_visibility="collapsed")
+            
             if foto_subida:
-                st.success(f"✅ Imagen cargada: {foto_subida.name}. Ahora escribe la instrucción abajo.")
+                st.session_state["uploaded_image"] = foto_subida
+                
+            if st.session_state["uploaded_image"]:
+                st.success(f"✅ Imagen cargada: {st.session_state['uploaded_image'].name}. Ahora escribe la instrucción abajo.")
 
             # --- FORMULARIO DE TEXTO ---
             with st.form("form_modificacion", clear_on_submit=True):
@@ -243,16 +251,17 @@ def _renderizar_panel(pedido, sb):
                 btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa", type="primary", use_container_width=True)
                 
                 if btn_mod:
-                    if not instruccion.strip() and not foto_subida:
+                    if not instruccion.strip() and not st.session_state["uploaded_image"]:
                         st.warning("Escribe una instrucción o sube una foto antes de generar la vista previa.")
                     else:
                         html_previo = st.session_state.get("preview_html", "")
                         
                         foto_b64 = None
-                        if foto_subida:
-                            bytes_data = foto_subida.read()
+                        if st.session_state["uploaded_image"]:
+                            bytes_data = st.session_state["uploaded_image"].read()
                             base64_str = base64.b64encode(bytes_data).decode("utf-8")
-                            foto_b64 = f"data:{foto_subida.type};base64,{base64_str}"
+                            foto_b64 = f"data:image/jpeg;base64,{base64_str}"
+                            st.session_state["uploaded_image"].seek(0) # Reset pointer
                             
                         with st.spinner("La IA esta aplicando los cambios..."):
                             exito, msg, html_nuevo = _solicitar_modificacion(sb, pedido, instruccion, foto_b64)
@@ -260,6 +269,7 @@ def _renderizar_panel(pedido, sb):
                         if exito:
                             st.session_state["html_anterior"] = html_previo
                             st.session_state["preview_html"] = html_nuevo
+                            st.session_state["uploaded_image"] = None # Limpiar foto tras exito
                             st.success(msg)
                             st.rerun()
                         else:
