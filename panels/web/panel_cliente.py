@@ -1,6 +1,6 @@
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - V5.2 (UPLOAD CON BYTES)
+# MINI-PANEL DEL CLIENTE - V5.2 (UPLOAD CON BYTES Y CALLBACK)
 # ============================================
 
 import streamlit as st
@@ -132,8 +132,9 @@ def _procesar_retorno_pago(sb, pedido_id, paquete):
         return False
 
 def _callback_subir_imagen():
-    """Callback que se ejecuta cuando el usuario sube una imagen."""
+    """Callback que se ejecuta inmediatamente cuando el usuario sube una imagen."""
     uploaded_file = st.session_state.get("editor_foto_v3")
+    
     if uploaded_file is None:
         st.session_state["uploaded_image_bytes"] = None
         st.session_state["uploaded_image_name"] = None
@@ -159,7 +160,7 @@ def _callback_subir_imagen():
         st.session_state["uploaded_image_bytes"] = bytes_data
         st.session_state["uploaded_image_name"] = uploaded_file.name
         st.session_state["upload_error"] = None
-        print(f"[UPLOAD] Imagen guardada: {uploaded_file.name} ({len(bytes_data)} bytes)")
+        print(f"[UPLOAD] Imagen guardada en memoria: {uploaded_file.name} ({len(bytes_data)} bytes)")
     except Exception as e:
         st.session_state["uploaded_image_bytes"] = None
         st.session_state["uploaded_image_name"] = None
