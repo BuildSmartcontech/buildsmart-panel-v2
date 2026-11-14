@@ -1,6 +1,6 @@
 # utils/web_editor_v2.py
 # ============================================
-# EDITOR DE WEBS - V5.3 (SOPORTE DE IMÁGENES)
+# EDITOR DE WEBS - V5.5 (MAPA CONTEXTUAL)
 # ============================================
 
 import os
@@ -31,18 +31,29 @@ def extraer_mapa_anclas(html):
     soup = BeautifulSoup(html, 'html.parser')
     anclas = []
     
+    # 1. Secciones con ID
     for sec in soup.find_all('section'):
         sec_id = sec.get('id', '')
         if sec_id:
             texto = sec.get_text(strip=True)[:50]
             anclas.append(f"- Sección [{sec_id}]: \"{texto}...\"")
             
+    # 2. Imágenes con contexto (Sin importar cuántas haya)
     for img in soup.find_all('img'):
         data_img = img.get('data-img', '')
         if data_img:
             alt = img.get('alt', 'sin alt')
-            anclas.append(f"- Imagen [{data_img}]: alt=\"{alt}\", selector=\"img[data-img='{data_img}']\"")
+            # Buscamos si está dentro de una tarjeta para darle el título
+            titulo_tarjeta = ""
+            parent = img.find_parent('div')
+            if parent:
+                h3 = parent.find(['h3', 'h4', 'h2'])
+                if h3: titulo_tarjeta = h3.get_text(strip=True)
             
+            contexto = f"título_tarjeta=\"{titulo_tarjeta}\"" if titulo_tarjeta else ""
+            anclas.append(f"- Imagen [{data_img}]: alt=\"{alt}\", {contexto}, selector=\"img[data-img='{data_img}']\"")
+            
+    # 3. Nav y Footer
     if soup.find('nav'): anclas.append("- Sección [nav]: Menú superior, selector=\"nav\"")
     if soup.find('footer'): anclas.append("- Sección [footer]: Pie de página, selector=\"footer\"")
         
@@ -92,7 +103,6 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             resultado_patcher = aplicar_cambios(html_actual, data["operaciones"], foto_b64)
             
             if not resultado_patcher["exito"]:
-                # Si falla, guardamos el mensaje de error explicativo
                 return {"exito": False, "error": resultado_patcher["error"]}
 
             return {
@@ -105,7 +115,7 @@ def editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio="", html_act
             print(f"Error en intento {intento}: {e}")
             time.sleep(TIEMPO_ESPERA)
 
-    return {"exito": False, "error": "La IA no pudo procesar la orden. Intenta ser más específico (ej: 'En la sección de servicios...')."}
+    return {"exito": False, "error": "La IA no pudo procesar la orden. Intenta ser más específico (ej: 'En la sección de Servicios...')."}
 
 def editar_y_guardar_v2(usuario_id, web_id, instruccion, contexto_negocio="", foto_b64=None):
     resultado = editar_web_v2(usuario_id, web_id, instruccion, contexto_negocio, foto_b64=foto_b64)

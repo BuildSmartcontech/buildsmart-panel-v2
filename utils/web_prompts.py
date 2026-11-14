@@ -1,6 +1,6 @@
 # utils/web_prompts.py
 # ============================================
-# PROMPTS DE CALIDAD V10.4 (SOPORTE DE FOTO Y MENSAJES CLAROS)
+# PROMPTS DE CALIDAD V10.5 (MAPA CONTEXTUAL)
 # ============================================
 
 import sys
@@ -26,7 +26,7 @@ def generar_prompt_edicion_estructurada(mapa_anclas, instruccion, contexto_negoc
         regla_foto = """
 ## REGLA DE FOTO ADJUNTA:
 El usuario ha subido una foto. Para usarla, usa el valor `{{FOTO_USUARIO}}` en el `src` de la imagen que quieras reemplazar.
-Ejemplo: {"selector": "img[data-img='servicio-1']", "accion": "cambiar_atributo", "atributo": "src", "valor": "{{FOTO_USUARIO}}"}
+Ejemplo: {"selector": "img[data-img='servicio-2']", "accion": "cambiar_atributo", "atributo": "src", "valor": "{{FOTO_USUARIO}}"}
 """
 
     prompt = f"""Eres un experto en manipulación de DOM con CSS y HTML.
@@ -49,10 +49,10 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
       "valor": "Nuevo texto"
     }},
     {{
-      "selector": "img[data-img='servicio-1']",
+      "selector": "img[data-img='servicio-2']",
       "accion": "cambiar_atributo",
       "atributo": "src",
-      "valor": "{{NUEVA_IMAGEN}}"  // O usa {{FOTO_USUARIO}} si el usuario subió una foto.
+      "valor": "{{FOTO_USUARIO}}"
     }},
     {{
       "selector": "body",
@@ -65,10 +65,10 @@ Devuelve un JSON con las operaciones a realizar sobre las anclas de la web.
 
 ## REGLAS CRÍTICAS:
 1. Devuelve SOLO JSON válido.
-2. Usa los selectores exactos del MAPA DE ANCLAS.
-3. Si el usuario pide cambiar una foto y NO subió una, usa `{{NUEVA_IMAGEN}}`.
-4. Si el usuario pide cambiar una foto y SÍ subió una, usa `{{FOTO_USUARIO}}`.
-5. Si el usuario pide un cambio que no puedes hacer (ej: una sección que no existe), devuelve `{{"operaciones": [], "explicacion": "Explicación de por qué no se puede hacer"}}`.
+2. Usa los selectores exactos del MAPA DE ANCLAS (ej: `img[data-img='servicio-1']`).
+3. Si el usuario dice "el montacargas" o "la segunda tarjeta", BUSCA en el MAPA la imagen cuyo `alt` o `título_tarjeta` coincida con esa descripción y usa su selector exacto.
+4. Si el usuario subió una foto, usa `{{FOTO_USUARIO}}` como valor. Si no subió foto, usa `{{NUEVA_IMAGEN}}` para buscar una en Unsplash.
+5. Si el usuario pide algo que no existe en el mapa, devuelve una lista vacía `[]` y una explicación.
 
 ## RESPUESTA (SOLO JSON):"""
     return prompt

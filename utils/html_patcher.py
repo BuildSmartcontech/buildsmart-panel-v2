@@ -1,6 +1,6 @@
 # utils/html_patcher.py
 # ============================================
-# APLICADOR DE CAMBIOS AL HTML - V9.3 (INYECCIÓN DE FOTO Y MENSAJES CLAROS)
+# APLICADOR DE CAMBIOS AL HTML - V9.4 (BÚSQUEDA POR TEXTO Y FOTO)
 # ============================================
 
 import re
@@ -38,10 +38,14 @@ def _reparar_imagenes_rotas(soup):
     return cambios
 
 def _buscar_elemento_tolerante(soup, selector):
+    # 1. Búsqueda exacta
     elementos = soup.select(selector)
     if elementos: return elementos
+    
+    # 2. Búsqueda por texto (Fallback si la IA inventó un selector)
     texto_limpio = selector.replace("#", "").replace(".", "").replace("sec-", "").replace("-", " ").strip().lower()
     if not texto_limpio: return []
+    
     sinonimos = {
         "hero": ["hero", "inicio", "bienvenido", "descubre"],
         "contacto": ["contacto", "contactanos", "formulario", "email"],
@@ -52,13 +56,16 @@ def _buscar_elemento_tolerante(soup, selector):
         "nav": ["inicio", "menu", "navegacion"],
         "footer": ["derechos", "reservados", "privacidad"]
     }
+    
     for key, palabras in sinonimos.items():
         if key in texto_limpio or any(p in texto_limpio for p in palabras):
             for tag in soup.find_all(['section', 'div', 'nav', 'footer']):
                 contenido = tag.get_text(strip=True).lower()
                 if any(p in contenido for p in palabras): return [tag]
+
     for tag in soup.find_all(['section', 'div']):
         if texto_limpio in tag.get_text(strip=True).lower(): return [tag]
+
     return []
 
 def aplicar_cambios(html, operaciones, foto_b64=None):
@@ -83,6 +90,7 @@ def aplicar_cambios(html, operaciones, foto_b64=None):
         if "svg" in selector.lower() or "map" in selector.lower() or "icon" in selector.lower():
             continue
 
+        # Búsqueda inteligente
         elementos = _buscar_elemento_tolerante(soup, selector)
         if not elementos:
             errores_acumulados.append(f"No encontré el elemento '{selector}' en la web.")
@@ -98,7 +106,6 @@ def aplicar_cambios(html, operaciones, foto_b64=None):
             atributo = op.get("atributo", "")
             if atributo and atributo.lower() != "style":
                 for el in elementos:
-                    # LÓGICA DE INYECCIÓN DE FOTO
                     if valor == "{{FOTO_USUARIO}}" and foto_b64:
                         el[atributo] = foto_b64
                     else:

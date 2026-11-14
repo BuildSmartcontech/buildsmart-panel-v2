@@ -1,6 +1,6 @@
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - V4.8 (UPLOAD DE FOTOS Y MENSAJES CLAROS)
+# MINI-PANEL DEL CLIENTE - V4.9 (ESTABLE)
 # ============================================
 
 import streamlit as st
@@ -231,7 +231,7 @@ def _renderizar_panel(pedido, sb):
             st.info(f"Tienes **{restantes}** modificaciones disponibles.")
             
             with st.form("form_modificacion", clear_on_submit=True):
-                instruccion = st.text_area("Escribe lo que quieres cambiar aquí:", placeholder="Ej: Cambia el título principal a 'Mi Nuevo Titulo'.", height=100)
+                instruccion = st.text_area("Escribe lo que quieres cambiar aquí:", placeholder="Ej: Pon esta foto en la tarjeta del montacargas.", height=100)
                 foto_subida = st.file_uploader("Opcional: Sube una foto para tu web (Esto también cuenta como un cambio)", type=["jpg", "png", "jpeg"], key="editor_foto")
                 
                 btn_mod = st.form_submit_button(f"{E_COHETE} Generar Vista Previa", type="primary", use_container_width=True)
