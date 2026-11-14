@@ -1,4 +1,4 @@
-# backend/gateway.py - VERSION 9.2 (MODELOS ACTUALIZADOS)
+# backend/gateway.py - VERSION 9.3 (MODELOS 2026 VERIFICADOS)
 # ============================================
 
 import os
@@ -11,20 +11,20 @@ from utils.ai_usage_monitor import verificar_limite, registrar_consumo
 
 load_dotenv()
 
-# MODELOS ACTUALIZADOS Y VIGENTES
+# --- MODELOS ACTUALIZADOS Y VERIFICADOS (NOVIEMBRE 2026) ---
 MODELOS_OPENROUTER = [
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "google/gemini-flash-1.5:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "openrouter/free",  # Enrutador automático de OpenRouter
 ]
 
 MODELOS_GROQ = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
+    "openai/gpt-oss-120b",   # Reemplazo oficial de los Llama retirados
+    "openai/gpt-oss-20b",    # Alternativa más rápida y ligera
 ]
 
 MODELOS_GEMINI = [
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
+    "gemini-2.5-flash",      # Modelo vigente y estable
+    "gemini-2.5-pro",        # Mayor capacidad de razonamiento
 ]
 
 TIMEOUT_API = 180
@@ -45,8 +45,10 @@ def chat_openrouter(mensaje: str, sistema: str, temperature: float = 0.7, pedido
                     res = response.json()['choices'][0]['message']['content']
                     registrar_consumo(pedido_id, "openrouter", mensaje, res)
                     return res
-                elif response.status_code == 429: time.sleep(3); continue
-                else: print(f"[OPENROUTER] {modelo} fallo: {response.status_code}")
+                elif response.status_code == 429: 
+                    time.sleep(3); continue
+                else:
+                    print(f"[OPENROUTER] {modelo} fallo: {response.status_code}")
         except Exception as e: 
             print(f"[OPENROUTER ERROR] {e}")
             continue
@@ -68,8 +70,10 @@ def chat_groq_directo(mensaje: str, sistema: str, temperature: float = 0.7, pedi
                     res = response.json()['choices'][0]['message']['content']
                     registrar_consumo(pedido_id, "groq", mensaje, res)
                     return res
-                elif response.status_code == 429: time.sleep(3); continue
-                else: print(f"[GROQ] {modelo} fallo: {response.status_code}")
+                elif response.status_code == 429: 
+                    time.sleep(3); continue
+                else:
+                    print(f"[GROQ] {modelo} fallo: {response.status_code}")
         except Exception as e: 
             print(f"[GROQ ERROR] {e}")
             continue
@@ -112,6 +116,7 @@ def chat_gemini_directo(mensaje: str, sistema: str, temperature: float = 0.7, pe
     raise Exception(f"Ningun modelo de Gemini disponible. Ultimo error: {ultimo_error}")
 
 def analizar_imagen_gemini(foto_b64: str, prompt: str, pedido_id: str = "sin_id") -> str:
+    """Analiza una imagen usando Gemini Vision y devuelve texto descriptivo."""
     try:
         res = chat_gemini_directo(prompt, "Eres un experto en análisis visual.", temperature=0.1, pedido_id=pedido_id, foto_b64=foto_b64)
         return res if res else "Imagen sin descripción."
