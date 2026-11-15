@@ -1,12 +1,14 @@
 # panels/web/panel_cliente.py
 # ============================================
-# MINI-PANEL DEL CLIENTE - V6.2 (UPLOADER SIN CALLBACK)
+# MINI-PANEL DEL CLIENTE - V6.3 (OPTIMIZACION DE IMAGENES)
 # ============================================
 
 import streamlit as st
 import datetime
 import base64
+import io
 import streamlit.components.v1 as components
+from PIL import Image
 from panels.web import landing_data as D
 
 E_OK        = "\u2705"
@@ -257,20 +259,34 @@ def _renderizar_panel(pedido, sb):
                     st.session_state["upload_key"] += 1 # Esto reinicia visualmente el botón de subir
                     st.rerun()
 
-            # Lógica para guardar la imagen
+            # Lógica para guardar la imagen (CON OPTIMIZACIÓN PILLOW)
             if foto_subida is not None:
                 if st.session_state.get("uploaded_image_name") != foto_subida.name:
                     if foto_subida.size > MAX_FILE_SIZE_MB * 1024 * 1024:
                         st.error(f"{E_X} La imagen supera los {MAX_FILE_SIZE_MB}MB.")
                     else:
-                        st.session_state["uploaded_image_bytes"] = foto_subida.getvalue()
-                        st.session_state["uploaded_image_name"] = foto_subida.name
-                        st.rerun() # Forzamos recarga para mostrar el mensaje verde inmediatamente
+                        try:
+                            # OPTIMIZACIÓN: Redimensionar antes de guardar en memoria
+                            img = Image.open(foto_subida)
+                            if img.width > 800:
+                                ratio = 800 / img.width
+                                new_size = (800, int(img.height * ratio))
+                                img = img.resize(new_size, Image.Resampling.LANCZOS)
+                            
+                            buffer = io.BytesIO()
+                            img.convert("RGB").save(buffer, format="JPEG", quality=85)
+                            bytes_data = buffer.getvalue()
+                            
+                            st.session_state["uploaded_image_bytes"] = bytes_data
+                            st.session_state["uploaded_image_name"] = foto_subida.name
+                            st.rerun() # Forzamos recarga para mostrar el mensaje verde inmediatamente
+                        except Exception as e:
+                            st.error(f"{E_X} Error procesando la imagen: {str(e)}")
 
             # Mensaje persistente
             if st.session_state.get("uploaded_image_bytes"):
                 kb = len(st.session_state["uploaded_image_bytes"]) / 1024
-                st.success(f"{E_OK} Imagen cargada: {st.session_state['uploaded_image_name']} ({kb:.0f} KB).")
+                st.success(f"{E_OK} Imagen cargada y optimizada: {st.session_state['uploaded_image_name']} ({kb:.0f} KB).")
 
             # --- FORMULARIO SOLO CON TEXTO ---
             with st.form("form_modificacion"):
@@ -304,7 +320,7 @@ def _renderizar_panel(pedido, sb):
                             if exito:
                                 st.session_state["html_anterior"] = html_previo
                                 st.session_state["preview_html"] = html_nuevo
-                                # Limpiar imagen tras éxito
+                                # Limpiar imagen tras éxito para liberar memoria RAM
                                 st.session_state["uploaded_image_bytes"] = None
                                 st.session_state["uploaded_image_name"] = None
                                 st.session_state["upload_key"] += 1
